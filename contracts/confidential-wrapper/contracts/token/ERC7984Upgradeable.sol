@@ -27,10 +27,9 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
  * - Support for operators (delegated transfer capabilities with time bounds)
  * - Transfer and call pattern
  * - Safe overflow/underflow handling for FHE operations
- * @custom:security-contact contact@zaiffer.org
  */
 abstract contract ERC7984Upgradeable is Initializable, ContextUpgradeable, IERC7984, ERC165 {
-    /// @custom:storage-location erc7201:zaiffer.storage.ERC7984
+    /// @custom:storage-location erc7201:fhevm_protocol.storage.ERC7984Upgradeable
     struct ERC7984Storage {
         mapping(address holder => euint64 balance) _balances;
         mapping(address holder => mapping(address operator => uint48 validUntilTimestamp)) _operators;
@@ -62,12 +61,15 @@ abstract contract ERC7984Upgradeable is Initializable, ContextUpgradeable, IERC7
      */
     error ERC7984UnauthorizedUseOfEncryptedAmount(euint64 amount, address user);
 
+    /// @dev The given caller `caller` is not authorized for the current operation.
+    error ERC7984UnauthorizedCaller(address caller);
+
     /// @dev The given gateway request ID `requestId` is invalid.
     error ERC7984InvalidGatewayRequest(uint256 requestId);
 
-    // keccak256(abi.encode(uint256(keccak256("zaiffer.storage.ERC7984")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ERC7984Upgradeable")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant ERC7984StorageLocation =
-        0xd12b0a7bdf03cc96abdbbaf7f50ef0849fae327c4a79f7c69a7a543c83e24100;
+        0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
 
     function _getERC7984Storage() internal pure returns (ERC7984Storage storage $) {
         assembly {
