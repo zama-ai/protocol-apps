@@ -13,7 +13,7 @@ Anyone can stake on the protocol, but only the elected operators are granted fee
 
 The hierarchy is deployed once for each operator role in the protocol, meaning that there is one protocol staking contract for coprocessors and one for KMS nodes, and likewise a set of operator staking contracts for coprocessors and a set for KMS nodes. These hierarchies are disjunct and unconnected. If an operator is operating as both a coprocessor and a KMS node, then that operator has two operator staking contracts that independent stake on the coprocessor protocol staking contract and on the KMS protocol staking contract.
 
-{% hint style='success' %}
+{% hint style="success" %}
 All staking happens on **Ethereum**. Only non-confidential $ZAMA is supported for now.
 {% endhint %}
 
@@ -21,7 +21,7 @@ All staking happens on **Ethereum**. Only non-confidential $ZAMA is supported fo
 
 Each operator is expected to have an `OPERATOR` address that will be used as the owner of their staking contract(s). Below we explain other uses of it, some of which are somewhat frequent. We recommend to use a hardware or multisig wallet following best practices, even if this makes its use more cumbersome. Concretely, it may take the form of a hardware, multisig, or MPC solution.
 
-{% hint style='warning' %}
+{% hint style="warning" %}
 The wallet will be used frequently, say at least weekly but potentially even daily, and it must be funded on Ethereum.
 {% endhint %}
 
@@ -29,10 +29,10 @@ The wallet will be used frequently, say at least weekly but potentially even dai
 
 There are two instances of the [`ProtocolStaking` contract](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/ProtocolStaking.sol) already deployed: one for coprocessors and one for KMS nodes, with addresses `PROTOCOL_STAKING_COPROCESSOR` and `PROTOCOL_STAKING_KMS` as shown in the table below. Both are owned by protocol governance.
 
-|                                | Mainnet              | Testnet  |
-| ------------------------------ | -------------------- | -------- |
-| `PROTOCOL_STAKING_COPROCESSOR` | (coming)             | (coming) |
-| `PROTOCOL_STAKING_KMS`         | (coming)             | (coming) |
+|                                | Mainnet  | Testnet  |
+| ------------------------------ | -------- | -------- |
+| `PROTOCOL_STAKING_COPROCESSOR` | (coming) | (coming) |
+| `PROTOCOL_STAKING_KMS`         | (coming) | (coming) |
 
 Operators may deploy their own copy of the [`OperatorStaking` contract](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/OperatorStaking.sol) (for each role they have), or ask Zama to deploy for them. In either case, the address of the `ProtocolStaking` contract for the corresponding role is passed in the constructor, as well as specifying `OPERATOR` as the owner. This automatically deploys an associated [`OperatorRewarder` contract](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/OperatorRewarder.sol) that is used for paying out fees and rewards, which may be accessed using the `OperatorStaking.rewarder()` getter. Let `OPERATOR_STAKING` and `OPERATOR_REWARDER` be the address of the deployed contracts.
 
@@ -59,9 +59,11 @@ flowchart BT
 
 As shown in the diagram above, token holders may choose to delegate to multiple operators at the same time.
 
-The diagram below shows the shares being given in return. $stZAMA_OP-1 and $stZAMA_OP-2 are different liquid tokens. $stZAMA is _not_ liquid.
+The diagram below shows the shares being given in return. $stZAMA\_OP-1 and $stZAMA\_OP-2 are different liquid tokens. $stZAMA is _not_ liquid.
 
 ```mermaid
+
+
 flowchart TB
 
     ProtocolStaking -. $stZAMA .-> OperatorStaking-1
@@ -84,9 +86,10 @@ For now, becoming eligible is a manual process coordinated on Slack, ending with
 
 ## Fees and rewards
 
-Eligible operators and their delegators may claim fees and rewards. Only operators can claim their own fees, while anyone can claim rewards for anyone. At a high level, the fees and rewards are distributed as shown in the diagram below. Note that operators collect both fees *and* rewards (assuming they have delegated on themselves).
+Eligible operators and their delegators may claim fees and rewards. Only operators can claim their own fees, while anyone can claim rewards for anyone. At a high level, the fees and rewards are distributed as shown in the diagram below. Note that operators collect both fees _and_ rewards (assuming they have delegated on themselves).
 
 ```mermaid
+
 flowchart TB
 
     ProtocolStaking -. fee and rewards $ZAMA .-> OperatorStaking-1
@@ -105,7 +108,7 @@ flowchart TB
 
 Operators claim their fees by calling `OperatorRewarder.claimOwnerFee()`, which results in a transfer of $ZAMA to `OPERATOR`. Anyone can claim rewards for any delegator by calling `OperatorRewarder.claimRewards()`, which results in a transfer of $ZAMA to the delegator.
 
-Fees and rewards are minted and released continuously and we encourage everyone to claim frequently, say daily or at least weekly, to avoid shocks to the total supply of the token. They are *not* automatically re-delegated, but delegators may of course decide to do so by following the normal delegation procedure. Note that token holders are allowed to claim rewards immediately after delegating.
+Fees and rewards are minted and released continuously and we encourage everyone to claim frequently, say daily or at least weekly, to avoid shocks to the total supply of the token. They are _not_ automatically re-delegated, but delegators may of course decide to do so by following the normal delegation procedure. Note that token holders are allowed to claim rewards immediately after delegating.
 
 ### Computing fees and rewards
 
@@ -121,19 +124,20 @@ For use in the staking protocols, the above should be expressed as a _per role y
 
 1. Let `totalFeesRewards` be the total yearly fees and rewards (i.e. 5% of current total supply)
 2. Divide `totalFeesRewards` into `totalFeesRewardsKMS` (60%) and `totalFeesRewardsCoprocessors` (40%)
-3. Let `rateKMS` = `totalFeesRewardsKMS` / (365 * 24 * 60 * 60) and `rateCoprocessors` = `totalFeesRewardsCoprocessors` / (365 * 24 * 60 * 60)
+3. Let `rateKMS` = `totalFeesRewardsKMS` / (365 \* 24 \* 60 \* 60) and `rateCoprocessors` = `totalFeesRewardsCoprocessors` / (365 \* 24 \* 60 \* 60)
 
 This means that the APR/APY for delegating to an operator depends on the following parameters:
-- Per role yearly protocol fees and rewards rate
-- Square root of combined amount delegated through the operator
-- Operator fee percentage
-- Amount delegated to the operator
+
+* Per role yearly protocol fees and rewards rate
+* Square root of combined amount delegated through the operator
+* Operator fee percentage
+* Amount delegated to the operator
 
 Note that the use of the square root function is to incentivize decentralization: since the reward function is concave, delegating in larger pools pays less than delegating in smaller pools.
 
 ## Redeeming
 
-Redeeming from operators and the protocol is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days and is updatable via protocol governance. Note that shares from delegating to operators are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from staking on the protocol are *not* transferable.
+Redeeming from operators and the protocol is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days and is updatable via protocol governance. Note that shares from delegating to operators are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from staking on the protocol are _not_ transferable.
 
 The process is initialized by calling `OperatorStaking.requestRedeem()`, and finished by calling `OperatorStaking.redeem()` to transfer the released tokens. The request can be made on behalf of someone else as long as the message sender has approval. A controller can also be put in charge of the process, and the released tokens can be sent to a different recipient.
 

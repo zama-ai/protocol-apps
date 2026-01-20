@@ -1,10 +1,12 @@
 # Governance
 
-This document describes how governance works in the Zama protocol from an operator’s perspective.
+This document describes how governance works in the Zama Protocol from an operator’s perspective.
 
 ## Structure
 
-Governance in the Zama protocol is controlled by the currently elected operators, which itself is subject to change by a governance proposal. All operators have the same voting weight independent of their staking amounts. Governance is implemented by an Aragon DAO on Ethereum, with multisigs controlled by the operators. This means that proposals are voted onchain and (most of them) automatically executed. Interacting with the Aragon DAO is done through the Aragon App or by calling the underlying contracts directly.
+Governance in the Zama protocol is controlled by the currently elected operators, which itself is subject to change by a governance proposal. All operators have the same voting weight independent of their staking amounts.&#x20;
+
+Governance is implemented by an Aragon DAO on Ethereum, with multisigs controlled by the operators. This means that proposals are voted onchain and (most of them) automatically executed. Interacting with the Aragon DAO is done through the Aragon App or by calling the underlying contracts directly.
 
 The Aragon DAO on Ethereum is set up to own contracts on both Ethereum and the Gateway, using LayerZero in the latter case. All actions for the Gateway are routed through a Gnosis Safe on the Gateway, which, as a backup, can also be used directly as a multisig.
 
@@ -14,7 +16,7 @@ Circuit breakers are furthermore deployed on both Ethereum and the Gateway. Any 
 
 Each governance operator is expected to have a `GOVERNANCE` address that can be used to approve proposals in the Aragon DAO. This will typically be done using the Aragon App which supports Wallet Connect, but may also be done by interacting directly with the underlying contracts. Expect moderate usage of the wallet, say monthly, and it needs to be funded on Ethereum.
 
-{% hint style='warning' %}
+{% hint style="warning" %}
 Due to the security sensitive nature of governance, we recommend using a **hardware**, **MPC**, or **multisig wallet**.
 {% endhint %}
 
@@ -32,28 +34,28 @@ Voting is typically done through the Aragon App dashboard using the `GOVERNANCE`
 
 Below is an expected list of actions that will be taken by governance. Initially we only use one threshold of 2/3, but we will expand with more soon, to be used for less critical tasks. This is noted as "Q4-25 threshold" and "Q1-26 threshold" in the table below.
 
-| Action | Q4-25 threshold | Q1-26 threshold | Execution |
-| ------ | --------------- | --------------- | --------- |
-| Update contracts |  2/3 | 2/3 | Onchain |
-| Update offchain services | 2/3 | 2/3 | Depends |
-| Elect operators |  2/3 | 1/2 | Onchain |
-| Slash operators | 2/3 | 2/3 | Onchain |
-| Update the reward rate | 2/3 | 1/2 | Onchain |
-| Update unstaking cooldown period | 2/3 | 2/3 | Onchain |
-| Pausing | 1/n | 1/n | Onchain |
-| Unpausing | 2/3 | 1/2 | Onchain |
-| Address / contract blocking | 2/3 | 1/6 | Onchain |
-| Address / contract unblocking | 2/3 | 1/2 | Onchain |
-| LayerZero re-configuration | 2/3 | 2/3 | Onchain |
-| Update cryptographic parameters | 2/3 | 2/3 | None |
-| Resharing the FHE key | 2/3 | 1/6 | Onchain |
-| Generating new FHE key | 2/3 | 2/3 | Onchain |
+| Action                           | Q4-25 threshold | Q1-26 threshold | Execution |
+| -------------------------------- | --------------- | --------------- | --------- |
+| Update contracts                 | 2/3             | 2/3             | Onchain   |
+| Update offchain services         | 2/3             | 2/3             | Depends   |
+| Elect operators                  | 2/3             | 1/2             | Onchain   |
+| Slash operators                  | 2/3             | 2/3             | Onchain   |
+| Update the reward rate           | 2/3             | 1/2             | Onchain   |
+| Update unstaking cooldown period | 2/3             | 2/3             | Onchain   |
+| Pausing                          | 1/n             | 1/n             | Onchain   |
+| Unpausing                        | 2/3             | 1/2             | Onchain   |
+| Address / contract blocking      | 2/3             | 1/6             | Onchain   |
+| Address / contract unblocking    | 2/3             | 1/2             | Onchain   |
+| LayerZero re-configuration       | 2/3             | 2/3             | Onchain   |
+| Update cryptographic parameters  | 2/3             | 2/3             | None      |
+| Resharing the FHE key            | 2/3             | 1/6             | Onchain   |
+| Generating new FHE key           | 2/3             | 2/3             | Onchain   |
 
 ### Update contracts
 
 New implementations of host and Gateway contracts are deployed directly by Zama, but a governance proposal is used to update the protocol (the proxies) to use them. Operators must verify that the new implementations match the specified release version.
 
-{% hint style='danger' %}
+{% hint style="danger" %}
 **Some contracts cannot be upgraded**: $ZAMA token, operator staking contracts, pauser contracts
 {% endhint %}
 
