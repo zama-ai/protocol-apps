@@ -1,6 +1,4 @@
-# Welcome
-
-## Overview
+# Overview
 
 Welcome to the Zama Protocol documentation for operators and developers.
 
