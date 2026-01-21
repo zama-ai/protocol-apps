@@ -1,6 +1,6 @@
 # Zama Protocol
 
-* [Welcome](README.md)
+* [Overview](README.md)
 * [Governance](./governance.md)
 * [Staking](./staking.md)
 * [Registry contract](./registry-contract.md)
