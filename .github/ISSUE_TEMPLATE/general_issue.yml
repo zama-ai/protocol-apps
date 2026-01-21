@@ -1,0 +1,14 @@
+name: "General Issue"
+description: File any issue related to any of the components
+title: "<issue_type>(<component_name>): short description"
+type: task
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the issue
+      description: |
+        Please describe the issue in detail.
+        Replace the <issue_type> and <component_name> placeholders from the title using a Conventional Commit-style prefix (e.g., `fix(contracts)`, `feat(dapps)`).
+    validations:
+      required: true
