@@ -1,8 +1,8 @@
-name: "General Issue"
-description: File any issue
-title: "<issue_type>: short description"
+name: "Test Issue"
+description: File any issue related to tests
+title: "test: short description"
 projects: ["zama-ai/35"] # blokchain division project
-type: task
+type: test
 body:
   - type: textarea
     id: description
@@ -10,6 +10,5 @@ body:
       label: Describe the issue
       description: |
         Please describe the issue in detail.
-        Replace the <issue_type> placeholder from the title using a Conventional Commit-style prefix (e.g., `fix`, `feat`).
     validations:
       required: true
