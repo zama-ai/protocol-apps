@@ -118,19 +118,29 @@ async function getPausersForChain(chainConfig) {
     }
   }
 
-  return Array.from(pausers);
+  return { pausers: Array.from(pausers), provider };
 }
 
-function printPausers(chainName, pausers) {
+function formatEth(balanceWei) {
+  const balanceEth = ethers.formatEther(balanceWei);
+  // Format to 6 decimal places, removing trailing zeros
+  const formatted = parseFloat(balanceEth).toFixed(6).replace(/\.?0+$/, '');
+  return formatted === '' ? '0' : formatted;
+}
+
+async function printPausers(chainName, pausers, provider) {
   console.log(`\n${chainName} pausers:`);
   if (pausers === null) {
     console.log('  (not configured)');
   } else if (pausers.length === 0) {
     console.log('  (none)');
   } else {
-    pausers.forEach((pauser, i) => {
-      console.log(`  ${i + 1}. ${pauser}`);
-    });
+    for (let i = 0; i < pausers.length; i++) {
+      const pauser = pausers[i];
+      const balance = await provider.getBalance(pauser);
+      const balanceEth = formatEth(balance);
+      console.log(`  ${i + 1}. ${pauser} (${balanceEth} ETH)`);
+    }
   }
   if (pausers !== null) {
     console.log(`  Total: ${pausers.length} pauser(s)`);
@@ -170,17 +180,27 @@ async function main() {
     console.log('='.repeat(50));
 
     if (hasEthereumConfig) {
-      printPausers('Ethereum', results.ethereum);
+      await printPausers(
+        'Ethereum',
+        results.ethereum?.pausers ?? null,
+        results.ethereum?.provider
+      );
     }
 
     if (hasGatewayConfig) {
-      printPausers('Gateway', results.gateway);
+      await printPausers(
+        'Gateway',
+        results.gateway?.pausers ?? null,
+        results.gateway?.provider
+      );
     }
 
     // Check if pausers match across chains
-    if (results.ethereum && results.gateway) {
-      const ethSet = new Set(results.ethereum);
-      const gwSet = new Set(results.gateway);
+    if (results.ethereum?.pausers && results.gateway?.pausers) {
+      const ethPausers = results.ethereum.pausers;
+      const gwPausers = results.gateway.pausers;
+      const ethSet = new Set(ethPausers);
+      const gwSet = new Set(gwPausers);
       const match = ethSet.size === gwSet.size && [...ethSet].every((p) => gwSet.has(p));
 
       console.log('\n' + '-'.repeat(50));
@@ -189,8 +209,8 @@ async function main() {
       } else {
         console.log('WARNING: Pausers DIFFER between chains!');
 
-        const onlyEth = results.ethereum.filter((p) => !gwSet.has(p));
-        const onlyGw = results.gateway.filter((p) => !ethSet.has(p));
+        const onlyEth = ethPausers.filter((p) => !gwSet.has(p));
+        const onlyGw = gwPausers.filter((p) => !ethSet.has(p));
 
         if (onlyEth.length > 0) {
           console.log('\n  Only on Ethereum:');
