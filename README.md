@@ -50,7 +50,6 @@ The Zama Confidential Blockchain Protocol enables confidential smart contracts o
 
 Protocol Apps encompasses the full stack required to bring confidential blockchain applications to users:
 - Smart Contracts: Solidity contracts leveraging the Zama Confidential Blockchain Protocol. See [contracts](./contracts) directory.
-- Frontend decentralized applications: Dapps interacting with EVM smart contracts to simplify complex blockchain interactions for non-technical users. See [dapps](./dapps) directory.
 - Backend Services: Off-chain APIs and integrations with the frontend applications
 
 <br></br>
