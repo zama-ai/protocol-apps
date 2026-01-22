@@ -83,8 +83,3 @@ coverage/
 .nyc_output/
 junit/
 mochawesome-report/
-
-# Rust specific
-#-------------------------------------------------------------------------------
-# Build artifacts directory
-target/
