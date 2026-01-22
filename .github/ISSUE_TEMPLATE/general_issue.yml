@@ -9,6 +9,6 @@ body:
       label: Describe the issue
       description: |
         Please describe the issue in detail.
-        Replace the <issue_type> and <component_name> placeholders from the title using a Conventional Commit-style prefix (e.g., `fix(contracts)`, `feat(dapps)`).
+        Replace the <issue_type> placeholder from the title using a Conventional Commit-style prefix (e.g., `fix`, `chore`).
     validations:
       required: true

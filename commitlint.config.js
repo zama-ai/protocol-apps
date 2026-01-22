@@ -1,5 +1,6 @@
 const RuleConfigSeverity = require('@commitlint/types').RuleConfigSeverity;
-const Configuration = {
+
+module.exports = {
   /*
    * Resolve and load @commitlint/config-conventional from node_modules.
    * Referenced packages must be installed
@@ -20,14 +21,6 @@ const Configuration = {
    */
   rules: {
     'type-empty': [RuleConfigSeverity.Error, 'never'],
-    'scope-enum': [RuleConfigSeverity.Error, 'always',
-      [
-        'contracts',
-        'dapps',
-        'common'
-      ]
-    ],
+    'scope-enum': [RuleConfigSeverity.Error, 'never'],
   },
 };
-
-module.exports = Configuration;
