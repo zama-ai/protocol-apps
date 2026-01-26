@@ -10,6 +10,8 @@ If you’re new to the Zama Protocol, start with the [Litepaper](https://docs.za
 
 Otherwise:
 
+🟨 Go to [**Apps**](apps.md) to explore all the official Zama Protocol web applications.
+
 🟨 Go to [**Governance**](governance.md) to learn how operators vote on proposals, manage upgrades, and participate in DAO decisions.
 
 🟨 Go to [**Staking**](staking.md) to understand the two-tier staking system and how fees and rewards are distributed.
