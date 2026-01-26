@@ -1,4 +1,4 @@
-# Applications
+# Apps
 
 This page lists the official Zama Protocol web applications.
 
