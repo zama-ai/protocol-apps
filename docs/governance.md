@@ -11,6 +11,8 @@ There are furthermore secondary governance modules, in the form of local multisi
 The diagram below shows this governance structure, and how it works for ownership in the case of the $ZAMA token.
 
 ```mermaid
+
+
 flowchart
     subgraph Ethereum
         Protocol-DAO
