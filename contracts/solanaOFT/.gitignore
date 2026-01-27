@@ -24,3 +24,9 @@ pnpm-error.log
 # Editor and OS files
 .DS_Store
 .idea
+
+layerzero.config.ts
+ethereum-wiring.json
+aragonProposal.json
+deployments/solana-testnet/
+deployments/solana-mainnet/

@@ -65,19 +65,17 @@ npx hardhat lz:oft:solana:init-config --oapp-config layerzero.config.ts
 Run the wiring task on the Solana side:
 
 ```bash
-pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts --skip-connections-from-eids <EID_ETHEREUM_V2_TESTNET>
+pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts --skip-connections-from-eids 40161
 ```
 
-Where `<EID_ETHEREUM_V2_TESTNET>` value is `40161`.
-
-## Step 3 : Wire the Ethereum OFTAdapter to BNB OFT
+## Step 3 : Wire the Ethereum OFTAdapter to Solana OFT
 
 This step is more complex, since the delegate of the OFTAdapter is an Aragon DAO, i.e it requires creating, approving and executing a DAO proposal via the Aragon DAO.
 
 First, create an `ethereum-wiring.json` file containing the different transactions needed to be done, by running:
 
 ```
-npx hardhat lz:oapp:wire --output-filename ethereum-wiring.json
+npx hardhat lz:oapp:wire --oapp-config layerzero.config.ts --output-filename ethereum-wiring.json
 ```
 
 When running previous command, select **no** when requested if you would you like to submit the required transactions (otherwise it would fail anyways). You should now have generated a new `ethereum-wiring.json` file in the root of the directory.
@@ -92,27 +90,29 @@ This will convert the `ethereum-wiring.json` file to a new `aragonProposal.json`
 
 More precisely, in Aragon App, when you reach "Step 2 of 3" of proposal creation, click on the `Upload` button there, in select the newly created `aragonProposal.json` file to upload it and create the wiring proposal on Ethereum.
 
-![Aragon Proposal Upload](images/AragonUpload.png)
-
 After voting and execution of the wiring proposal, your OFT is now successfully setup.
 
 ## Step 4 : Test OFT transfers
 
-You can test that the OFT BNB has been correctly wired by sending some amount of tokens from Ethereum to BNB Chain, and the other way around, by using commands such as: 
+Send From 1 OFT from **Solana Devnet** to **Ethereum Sepolia**
 
-```
-npx hardhat lz:oft:send --src-eid 30101 --dst-eid 30102 --amount 0.1 --to <RECEIVER_ADDRESS> --oapp-config layerzero.config.mainnet.bnb.ts
-```
-
-to send 0.1 Zama token from Ethereum to BNB mainnet, and: 
-
-```
-npx hardhat lz:oft:send --src-eid 30102 --dst-eid 30101 --amount 0.1 --to <RECEIVER_ADDRESS> --oapp-config layerzero.config.mainnet.bnb.ts
+```bash
+npx hardhat lz:oft:send --src-eid 40168 --dst-eid 40161 --to <EVM_ADDRESS>  --amount 1
 ```
 
-to send 0.1 Zama token from BNB mainnet to Ethereum.
+Send 1 OFT From **Ethereum Sepolia** to **Solana Devnet**
 
-## Step 5 : transfer delegate and owner
+```bash
+npx hardhat lz:oft:send --src-eid 40161 --dst-eid 40168 --to <SOLANA_ADDRESS>  --amount 1
+```
+
+Upon a successful send, the script will provide you with the link to the message on LayerZero Scan.
+
+Once the message is delivered, you will be able to click on the destination transaction hash to verify that the OFT was sent.
+
+Congratulations, you have now sent an OFT between Solana and Arbitrum!
+
+## Step 5 : transfer delegate, owner and Solana specific roles
 
 Once the transfer tests are successful, don't forget to transfer the delegate and owners roles of the BNB OFT instance to governance (i.e BNB Safe Multisig).
 
