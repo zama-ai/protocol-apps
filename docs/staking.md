@@ -34,6 +34,8 @@ The operator staking contracts are used by token holder to delegate stake on the
 Delegation is done by first approving an amount of $ZAMA to an operator staking contract and then calling a function on it. This function transfers $ZAMA from the message sender to the operator staking contract, and then from the operator staking contract to the protocol staking contract.
 
 ```mermaid
+
+
 flowchart BT
     OperatorStaking-A -- stake $ZAMA --> ProtocolStaking
     Delegator-1 -- delegate $ZAMA --> OperatorStaking-A
@@ -56,6 +58,8 @@ The operator staking shares are liquid and unique for each operator staking cont
 The protocol staking contracts are continuously distributing staking rewards to the operator staking contracts, who take a cut for the operators as a commission fee, and distribute the rest to their delegators. All fees and rewards are paid in $ZAMA.
 
 ```mermaid
+
+
 flowchart TB
     ProtocolStaking -. rewards .-> OperatorStaking-A
     OperatorStaking-A -. fees .-> Operator-A
@@ -70,6 +74,8 @@ The commission fee percentage is independently set for each operator staking con
 Below is an example to illustrate. We assume that for a given role there are two operator staking contracts, denoted _A_ and _B_, having staked 100 and 91 tokens, respectively. The graph below then shows how 100 rewards are distributed, assuming the operators has set a commission fee of 10% and 5%, respectively, and that they each have two delegators where the first has delegated double the amount of the second.
 
 ```mermaid
+
+
 sankey
     Protocol rewards, Rewards for A, 52.6
     Protocol rewards, Rewards for B, 47.4
