@@ -55,7 +55,7 @@ export async function sendEvm(
             : wrapper.contract.address!
     }
     // 2️⃣ load OFT ABI
-    const oftArtifact = await srcEidHre.artifacts.readArtifact('OFT')
+    const oftArtifact = await srcEidHre.artifacts.readArtifact('IOFT')
     const oft = await srcEidHre.ethers.getContractAt(oftArtifact.abi, wrapperAddress, signer)
     // 3️⃣ fetch the underlying ERC-20
     const underlying = await oft.token()
@@ -74,6 +74,33 @@ export async function sendEvm(
         // hex string → Uint8Array → zero-pad to 32 bytes
         toBytes = makeBytes32(to)
     }
+
+    // 6️⃣ Check if approval is required (for OFT Adapters) and handle approval
+    try {
+        const approvalRequired = await oft.approvalRequired()
+        if (approvalRequired) {
+            logger.info('OFT Adapter detected - checking ERC20 allowance...')
+
+            // Check current allowance
+            const currentAllowance = await erc20.allowance(signer.address, wrapperAddress)
+            logger.info(`Current allowance: ${currentAllowance.toString()}`)
+            logger.info(`Required amount: ${amountUnits.toString()}`)
+
+            if (currentAllowance.lt(amountUnits)) {
+                logger.info('Insufficient allowance - approving ERC20 tokens...')
+                const approveTx = await erc20.approve(wrapperAddress, amountUnits)
+                logger.info(`Approval transaction hash: ${approveTx.hash}`)
+                await approveTx.wait()
+                logger.info('ERC20 approval confirmed')
+            } else {
+                logger.info('Sufficient allowance already exists')
+            }
+        }
+    } catch (error) {
+        // If approvalRequired() doesn't exist or fails, assume it's a regular OFT (not an adapter)
+        logger.info('No approval required (regular OFT detected)')
+    }
+
     // 6️⃣ build sendParam and dispatch
     const sendParam = {
         dstEid,

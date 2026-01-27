@@ -94,13 +94,15 @@ After voting and execution of the wiring proposal, your OFT is now successfully 
 
 ## Step 4 : Test OFT transfers
 
-Send From 1 OFT from **Solana Devnet** to **Ethereum Sepolia**
+First, make sure the Solidity contracts are compiled by running `npx hardhat compile`. 
+
+Send 1 OFT from **Solana Devnet** to **Ethereum Sepolia**:
 
 ```bash
 npx hardhat lz:oft:send --src-eid 40168 --dst-eid 40161 --to <EVM_ADDRESS>  --amount 1
 ```
 
-Send 1 OFT From **Ethereum Sepolia** to **Solana Devnet**
+Send 1 OFT from **Ethereum Sepolia** to **Solana Devnet**:
 
 ```bash
 npx hardhat lz:oft:send --src-eid 40161 --dst-eid 40168 --to <SOLANA_ADDRESS>  --amount 1
