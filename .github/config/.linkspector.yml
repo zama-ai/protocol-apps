@@ -1,0 +1,6 @@
+dirs:
+  - ./
+aliveStatusCodes:
+  - 200
+ignorePatterns: []
+useGitIgnore: true

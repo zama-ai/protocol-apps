@@ -11,7 +11,7 @@ This document gives an ovrview of the **Confidential Wrapper,** a smart contract
 * **Rate**: The conversion ratio between underlying token units and confidential token units (due to decimal differences).
 * **Operator**: An address authorized to transfer confidential tokens on behalf of another address.
 * **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to a DAO governance contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
-* **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](confidential-token-wrappers-registry/docs/).
+* **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](../contracts/confidential-token-wrappers-registry/docs/).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
 * **Input proof**: A proof that the encrypted amount is valid. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
 * **Public decryption**: A request to publicly decrypt an encrypted amount. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
@@ -32,7 +32,7 @@ Non-standard tokens such as fee-on-transfer or any deflationary-type tokens are 
 
 ### Get the confidential wrapper address of an ERC-20 token
 
-Zama provides a registry contract that maps ERC-20 tokens to their corresponding verified confidential wrappers. Make sure to check the registry contract to ensure the confidential wrapper is valid before wrapping. More information [here](confidential-token-wrappers-registry/docs/).
+Zama provides a registry contract that maps ERC-20 tokens to their corresponding verified confidential wrappers. Make sure to check the registry contract to ensure the confidential wrapper is valid before wrapping. More information [here](../contracts/confidential-token-wrappers-registry/docs/).
 
 ### Wrap ERC-20 → Confidential token
 
