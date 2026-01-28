@@ -72,8 +72,8 @@ const config: HardhatUserConfig = {
             accounts,
         },
         'ethereum-mainnet': {
-            eid: EndpointId.SEPOLIA_V2_TESTNET,
-            url: process.env.RPC_URL_SEPOLIA,
+            eid: EndpointId.ETHEREUM_V2_MAINNET,
+            url: process.env.RPC_URL_ETHEREUM,
             accounts,
         },
         hardhat: {

@@ -94,13 +94,7 @@ After voting and execution of the wiring proposal, your OFT is now successfully 
 
 ## Step 4 : Test OFT transfers
 
-First, make sure the Solidity contracts are compiled by running `npx hardhat compile`. 
-
-Send 1 OFT from **Solana Devnet** to **Ethereum Sepolia**:
-
-```bash
-npx hardhat lz:oft:send --src-eid 40168 --dst-eid 40161 --to <EVM_ADDRESS>  --amount 1
-```
+First, make sure the Solidity contracts are compiled by running `npx hardhat compile`.
 
 Send 1 OFT from **Ethereum Sepolia** to **Solana Devnet**:
 
@@ -108,11 +102,17 @@ Send 1 OFT from **Ethereum Sepolia** to **Solana Devnet**:
 npx hardhat lz:oft:send --src-eid 40161 --dst-eid 40168 --to <SOLANA_ADDRESS>  --amount 1
 ```
 
+Send 1 OFT from **Solana Devnet** to **Ethereum Sepolia**:
+
+```bash
+npx hardhat lz:oft:send --src-eid 40168 --dst-eid 40161 --to <EVM_ADDRESS>  --amount 1
+```
+
 Upon a successful send, the script will provide you with the link to the message on LayerZero Scan.
 
 Once the message is delivered, you will be able to click on the destination transaction hash to verify that the OFT was sent.
 
-Congratulations, you have now sent an OFT between Solana and Arbitrum!
+Congratulations, you have now sent an OFT between Solana and Ethereum!
 
 ## Step 5 : transfer delegate, owner and Solana specific roles
 

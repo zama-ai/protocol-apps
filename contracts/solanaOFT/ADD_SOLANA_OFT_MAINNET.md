@@ -6,7 +6,11 @@ The goal of this runbook is to guide you step by step on how to deploy a ZAMA OF
 
 ## Step 1 : Deploy the OFT on Solana Chain
 
-First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly: see [`.env.example`](./.env.example) file. Default recommendation is to fill only `PRIVATE_KEY` and `RPC_URL_ETHEREUM` values, as this will use the default Solana config which should be setup first via `solana config set --url mainnet-beta`.
+First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly: see [`.env.example`](./.env.example) file. Default recommendation is to fill only those 3 values: `PRIVATE_KEY`, `RPC_URL_ETHEREUM` and `RPC_URL_SOLANA` values, as this will use the default Solana config and local keypair, which should be setup first via `solana config set --url mainnet-beta` and the local keypair generated with `solana-keygen` command. 
+
+For the `RPC_URL_SOLANA` value, we recommend getting one from [Helius](https://www.helius.dev/).
+
+Please make sure to fund your public key with 5 SOL on Solana mainnet, before deploying.
 
 ### Prepare the Solana OFT Program keypair
 
@@ -54,7 +58,7 @@ The above command will create a Solana OFT which will have only the OFT Store as
 
 ## Step 2 : Wire the Solana devnet OFT to Ethereum Sepolia OFTAdapter
 
-This can be done easily, since your deployer hot wallet is still the owner and delegate of the OFT instance on Solana Chain - later, after full wiring on both chains, owner/admin and delegate roles, as well as other Solana-specific roles, should be transferred to governance on Solana Chain, which should be a Squads multisig wallet.
+This can be done easily, since your deployer hot wallet is still the owner and delegate of the OFT instance on Solana Chain - later, after full wiring on both chains, owner/admin and delegate roles, as well as other Solana-specific roles, should be transferred to governance on Solana Chain, which should be a Squads multisig wallet (see last section of this runbook).
 
 Run the following command to initialize the SendConfig and ReceiveConfig Accounts. This step is unique to pathways that involve Solana.
 
@@ -65,7 +69,7 @@ npx hardhat lz:oft:solana:init-config --oapp-config layerzero.config.ts
 Run the wiring task on the Solana side:
 
 ```bash
-pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts --skip-connections-from-eids 40161
+pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts --skip-connections-from-eids 30101
 ```
 
 ## Step 3 : Wire the Ethereum OFTAdapter to Solana OFT
@@ -96,23 +100,23 @@ After voting and execution of the wiring proposal, your OFT is now successfully 
 
 First, make sure the Solidity contracts are compiled by running `npx hardhat compile`. 
 
-Send 1 OFT from **Solana Devnet** to **Ethereum Sepolia**:
+Send 1 OFT from **Ethereum** to **Solana**:
 
 ```bash
-npx hardhat lz:oft:send --src-eid 40168 --dst-eid 40161 --to <EVM_ADDRESS>  --amount 1
+npx hardhat lz:oft:send --src-eid 30101 --dst-eid 30168 --to <SOLANA_ADDRESS>  --amount 1
 ```
 
-Send 1 OFT from **Ethereum Sepolia** to **Solana Devnet**:
+Send 1 OFT from **Solana** to **Ethereum**:
 
 ```bash
-npx hardhat lz:oft:send --src-eid 40161 --dst-eid 40168 --to <SOLANA_ADDRESS>  --amount 1
+npx hardhat lz:oft:send --src-eid 30168 --dst-eid 30101 --to <EVM_ADDRESS>  --amount 1
 ```
 
 Upon a successful send, the script will provide you with the link to the message on LayerZero Scan.
 
 Once the message is delivered, you will be able to click on the destination transaction hash to verify that the OFT was sent.
 
-Congratulations, you have now sent an OFT between Solana and Arbitrum!
+Congratulations, you have now sent an OFT between Solana and Ethereum!
 
 ## Step 5 : transfer delegate, owner and Solana specific roles
 
