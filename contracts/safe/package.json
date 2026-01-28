@@ -1,5 +1,5 @@
 {
-  "name": "safe-admin-module",
+  "name": "@zama/safe-admin-module",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

@@ -1,5 +1,6 @@
 {
-  "name": "confidential-token-wrappers-registry",
+  "name": "@zama/confidential-token-wrappers-registry",
+  "license": "BSD-3-Clause-Clear",
   "description": "Confidential Token Wrappers Registry",
   "version": "0.1.0",
   "keywords": [

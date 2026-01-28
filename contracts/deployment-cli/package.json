@@ -1,6 +1,7 @@
 {
     "name": "@zama/fhevm-deployment-cli",
     "version": "0.1.0",
+    "license": "BSD-3-Clause-Clear",
     "description": "Deployment CLI for the Zama FHEVM protocol",
     "private": true,
     "type": "module",

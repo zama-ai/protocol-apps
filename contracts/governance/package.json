@@ -1,8 +1,9 @@
 {
-  "name": "@layerzerolabs/oapp-example",
-  "version": "0.6.3",
+  "name": "@zama/governance-oapp",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "clean": "rm -rf artifacts cache out",
     "compile": "hardhat compile",

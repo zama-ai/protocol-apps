@@ -1,7 +1,8 @@
 {
-  "name": "chains-config-checker",
+  "name": "@zama/chains-config-checker",
+  "license": "BSD-3-Clause-Clear",
   "version": "1.0.0",
-  "description": "FHEVM onchain configuration checker utilities",
+  "description": "Onchain configuration checker utilities",
   "scripts": {
     "get-deployment-block": "node utils/get-deployment-block.js",
     "get-current-pausers": "node utils/get-current-pausers.js"

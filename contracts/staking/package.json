@@ -1,5 +1,5 @@
 {
-  "name": "@fhevm/staking-contracts",
+  "name": "@zama/staking-contracts",
   "license": "MIT",
   "files": [
     "/contracts/**/*.sol",

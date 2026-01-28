@@ -1,5 +1,5 @@
 {
-  "name": "confidential-wrapper-upgradeable",
+  "name": "@zama/confidential-wrapper-upgradeable",
   "description": "Upgradeable Confidential Wrapper",
   "version": "0.1.0",
   "engines": {
