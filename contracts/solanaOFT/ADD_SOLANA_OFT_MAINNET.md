@@ -1,12 +1,12 @@
 # How to add ZamaOFT on Solana Chain
 
-Currently, we have `ZamaERC20` and `ZamaOFTAdapter` deployed on Ethereum testnet (and `ZamaOFT` deployed on both Gateway and BNB testnet). The `ZamaOFTAdapter` contract's owner and delegate are already setup to be an Aragon DAO contract.
+Currently, we have `ZamaERC20` and `ZamaOFTAdapter` deployed on Ethereum mainnet (and `ZamaOFT` deployed on both Gateway and BNB mainnet). The `ZamaOFTAdapter` contract's owner and delegate are already setup to be an Aragon DAO contract.
 
-The goal of this runbook is to guide you step by step on how to deploy a ZAMA OFT instance on Solana Chain, and how to wire it to the already deployed `ZamaOFTAdapter` on Ethereum, via the Aragon DAO. We only add a single bidirectional pathway: `Solana devnet <-> Ethereum Sepolia`.
+The goal of this runbook is to guide you step by step on how to deploy a ZAMA OFT instance on Solana Chain, and how to wire it to the already deployed `ZamaOFTAdapter` on Ethereum, via the Aragon DAO. We only add a single bidirectional pathway: `Solana <-> Ethereum`.
 
-## Step 1 : Deploy the OFT on Solana devnet Chain
+## Step 1 : Deploy the OFT on Solana Chain
 
-First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly (see [`.env.example`](./.env.example) file).
+First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly: see [`.env.example`](./.env.example) file. Default recommendation is to fill only `PRIVATE_KEY` and `RPC_URL_ETHEREUM` values, as this will use the default Solana config which should be setup first via `solana config set --url mainnet-beta`.
 
 ### Prepare the Solana OFT Program keypair
 
@@ -28,7 +28,7 @@ anchor build -v -e OFT_ID=<OFT_PROGRAM_ID>
 
 Where `<OFT_PROGRAM_ID>` is replaced with your OFT Program ID copied from the previous step.
 
-### (Recommended) Deploying with a priority fee
+### Deploying with a priority fee
 
 The `deploy` command will run with a priority fee. Read the section on ['Deploying Solana programs with a priority fee'](https://docs.layerzero.network/v2/developers/solana/technical-reference/solana-guidance#deploying-solana-programs-with-a-priority-fee) to learn more.
 
@@ -37,17 +37,17 @@ The `deploy` command will run with a priority fee. Read the section on ['Deployi
 First make sure your local key has at least `5 SOL`, for e.g you can check it via `solana balance` if you use the keypair at the default path.
 
 ```bash
-solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u devnet --with-compute-unit-price <COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>
+solana program deploy --program-id target/deploy/oft-keypair.json target/verifiable/oft.so -u mainnet-beta --with-compute-unit-price <COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>
 ```
 
-Usually a value of `200000` is good for `<COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>`.
+Usually a value of `200000` is good for `<COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>`. You can get a more accurate value by visiting [this site](https://www.quicknode.com/gas-tracker/solana).
 
 ### Create the Solana OFT
 
-Rename the `layerzero.config.testnet.ts` file at the root of this project as `layerzero.config.ts`. Then run this command:
+Rename the `layerzero.config.mainnet.ts` file at the root of this project as `layerzero.config.ts`. Then run this command:
 
 ```bash
-pnpm hardhat lz:oft:solana:create --eid 40168 --program-id <PROGRAM_ID> --only-oft-store true
+pnpm hardhat lz:oft:solana:create --eid 30168 --program-id <PROGRAM_ID> --only-oft-store true
 ```
 
 The above command will create a Solana OFT which will have only the OFT Store as the Mint Authority.
