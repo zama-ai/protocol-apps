@@ -51,7 +51,7 @@ Usually a value of `200000` is good for `<COMPUTE_UNIT_PRICE_IN_MICRO_LAMPORTS>`
 Rename the `layerzero.config.mainnet.ts` file at the root of this project as `layerzero.config.ts`. Then run this command:
 
 ```bash
-pnpm hardhat lz:oft:solana:create --eid 30168 --program-id <PROGRAM_ID> --only-oft-store true
+pnpm hardhat lz:oft:solana:create --eid 30168 --program-id <OFT_PROGRAM_ID> --only-oft-store true
 ```
 
 The above command will create a Solana OFT which will have only the OFT Store as the Mint Authority.
@@ -118,38 +118,181 @@ Once the message is delivered, you will be able to click on the destination tran
 
 Congratulations, you have now sent an OFT between Solana and Ethereum!
 
-## Step 5 : transfer delegate, owner and Solana specific roles
+## Step 5 : Upload the Anchor IDL
 
-Once the transfer tests are successful, don't forget to transfer the delegate and owners roles of the BNB OFT instance to governance (i.e BNB Safe Multisig).
-
-Those `cast` commands are helpful for transferring roles:
-
-To get current OFT owner address:
+Upload the Anchor IDL for easier debugging on block explorers:
 
 ```
-cast call <BNB_OFT_ADDRESS> "owner()(address)" --rpc-url <BNB_RPC_URL>
+anchor idl init <OFT_PROGRAM_ID> --filepath target/idl/oft.json --provider.cluster mainnet --provider.wallet ~/.config/solana/id.json
 ```
 
-To get current `EndpointV2` address:
+You can then check on [`https://explorer.solana.com/`](https://explorer.solana.com/) that the Anchor IDL has been correctly uploaded. By the way, this step creates a new PDA with a new privileged role: the Anchor IDL Authority.
+
+## Step 6 : Transfer all privileged roles
+
+Let's suppose you already have deployed a Squads Multisig on Solana. Carefully note its **Vault id**, not to be confused with the Multisig Account id. Let's note it `SQUADS_VAULT_ID`. This is the value that we will use to transfer privileged roles from our hot wallet to the Squads Multisig.
+
+From the 7 privileged roles of a Solana OFT listed in [Solana docs](https://docs.layerzero.network/v2/developers/solana/technical-reference/solana-guidance#transferring-oft-ownership-on-solana), we will transfer 5 of them because 2 are not applicalbe: mint authority is the OFT Store PDA, so no trasfer is needed, and freeze authority is `None`. You can verify this by using: `npx hardhat lz:oft:solana:debug`.
+
+The 5 applicable roles to be transferred are:
+
+- The 2 LayerZero-specific roles: owner (also called admin) and delegate.
+- 3 Solana-specific roles: upgrade authority, token metadata update authority, Anchor IDL authority.
+
+Program verification depends on upgrade authority, so will be done as a last step via a Squads proposal.
+
+### Transfer delegate and owner role
+
+Let's start with the 2 LayerZero-specific roles:
+
+The transfer of both require modifying your LZ Config file and running helper tasks.
+
+Overall, you should carry out these steps:
+
+1/ Modify `layerzero.config.ts` to include **only** the new delegate address. This means that the  exported function at the end of the config file should be as: 
 
 ```
-cast call <BNB_OFT_ADDRESS> "endpoint()(address)" --rpc-url <BNB_RPC_URL>
+export default async function () {
+    // note: pathways declared here are automatically bidirectional
+    // if you declare A,B there's no need to declare B,A
+    const connections = await generateConnectionsConfig([
+        [
+            ethereumContract, // Chain A contract
+            solanaContract, // Chain B contract
+            [['LayerZero Labs'], [['Nethermind', 'Luganodes', 'P2P'], 2]], // [ requiredDVN[], [ optionalDVN[], threshold ] ]
+            [15, 32], // [A to B confirmations, B to A confirmations]
+            [SOLANA_ENFORCED_OPTIONS, EVM_ENFORCED_OPTIONS], // Chain B enforcedOptions, Chain A enforcedOptions
+        ],
+    ])
+
+    return {
+        contracts: [
+            { contract: ethereumContract },
+            {
+                contract: solanaContract,
+                config: {
+                    delegate: '<SQUADS_VAULT_ID>',
+                },
+            },
+        ],
+        connections,
+    }
+}
 ```
 
-To get current delegate:
+Notice from this snippet that only the returned value changed, and that `<SQUADS_VAULT_ID>` should be replaced by its actual value.
+
+2/ Run `pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts`.
+
+3/ Modify `layerzero.config.ts` to include the new owner address. This means that the  exported function at the end of the config file should be now as: 
 
 ```
-cast call <LZ_ENDPOINT_V2_ADDRESS> "delegates(address)(address)" <BNB_OFT_ADDRESS> --rpc-url <BNB_RPC_URL>
+export default async function () {
+    // note: pathways declared here are automatically bidirectional
+    // if you declare A,B there's no need to declare B,A
+    const connections = await generateConnectionsConfig([
+        [
+            ethereumContract, // Chain A contract
+            solanaContract, // Chain B contract
+            [['LayerZero Labs'], [['Nethermind', 'Luganodes', 'P2P'], 2]], // [ requiredDVN[], [ optionalDVN[], threshold ] ]
+            [15, 32], // [A to B confirmations, B to A confirmations]
+            [SOLANA_ENFORCED_OPTIONS, EVM_ENFORCED_OPTIONS], // Chain B enforcedOptions, Chain A enforcedOptions
+        ],
+    ])
+
+    return {
+        contracts: [
+            { contract: ethereumContract },
+            {
+                contract: solanaContract,
+                config: {
+                    delegate: '<SQUADS_VAULT_ID>',
+                    owner: '<SQUADS_VAULT_ID>',
+                },
+            },
+        ],
+        connections,
+    }
+}
 ```
 
-To transfer delegate role:
+4/ Run `pnpm hardhat lz:ownable:transfer-ownership --oapp-config layerzero.config.ts`.
+
+You have now transferred both owner and delegate of your Solana OFT. You can check this via `npx hardhat lz:oft:solana:debug`. From those logs, the owner address is the value of the `Admin` key.
+
+### Transfer upgrade authority
+
+You must run this command:
 
 ```
-cast send <BNB_OFT_ADDRESS> "setDelegate(address)" <BNB_SAFE_ADDRESS> --rpc-url <BNB_RPC_URL> --private-key <DEPLOYER_PRIVATE_KEY>
+solana program set-upgrade-authority --skip-new-upgrade-authority-signer-check <OFT_PROGRAM_ID> --new-upgrade-authority <SQUADS_VAULT_ID>
 ```
 
-To transfer owner role:
+New upgrade authority can be easily checked via any Solana block explorer.
+
+### Transfer token metadata update authority
+ 
+Use this command by replacing `<MINT_ADDRESS>` by its actual value, which could be read from `deployments/solana-mainnet/OFT.json`:
 
 ```
-cast send <BNB_OFT_ADDRESS> "transferOwnership(address)" <BNB_SAFE_ADDRESS> --rpc-url <BNB_RPC_URL> --private-key <DEPLOYER_PRIVATE_KEY>
+pnpm hardhat lz:oft:solana:set-update-authority --eid 30168 --mint <MINT_ADDRESS> --new-update-authority <SQUADS_VAULT_ID>
+```
+
+Result can be checked via `npx hardhat lz:oft:solana:debug` (in the `Update Authority` field).
+
+### Transfer Anchor IDL authority
+
+Use:
+
+```
+anchor idl set-authority --program-id <OFT_PROGRAM_ID> --new-authority <SQUADS_VAULT_ID> --provider.cluster mainnet --provider.wallet ~/.config/solana/id.json
+```
+
+Result can be checked via `anchor idl authority <OFT_PROGRAM_ID> --provider.cluster mainnet`.
+
+## Step 7 : Verifying OFT program via Squads
+
+Make sure you have `solana-verify 0.4.11` version installed.
+
+### Optional: Compare locally
+
+If you wish to, you can view the program hash of the locally built OFT program:
+
+```
+solana-verify get-executable-hash ./target/verifiable/oft.so
+```
+
+And then compare it with the on-chain program hash:
+
+```
+solana-verify get-program-hash -u mainnet <OFT_PROGRAM_ID>
+```
+
+### Program verification
+
+Run the following command to verify against the repo that contains the program source code:
+
+```
+solana-verify verify-from-repo -um --program-id <OFT_PROGRAM_ID> --mount-path examples/oft-solana https://github.com/LayerZero-Labs/devtools --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
+```
+
+Then after few minutes, you will see logs such as:
+
+```
+Program hash matches ✅
+Do you want to upload the program verification to the Solana Blockchain? (y/n)
+```
+
+You should answer yes (by entering `yes`), this will send transactions from your local hot wallet, but is not enough for verification, since your local hot wallet is no longer the upgrade authority. You also need following additional step:
+
+```
+solana-verify export-pda-tx https://github.com/LayerZero-Labs/devtools --program-id <OFT_PROGRAM_ID> --uploader <INITIAL_DEPLOYER_HOT_WALLET> --mount-path examples/oft-solana --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
+```
+
+Where `<INITIAL_DEPLOYER_HOT_WALLET>` should be replaced by your initial deployer local public key, i.e what is returned via `solana address` in your terminal. After additional few minutes, it will return a base58 string that represents the transaction data for uploading the verification PDA. Import this into Squads for approval and execution.
+
+Finally run:
+
+```
+solana-verify verify-from-repo --remote -um --program-id <OFT_PROGRAM_ID> --mount-path examples/oft-solana https://github.com/LayerZero-Labs/devtools --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
 ```

@@ -113,39 +113,3 @@ Upon a successful send, the script will provide you with the link to the message
 Once the message is delivered, you will be able to click on the destination transaction hash to verify that the OFT was sent.
 
 Congratulations, you have now sent an OFT between Solana and Ethereum!
-
-## Step 5 : transfer delegate, owner and Solana specific roles
-
-Once the transfer tests are successful, don't forget to transfer the delegate and owners roles of the BNB OFT instance to governance (i.e BNB Safe Multisig).
-
-Those `cast` commands are helpful for transferring roles:
-
-To get current OFT owner address:
-
-```
-cast call <BNB_OFT_ADDRESS> "owner()(address)" --rpc-url <BNB_RPC_URL>
-```
-
-To get current `EndpointV2` address:
-
-```
-cast call <BNB_OFT_ADDRESS> "endpoint()(address)" --rpc-url <BNB_RPC_URL>
-```
-
-To get current delegate:
-
-```
-cast call <LZ_ENDPOINT_V2_ADDRESS> "delegates(address)(address)" <BNB_OFT_ADDRESS> --rpc-url <BNB_RPC_URL>
-```
-
-To transfer delegate role:
-
-```
-cast send <BNB_OFT_ADDRESS> "setDelegate(address)" <BNB_SAFE_ADDRESS> --rpc-url <BNB_RPC_URL> --private-key <DEPLOYER_PRIVATE_KEY>
-```
-
-To transfer owner role:
-
-```
-cast send <BNB_OFT_ADDRESS> "transferOwnership(address)" <BNB_SAFE_ADDRESS> --rpc-url <BNB_RPC_URL> --private-key <DEPLOYER_PRIVATE_KEY>
-```
