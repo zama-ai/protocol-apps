@@ -12,7 +12,7 @@ Make sure to fund those 2 accounts on both Ethereum Sepolia Testnet and Gateway 
 
 ## Deploy an Aragon DAO on Sepolia
 
-Go to `https://app.aragon.org/`[https://app.aragon.org/] and use the front-end to deploy a DAO on sepolia. *Important:* the account connected to the Aragon front-end and deploying this DAO must be the one corresponding to `DEPLOYER_PRIVATE_KEY`.
+Go to [https://app.aragon.org/](https://app.aragon.org/) and use the front-end to deploy a DAO on sepolia. *Important:* the account connected to the Aragon front-end and deploying this DAO must be the one corresponding to `DEPLOYER_PRIVATE_KEY`.
 
 Once deployed, copy the address of the deployed DAO contract inside the `.env`: this should be the `DAO_ADDRESS` value.
 

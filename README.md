@@ -91,7 +91,7 @@ note={\url{https://github.com/zama-ai/protocol-apps}},
 
 There are two ways to contribute to Protocol Apps:
 
-- [Open issues](https://github.com/zama-ai/protocol-apps/issues/new/choose) to report bugs and typos, or to suggest new ideas
+- Open issues to report bugs and typos, or to suggest new ideas
 - Request to become an official contributor by emailing hello@zama.ai.
 
 Becoming an approved contributor involves signing our Contributor License Agreement (CLA). Only approved contributors can send pull requests, so please make sure to get in touch before you do!
