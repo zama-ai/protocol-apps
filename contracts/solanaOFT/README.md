@@ -286,13 +286,13 @@ Do you want to upload the program verification to the Solana Blockchain? (y/n)
 You should answer yes (by entering `yes`), this will send transactions from your local hot wallet, but is not enough for verification, since your local hot wallet is no longer the upgrade authority. You also need following additional step:
 
 ```
-solana-verify export-pda-tx https://github.com/LayerZero-Labs/devtools --program-id <OFT_PROGRAM_ID> --uploader <INITIAL_DEPLOYER_HOT_WALLET> --mount-path examples/oft-solana --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
+solana-verify export-pda-tx https://github.com/LayerZero-Labs/devtools --program-id <OFT_PROGRAM_ID> --uploader <SQUADS_VAULT_ID> --mount-path examples/oft-solana --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
 ```
 
-Where `<INITIAL_DEPLOYER_HOT_WALLET>` should be replaced by your initial deployer local public key, i.e what is returned via `solana address` in your terminal. After additional few minutes, it will return a base58 string that represents the transaction data for uploading the verification PDA. Import this into Squads for approval and execution.
+After some time, it will return a base58 string that represents the transaction data for uploading the verification PDA. Make sure your Squads Vault is enough funded (should have at least 0.1 SOL).Then import this base58 string into Squads for approval and execution.
 
 Finally run:
 
 ```
-solana-verify verify-from-repo --remote -um --program-id <OFT_PROGRAM_ID> --mount-path examples/oft-solana https://github.com/LayerZero-Labs/devtools --library-name oft -b solanafoundation/solana-verifiable-build:2.1.0 -- --config env.OFT_ID=\'<OFT_PROGRAM_ID>\'
+solana-verify remote submit-job --program-id <OFT_PROGRAM_ID> --uploader <SQUADS_VAULT_ID> --url mainnet
 ```
