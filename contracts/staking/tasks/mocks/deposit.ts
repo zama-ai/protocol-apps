@@ -1,6 +1,6 @@
-import { OPERATOR_STAKING_CONTRACT_NAME } from './deployment';
-import { getAllOperatorStakingCoproAddresses, getAllOperatorStakingKMSAddresses } from './utils/getAddresses';
-import { getRequiredEnvVar } from './utils/loadVariables';
+import { OPERATOR_STAKING_CONTRACT_NAME } from '../deployment';
+import { getAllOperatorStakingCoproAddresses, getAllOperatorStakingKMSAddresses } from '../utils/getAddresses';
+import { getRequiredEnvVar } from '../utils/loadVariables';
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 

@@ -1,10 +1,8 @@
 import './tasks/accounts';
 import './tasks/addEligibleAccount';
 import './tasks/deployment';
-import './tasks/deposit';
+import './tasks/mocks';
 import './tasks/ownership';
-import './tasks/setFee';
-import './tasks/setRewardRate';
 import './tasks/verify';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-ethers';
