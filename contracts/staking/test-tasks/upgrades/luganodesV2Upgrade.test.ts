@@ -1,32 +1,23 @@
 import { getOperatorStakingName } from '../../tasks/deployment';
 import {
-  LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME,
+  LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET,
   getLuganodesOperatorStakingV2ImplName,
 } from '../../tasks/deployment/upgrades/luganodesV2';
 import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
-import { getOperatorStakingContractsFixture } from '../utils';
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
 import { expect } from 'chai';
 import hre from 'hardhat';
 
 describe('LuganodesOperatorStakingV2 Upgrade', function () {
   // Expected new expected values after upgrade
-  const EXPECTED_NAME = 'Luganodes Staked ZAMA (Coprocessor)';
-  const EXPECTED_SYMBOL = 'stZAMA-Luganodes-Coprocessor';
+  const EXPECTED_NAME = 'Mock Luganodes Staked ZAMA (Coprocessor)';
+  const EXPECTED_SYMBOL = 'stZAMA-Mock-Luganodes-Coprocessor';
 
   // Consider first copro contract
   const COPRO_TOKEN_NAME = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_TOKEN_NAME_0`);
 
-  let operatorStaking: any;
-
-  // Reset the contracts' state between each test
-  beforeEach(async function () {
-    const fixture = await loadFixture(getOperatorStakingContractsFixture);
-    operatorStaking = fixture.coproOperatorStakings[0];
-  });
-
   describe('Upgrade Flow', function () {
     it('Should fix swapped name and symbol after upgrade', async function () {
+      const network = await hre.ethers.provider.getNetwork();
       const { deployer } = await hre.getNamedAccounts();
       const deployerSigner = await hre.ethers.getSigner(deployer);
 
@@ -55,7 +46,7 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
       });
 
       // Retrieve the deployment artifact for the new implementation contract to get its address
-      const implementationDeployment = await hre.deployments.get(getLuganodesOperatorStakingV2ImplName());
+      const implementationDeployment = await hre.deployments.get(getLuganodesOperatorStakingV2ImplName(network.name));
       const implementationAddress = implementationDeployment.address;
 
       // Upgrade the proxy to the new implementation
@@ -63,7 +54,7 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
 
       // Get the upgraded operator staking V2 contract
       const operatorStakingV2 = await hre.ethers.getContractAt(
-        LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME,
+        LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET,
         operatorStakingProxyAddress,
       );
 
@@ -78,7 +69,9 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
 
   describe('Helper Functions', function () {
     it('Should generate correct implementation name', function () {
-      expect(getLuganodesOperatorStakingV2ImplName()).to.equal('LuganodesOperatorStakingV2_Impl');
+      expect(getLuganodesOperatorStakingV2ImplName('mainnet')).to.equal('LuganodesOperatorStakingV2Mainnet_Impl');
+      expect(getLuganodesOperatorStakingV2ImplName('testnet')).to.equal('LuganodesOperatorStakingV2Testnet_Impl');
+      expect(getLuganodesOperatorStakingV2ImplName('hardhat')).to.equal('LuganodesOperatorStakingV2Testnet_Impl');
     });
   });
 });

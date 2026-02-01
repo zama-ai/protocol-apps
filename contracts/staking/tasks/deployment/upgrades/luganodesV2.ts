@@ -1,11 +1,22 @@
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
-export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME = 'LuganodesOperatorStakingV2';
+export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_MAINNET = 'LuganodesOperatorStakingV2Mainnet';
+export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET = 'LuganodesOperatorStakingV2Testnet';
 
 // Get the name for saving the implementation in deployments
-export function getLuganodesOperatorStakingV2ImplName(): string {
-  return 'LuganodesOperatorStakingV2_Impl';
+export function getLuganodesOperatorStakingV2ContractName(networkName: string): string {
+  if (networkName === 'mainnet') {
+    return LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_MAINNET;
+  } else if (networkName === 'testnet' || networkName === 'hardhat') {
+    return LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET;
+  }
+  throw new Error(`Unsupported network: ${networkName}`);
+}
+// Get the name for saving the implementation in deployments
+export function getLuganodesOperatorStakingV2ImplName(networkName: string): string {
+  const contractName = getLuganodesOperatorStakingV2ContractName(networkName);
+  return contractName + '_Impl';
 }
 
 // Deploy the LuganodesOperatorStakingV2 implementation contract (no proxy)
@@ -18,8 +29,11 @@ async function deployLuganodesOperatorStakingV2Impl(hre: HardhatRuntimeEnvironme
   const { deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
 
+  // Get contract name
+  const contractName = getLuganodesOperatorStakingV2ContractName(network.name);
+
   // Get the contract factory and deploy the implementation only (no proxy)
-  const factory = await ethers.getContractFactory(LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME, deployerSigner);
+  const factory = await ethers.getContractFactory(contractName, deployerSigner);
   const implementation = await factory.deploy();
   await implementation.waitForDeployment();
 
@@ -27,7 +41,7 @@ async function deployLuganodesOperatorStakingV2Impl(hre: HardhatRuntimeEnvironme
 
   console.log(
     [
-      `✅ Deployed ${LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME} implementation:`,
+      `✅ Deployed ${contractName} implementation:`,
       `  - Implementation address: ${implementationAddress}`,
       `  - Deployed by deployer account: ${deployer}`,
       `  - Network: ${network.name}`,
@@ -36,8 +50,8 @@ async function deployLuganodesOperatorStakingV2Impl(hre: HardhatRuntimeEnvironme
   );
 
   // Save the implementation contract artifact
-  const artifact = await getArtifact(LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME);
-  await save(getLuganodesOperatorStakingV2ImplName(), {
+  const artifact = await getArtifact(contractName);
+  await save(getLuganodesOperatorStakingV2ImplName(network.name), {
     address: implementationAddress,
     abi: artifact.abi,
   });
