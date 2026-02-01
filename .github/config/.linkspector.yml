@@ -7,4 +7,6 @@ aliveStatusCodes:
 ignorePatterns:
   - pattern: "https://unshield.zama.org/"
   - pattern: "https://staking.zama.org/"
+  - pattern: "https://etherscan.io/"
+  - pattern: "https://sepolia.etherscan.io/"
 useGitIgnore: true
