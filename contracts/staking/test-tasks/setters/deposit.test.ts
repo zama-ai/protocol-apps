@@ -1,3 +1,4 @@
+import { ERC20_MOCK_TOKEN_DECIMALS, ERC20_MOCK_CONTRACT_NAME } from '../../tasks/deployment/mocks/ERC20Mock';
 import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
 import { getOperatorStakingContractsFixture } from '../utils';
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers';
@@ -13,6 +14,21 @@ describe('deposit Tasks', function () {
     const fixture = await loadFixture(getOperatorStakingContractsFixture);
     coproOperatorStakings = fixture.coproOperatorStakings;
     kmsOperatorStakings = fixture.kmsOperatorStakings;
+
+    // Get the deployer account
+    const { getNamedAccounts, ethers } = hre;
+    const { deployer } = await getNamedAccounts();
+    const deployerSigner = await ethers.getSigner(deployer);
+
+    // Get the deployed ERC20
+    const erc20MockDeployment = await hre.deployments.get(ERC20_MOCK_CONTRACT_NAME);
+    const erc20Mock = await hre.ethers.getContractAt(ERC20_MOCK_CONTRACT_NAME, erc20MockDeployment.address);
+
+    // Mint the deployer account with 1 million tokens
+    for (let i = 0; i < coproOperatorStakings.length + kmsOperatorStakings.length; i++) {
+      const amount = BigInt(10 ** 6) * BigInt(10 ** ERC20_MOCK_TOKEN_DECIMALS);
+      await erc20Mock.connect(deployerSigner).mint(deployer, amount);
+    }
   });
 
   describe('task:depositOperatorStakingFromDeployer', function () {
