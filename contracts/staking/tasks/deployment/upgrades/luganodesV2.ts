@@ -1,7 +1,7 @@
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
-export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT = 'OperatorStakingV2';
+export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT = 'OperatorStakingRenameTokenV2';
 
 // Get the name for saving the implementation in deployments
 export function getLuganodesOperatorStakingV2ImplName(networkName: string): string {
