@@ -22,7 +22,7 @@ export function getOperatorRewarderName(tokenName: string): string {
 }
 
 // Deploy an OperatorStaking contract
-async function deployOperatorStaking(
+export async function deployOperatorStaking(
   tokenName: string,
   symbol: string,
   protocolStakingAddress: string,
