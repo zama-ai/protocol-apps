@@ -1,19 +1,16 @@
-import { getOperatorStakingName } from '../../tasks/deployment';
+import { deployOperatorStaking, getOperatorStakingName, OPERATOR_STAKING_CONTRACT_NAME } from '../../tasks/deployment';
 import {
   LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET,
   getLuganodesOperatorStakingV2ImplName,
 } from '../../tasks/deployment/upgrades/luganodesV2';
-import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
+import { getProtocolStakingCoproProxyAddress } from '../../tasks/utils/getAddresses';
 import { expect } from 'chai';
 import hre from 'hardhat';
 
 describe('LuganodesOperatorStakingV2 Upgrade', function () {
-  // Expected new expected values after upgrade
+  // Expected values after upgrade (these are the correct values)
   const EXPECTED_NAME = 'Mock Luganodes Staked ZAMA (Coprocessor)';
   const EXPECTED_SYMBOL = 'stZAMA-Mock-Luganodes-Coprocessor';
-
-  // Consider first copro contract
-  const COPRO_TOKEN_NAME = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_TOKEN_NAME_0`);
 
   describe('Upgrade Flow', function () {
     it('Should fix swapped name and symbol after upgrade', async function () {
@@ -21,14 +18,33 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
       const { deployer } = await hre.getNamedAccounts();
       const deployerSigner = await hre.ethers.getSigner(deployer);
 
-      // Get the deployed operator staking contract
-      const operatorStakingDeployment = await hre.deployments.get(getOperatorStakingName(COPRO_TOKEN_NAME));
-      const operatorStakingProxyAddress = operatorStakingDeployment.address;
-      const operatorStaking = await hre.ethers.getContractAt('OperatorStaking', operatorStakingProxyAddress);
+      // Get the protocol staking address
+      const protocolStakingAddress = await getProtocolStakingCoproProxyAddress(hre);
 
-      // Verify initial state does not match the new expected values
-      expect(await operatorStaking.name()).to.not.equal(EXPECTED_NAME);
-      expect(await operatorStaking.symbol()).to.not.equal(EXPECTED_SYMBOL);
+      // Deploy a new operator staking contract with SWAPPED name and symbol (simulating the bug)
+      // The bug was that name and symbol were swapped during initialization
+      await deployOperatorStaking(
+        EXPECTED_SYMBOL, // Swapped: symbol passed as name
+        EXPECTED_NAME, // Swapped: name passed as symbol
+        protocolStakingAddress,
+        deployer,
+        1000,
+        100,
+        hre,
+      );
+
+      // Get the deployed operator staking contract using the token name (which is the swapped symbol)
+      const operatorStakingDeployment = await hre.deployments.get(getOperatorStakingName(EXPECTED_SYMBOL));
+      const operatorStakingProxyAddress = operatorStakingDeployment.address;
+      const operatorStaking = await hre.ethers.getContractAt(
+        OPERATOR_STAKING_CONTRACT_NAME,
+        operatorStakingProxyAddress,
+      );
+
+      // Verify initial state has swapped name and symbol (simulating the bug)
+      // Name contains symbol value and symbol contains name value
+      expect(await operatorStaking.name()).to.equal(EXPECTED_SYMBOL);
+      expect(await operatorStaking.symbol()).to.equal(EXPECTED_NAME);
 
       // Deposit and get total assets for verifying state consistency
       await hre.run('task:depositOperatorStakingFromDeployer', {
