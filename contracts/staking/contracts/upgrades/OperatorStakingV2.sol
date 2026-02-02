@@ -5,11 +5,11 @@ pragma solidity ^0.8.27;
 import {OperatorStaking} from "../OperatorStaking.sol";
 
 /**
- * @title OperatorStakingV2
+ * @title OperatorStakingRenameTokenV2
  * @notice Upgrade contract to fix swapped name and symbol in OperatorStaking deployment.
  * @dev The original deployment had name and symbol swapped.
  */
-contract OperatorStakingV2 is OperatorStaking {
+contract OperatorStakingRenameTokenV2 is OperatorStaking {
     /**
      * @notice Re-initializes the contract's name and symbol.
      */
