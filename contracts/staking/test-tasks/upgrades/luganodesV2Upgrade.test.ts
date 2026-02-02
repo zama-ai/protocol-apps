@@ -58,7 +58,7 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
       });
 
       // Retrieve the deployment artifact for the new implementation contract to get its address
-      const implementationDeployment = await hre.deployments.get(LUGANODES_OPERATOR_STAKING_V2_CONTRACT);
+      const implementationDeployment = await hre.deployments.get(LUGANODES_OPERATOR_STAKING_V2_CONTRACT + '_Impl');
       const implementationAddress = implementationDeployment.address;
 
       // Upgrade the proxy to the new implementation
