@@ -27,7 +27,7 @@ describe('deposit Tasks', function () {
 
       // Get the receiver and assets for the first coprocessor operator staking contract
       const receiver = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_RECEIVER_0`);
-      const assets = BigInt(parseInt(getRequiredEnvVar('OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_0')));
+      const assets = BigInt(getRequiredEnvVar('OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_0'));
 
       // Run the task to deposit assets
       await hre.run('task:depositOperatorStakingFromDeployer', {
@@ -57,7 +57,7 @@ describe('deposit Tasks', function () {
 
       // Collect expected assets and verify all total assets are now set correctly
       for (let i = 0; i < numOperatorStakingCopro; i++) {
-        const expectedAsset = BigInt(parseInt(getRequiredEnvVar(`OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_${i}`)));
+        const expectedAsset = BigInt(getRequiredEnvVar(`OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_${i}`));
         const totalAssetsAfter = await coproOperatorStakings[i].totalAssets();
         expect(totalAssetsAfter).to.equal(expectedAsset);
       }
@@ -83,7 +83,7 @@ describe('deposit Tasks', function () {
 
       // Verify all KMS operator staking contracts' expected assets are now set correctly
       for (let i = 0; i < numOperatorStakingKms; i++) {
-        const expectedAsset = BigInt(parseInt(getRequiredEnvVar(`OPERATOR_STAKING_KMS_INITIAL_DEPOSIT_ASSETS_${i}`)));
+        const expectedAsset = BigInt(getRequiredEnvVar(`OPERATOR_STAKING_KMS_INITIAL_DEPOSIT_ASSETS_${i}`));
         const totalAssetsAfter = await kmsOperatorStakings[i].totalAssets();
         expect(totalAssetsAfter).to.equal(expectedAsset);
       }
@@ -110,14 +110,14 @@ describe('deposit Tasks', function () {
 
       // Verify all coprocessor total assets are now set correctly
       for (let i = 0; i < numOperatorStakingCopro; i++) {
-        const expectedAsset = BigInt(parseInt(getRequiredEnvVar(`OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_${i}`)));
+        const expectedAsset = BigInt(getRequiredEnvVar(`OPERATOR_STAKING_COPRO_INITIAL_DEPOSIT_ASSETS_${i}`));
         const totalAssetsAfter = await coproOperatorStakings[i].totalAssets();
         expect(totalAssetsAfter).to.equal(expectedAsset);
       }
 
       // Verify all KMS total assets are now set correctly
       for (let i = 0; i < numOperatorStakingKms; i++) {
-        const expectedAsset = BigInt(parseInt(getRequiredEnvVar(`OPERATOR_STAKING_KMS_INITIAL_DEPOSIT_ASSETS_${i}`)));
+        const expectedAsset = BigInt(getRequiredEnvVar(`OPERATOR_STAKING_KMS_INITIAL_DEPOSIT_ASSETS_${i}`));
         const totalAssetsAfter = await kmsOperatorStakings[i].totalAssets();
         expect(totalAssetsAfter).to.equal(expectedAsset);
       }

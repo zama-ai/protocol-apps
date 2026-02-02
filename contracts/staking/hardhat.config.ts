@@ -1,10 +1,8 @@
 import './tasks/accounts';
 import './tasks/addEligibleAccount';
 import './tasks/deployment';
-import './tasks/deposit';
+import './tasks/mocks';
 import './tasks/ownership';
-import './tasks/setFee';
-import './tasks/setRewardRate';
 import './tasks/verify';
 import '@nomicfoundation/hardhat-chai-matchers';
 import '@nomicfoundation/hardhat-ethers';
@@ -13,6 +11,7 @@ import '@openzeppelin/hardhat-upgrades';
 import '@typechain/hardhat';
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
+import { glob } from 'glob';
 import 'hardhat-deploy';
 import 'hardhat-exposed';
 import 'hardhat-gas-reporter';
@@ -75,7 +74,9 @@ task('test:tasks', 'Runs the test suite for tasks with environment variables fro
     } else {
       console.log('Skipping contracts setup.');
     }
-    await hre.run('test', ['test-tasks/**/*.test.ts']);
+
+    const testFiles = await glob('test-tasks/**/*.test.ts');
+    await hre.run('test', { testFiles });
   });
 
 const config: HardhatUserConfig = {

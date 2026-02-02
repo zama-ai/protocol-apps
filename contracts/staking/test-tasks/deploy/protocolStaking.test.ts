@@ -5,7 +5,6 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 import hre from 'hardhat';
 
-const UPGRADER_ROLE = ethers.id('UPGRADER_ROLE');
 const MANAGER_ROLE = ethers.id('MANAGER_ROLE');
 
 describe('ProtocolStaking Deployment', function () {
@@ -32,15 +31,11 @@ describe('ProtocolStaking Deployment', function () {
       const zamaTokenAddress = getRequiredEnvVar('ZAMA_TOKEN_ADDRESS');
       expect(await protocolStaking.stakingToken()).to.equal(zamaTokenAddress);
 
-      const { deployer, alice } = await hre.getNamedAccounts();
+      const { deployer } = await hre.getNamedAccounts();
 
       // Verify the deployer has the default admin role (governor) initially
       const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
       expect(await protocolStaking.hasRole(DEFAULT_ADMIN_ROLE, deployer)).to.be.true;
-
-      // Verify that Alice has the upgrader role initially
-      // The `DAO_ADDRESS` address has been set to Alice's in `.env.example` for test purposes
-      expect(await protocolStaking.hasRole(UPGRADER_ROLE, alice)).to.be.true;
 
       // Verify the deployer has the manager role initially
       expect(await protocolStaking.hasRole(MANAGER_ROLE, deployer)).to.be.true;
@@ -81,15 +76,11 @@ describe('ProtocolStaking Deployment', function () {
       const zamaTokenAddress = getRequiredEnvVar('ZAMA_TOKEN_ADDRESS');
       expect(await protocolStaking.stakingToken()).to.equal(zamaTokenAddress);
 
-      const { deployer, alice } = await hre.getNamedAccounts();
+      const { deployer } = await hre.getNamedAccounts();
 
       // Verify the deployer has the default admin role (governor) initially
       const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
       expect(await protocolStaking.hasRole(DEFAULT_ADMIN_ROLE, deployer)).to.be.true;
-
-      // Verify the deployer has the upgrader role initially
-      // The `DAO_ADDRESS` address has been set to Alice's in `.env.example` for test purposes
-      expect(await protocolStaking.hasRole(UPGRADER_ROLE, alice)).to.be.true;
 
       // Verify the deployer has the manager role initially
       expect(await protocolStaking.hasRole(MANAGER_ROLE, deployer)).to.be.true;
