@@ -2,5 +2,11 @@ dirs:
   - ./
 aliveStatusCodes:
   - 200
-ignorePatterns: []
+# Ignore the following apps as umbrelladocs gets a 429 error on them and we could not easily whitelist
+# github runner on these apps
+ignorePatterns:
+  - pattern: "https://unshield.zama.org/"
+  - pattern: "https://staking.zama.org/"
+  - pattern: "https://etherscan.io/"
+  - pattern: "https://sepolia.etherscan.io/"
 useGitIgnore: true
