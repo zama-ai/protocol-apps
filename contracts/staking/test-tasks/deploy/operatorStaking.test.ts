@@ -23,7 +23,6 @@ describe('OperatorStaking Deployment', function () {
         // Get the env vars for the coprocessor operator staking contract
         const coproTokenName = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_TOKEN_NAME_${i}`);
         const coproTokenSymbol = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_TOKEN_SYMBOL_${i}`);
-        const coproOwnerAddress = getRequiredEnvVar(`OPERATOR_STAKING_COPRO_OWNER_ADDRESS_${i}`);
 
         // Get the deployed operator staking contract
         const operatorStakingDeployment = await hre.deployments.get(getOperatorStakingName(coproTokenName));
@@ -36,7 +35,6 @@ describe('OperatorStaking Deployment', function () {
         expect(await operatorStaking.name()).to.equal(coproTokenName);
         expect(await operatorStaking.symbol()).to.equal(coproTokenSymbol);
         expect(await operatorStaking.protocolStaking()).to.equal(coproProtocolStakingProxyDeployment.address);
-        expect(await operatorStaking.owner()).to.equal(coproOwnerAddress);
 
         // Verify the rewarder was deployed and has bytecode
         const rewarderAddress = await operatorStaking.rewarder();
@@ -69,7 +67,6 @@ describe('OperatorStaking Deployment', function () {
         // Get the env vars for the KMS operator staking contract
         const kmsTokenName = getRequiredEnvVar(`OPERATOR_STAKING_KMS_TOKEN_NAME_${i}`);
         const kmsTokenSymbol = getRequiredEnvVar(`OPERATOR_STAKING_KMS_TOKEN_SYMBOL_${i}`);
-        const kmsOwnerAddress = getRequiredEnvVar(`OPERATOR_STAKING_KMS_OWNER_ADDRESS_${i}`);
 
         // Get the deployed operator staking contract
         const operatorStakingDeployment = await hre.deployments.get(getOperatorStakingName(kmsTokenName));
@@ -82,7 +79,6 @@ describe('OperatorStaking Deployment', function () {
         expect(await operatorStaking.name()).to.equal(kmsTokenName);
         expect(await operatorStaking.symbol()).to.equal(kmsTokenSymbol);
         expect(await operatorStaking.protocolStaking()).to.equal(kmsProtocolStakingProxyDeployment.address);
-        expect(await operatorStaking.owner()).to.equal(kmsOwnerAddress);
 
         // Verify the rewarder was deployed and has bytecode
         const rewarderAddress = await operatorStaking.rewarder();

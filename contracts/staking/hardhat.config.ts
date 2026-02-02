@@ -11,6 +11,7 @@ import '@openzeppelin/hardhat-upgrades';
 import '@typechain/hardhat';
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
+import { glob } from 'glob';
 import 'hardhat-deploy';
 import 'hardhat-exposed';
 import 'hardhat-gas-reporter';
@@ -73,7 +74,9 @@ task('test:tasks', 'Runs the test suite for tasks with environment variables fro
     } else {
       console.log('Skipping contracts setup.');
     }
-    await hre.run('test', ['test-tasks/**/*.test.ts']);
+
+    const testFiles = await glob('test-tasks/**/*.test.ts');
+    await hre.run('test', { testFiles });
   });
 
 const config: HardhatUserConfig = {
