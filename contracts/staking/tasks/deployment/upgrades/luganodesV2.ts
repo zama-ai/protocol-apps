@@ -1,21 +1,11 @@
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
-export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_MAINNET = 'LuganodesOperatorStakingV2Mainnet';
-export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET = 'LuganodesOperatorStakingV2Testnet';
+export const LUGANODES_OPERATOR_STAKING_V2_CONTRACT = 'OperatorStakingV2';
 
 // Get the name for saving the implementation in deployments
-export function getLuganodesOperatorStakingV2ContractName(networkName: string): string {
-  if (networkName === 'mainnet') {
-    return LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_MAINNET;
-  } else if (networkName === 'testnet' || networkName === 'hardhat') {
-    return LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET;
-  }
-  throw new Error(`Unsupported network: ${networkName}`);
-}
-// Get the name for saving the implementation in deployments
 export function getLuganodesOperatorStakingV2ImplName(networkName: string): string {
-  const contractName = getLuganodesOperatorStakingV2ContractName(networkName);
+  const contractName = LUGANODES_OPERATOR_STAKING_V2_CONTRACT;
   return contractName + '_Impl';
 }
 
@@ -30,7 +20,7 @@ async function deployLuganodesOperatorStakingV2Impl(hre: HardhatRuntimeEnvironme
   const deployerSigner = await ethers.getSigner(deployer);
 
   // Get contract name
-  const contractName = getLuganodesOperatorStakingV2ContractName(network.name);
+  const contractName = LUGANODES_OPERATOR_STAKING_V2_CONTRACT;
 
   // Get the contract factory and deploy the implementation only (no proxy)
   const factory = await ethers.getContractFactory(contractName, deployerSigner);

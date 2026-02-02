@@ -1,8 +1,5 @@
 import { deployOperatorStaking, getOperatorStakingName, OPERATOR_STAKING_CONTRACT_NAME } from '../../tasks/deployment';
-import {
-  LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET,
-  getLuganodesOperatorStakingV2ImplName,
-} from '../../tasks/deployment/upgrades/luganodesV2';
+import { LUGANODES_OPERATOR_STAKING_V2_CONTRACT } from '../../tasks/deployment/upgrades/luganodesV2';
 import { getProtocolStakingCoproProxyAddress } from '../../tasks/utils/getAddresses';
 import { expect } from 'chai';
 import hre from 'hardhat';
@@ -14,7 +11,6 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
 
   describe('Upgrade Flow', function () {
     it('Should fix swapped name and symbol after upgrade', async function () {
-      const network = await hre.ethers.provider.getNetwork();
       const { deployer } = await hre.getNamedAccounts();
       const deployerSigner = await hre.ethers.getSigner(deployer);
 
@@ -62,15 +58,17 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
       });
 
       // Retrieve the deployment artifact for the new implementation contract to get its address
-      const implementationDeployment = await hre.deployments.get(getLuganodesOperatorStakingV2ImplName(network.name));
+      const implementationDeployment = await hre.deployments.get(LUGANODES_OPERATOR_STAKING_V2_CONTRACT);
       const implementationAddress = implementationDeployment.address;
 
       // Upgrade the proxy to the new implementation
-      await operatorStaking.connect(deployerSigner).upgradeToAndCall(implementationAddress, '0x');
+      const calldata = // returned via: `cast calldata "reinitializeV2(string,string)" "Mock Luganodes Staked ZAMA (Coprocessor)" "stZAMA-Mock-Luganodes-Coprocessor"`
+        '0x91da124c000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000284d6f636b204c7567616e6f646573205374616b6564205a414d412028436f70726f636573736f7229000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002173745a414d412d4d6f636b2d4c7567616e6f6465732d436f70726f636573736f7200000000000000000000000000000000000000000000000000000000000000';
+      await operatorStaking.connect(deployerSigner).upgradeToAndCall(implementationAddress, calldata);
 
       // Get the upgraded operator staking V2 contract
       const operatorStakingV2 = await hre.ethers.getContractAt(
-        LUGANODES_OPERATOR_STAKING_V2_CONTRACT_NAME_TESTNET,
+        LUGANODES_OPERATOR_STAKING_V2_CONTRACT,
         operatorStakingProxyAddress,
       );
 
@@ -80,14 +78,6 @@ describe('LuganodesOperatorStakingV2 Upgrade', function () {
 
       // Verify total assets are the same after upgrade
       expect(await operatorStakingV2.totalAssets()).to.equal(totalAssets);
-    });
-  });
-
-  describe('Helper Functions', function () {
-    it('Should generate correct implementation name', function () {
-      expect(getLuganodesOperatorStakingV2ImplName('mainnet')).to.equal('LuganodesOperatorStakingV2Mainnet_Impl');
-      expect(getLuganodesOperatorStakingV2ImplName('testnet')).to.equal('LuganodesOperatorStakingV2Testnet_Impl');
-      expect(getLuganodesOperatorStakingV2ImplName('hardhat')).to.equal('LuganodesOperatorStakingV2Testnet_Impl');
     });
   });
 });
