@@ -2,6 +2,7 @@ import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 const ERC20_MOCK_CONTRACT_NAME = 'ERC20Mock';
+const USDT_MOCK_CONTRACT_NAME = 'USDTMock';
 
 // Deploy the ERC20Mock contract
 async function deployERC20Mock(hre: HardhatRuntimeEnvironment, name: string, symbol: string, decimals: number) {
@@ -38,6 +39,39 @@ async function deployERC20Mock(hre: HardhatRuntimeEnvironment, name: string, sym
   return contractAddress;
 }
 
+// Deploy the USDTMock contract
+async function deployUSDTMock(hre: HardhatRuntimeEnvironment) {
+  const { getNamedAccounts, ethers, deployments, network } = hre;
+  const { save, getArtifact } = deployments;
+
+  const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
+
+  const factory = await ethers.getContractFactory(USDT_MOCK_CONTRACT_NAME, deployerSigner);
+  const contract = await factory.deploy();
+  await contract.waitForDeployment();
+
+  const contractAddress = await contract.getAddress();
+
+  console.log(
+    [
+      `✅ Deployed USDTMock:`,
+      `  - Address: ${contractAddress}`,
+      `  - Deployed by deployer account: ${deployer}`,
+      `  - Network: ${network.name}`,
+      '',
+    ].join('\n'),
+  );
+
+  const artifact = await getArtifact(USDT_MOCK_CONTRACT_NAME);
+  await save(USDT_MOCK_CONTRACT_NAME, {
+    address: contractAddress,
+    abi: artifact.abi,
+  });
+
+  return contractAddress;
+}
+
 // Deploy the ERC20Mock contract
 // Example usage:
 // npx hardhat task:deployERC20Mock --name "Mock Token" --symbol "MTK" --decimals 18 --network testnet
@@ -52,3 +86,14 @@ task('task:deployERC20Mock')
 
     console.log('✅ ERC20Mock contract deployed\n');
   });
+
+// Deploy the USDTMock contract (realistic USDT with "approve to 0 first" quirk)
+// Example usage:
+// npx hardhat task:deployUSDTMock --network testnet
+task('task:deployUSDTMock').setAction(async function (_, hre) {
+  console.log('Deploying USDTMock contract...\n');
+
+  await deployUSDTMock(hre);
+
+  console.log('✅ USDTMock contract deployed\n');
+});
