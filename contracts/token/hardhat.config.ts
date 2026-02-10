@@ -101,6 +101,11 @@ const config: HardhatUserConfig = {
             url: process.env.RPC_URL_BNB_TESTNET || '',
             accounts,
         },
+        'hyperevm-mainnet': {
+            eid: EndpointId.HYPERLIQUID_V2_MAINNET,
+            url: process.env.RPC_URL_HYPEREVM_MAINNET || '',
+            accounts,
+        },
         hardhat: {
             // Need this for testing because TestHelperOz5.sol is exceeding the compiled contract size limit
             allowUnlimitedContractSize: true,
