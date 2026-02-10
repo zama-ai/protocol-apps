@@ -63,9 +63,7 @@ describe('USDTMock', function () {
     const amount1 = ethers.parseUnits('100', 6);
     const amount2 = ethers.parseUnits('200', 6);
     await this.usdt.connect(this.alice).approve(this.bob.address, amount1);
-    await expect(this.usdt.connect(this.alice).approve(this.bob.address, amount2))
-      .to.be.revertedWithCustomError(this.usdt, 'AllowanceMustBeResetToZero')
-      .withArgs(this.bob.address, amount1);
+    await expect(this.usdt.connect(this.alice).approve(this.bob.address, amount2)).to.be.revertedWithoutReason();
   });
 
   it('should allow setting new allowance after resetting to zero', async function () {
