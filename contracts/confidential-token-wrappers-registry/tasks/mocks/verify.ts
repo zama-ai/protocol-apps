@@ -18,3 +18,19 @@ task('task:verifyMockERC20')
     });
     console.log(`Mock ERC20 contract verification complete\n`);
   });
+
+// Verify the USDTMock contract
+// Example usage:
+// npx hardhat task:verifyUSDTMock --contract-address 0x1234567890123456789012345678901234567890 --network testnet
+task('task:verifyUSDTMock')
+  .addParam('contractAddress', 'The address of the USDTMock contract to verify', '', types.string)
+  .setAction(async function ({ contractAddress }, hre) {
+    const { run } = hre;
+
+    console.log(`Verifying USDTMock contract at ${contractAddress}...\n`);
+    await run('verify:verify', {
+      address: contractAddress,
+      constructorArguments: [],
+    });
+    console.log(`USDTMock contract verification complete\n`);
+  });
