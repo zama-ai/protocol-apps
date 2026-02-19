@@ -13,6 +13,10 @@ All staking happens on Ethereum. Only non-confidential $ZAMA is supported for no
 
 All contracts are owned and maintained by [protocol governance](governance.md).
 
+## Contract addresses
+
+All deployed staking contract addresses (protocol and operator) can be found in the [addresses directory](addresses/README.md).
+
 ## Structure
 
 The hierarchy is implemented by a protocol staking contract and an operator staking contract. The protocol staking contract is at the root, and one operator staking contract is deployed per operator.

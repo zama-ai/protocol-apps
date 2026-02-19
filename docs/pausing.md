@@ -18,3 +18,8 @@ The following components can be paused.
 | Ethereum    | ACL updates can be paused |
 | Gateway     | Decryption requests can be paused |
 | Gateway     | Input verification requests can be paused |
+
+
+## Contract addresses
+
+All deployed pauser contract addresses can be found in the [addresses directory](addresses/README.md).
