@@ -9,4 +9,5 @@ ignorePatterns:
   - pattern: "https://staking.zama.org/"
   - pattern: "https://etherscan.io/"
   - pattern: "https://sepolia.etherscan.io/"
+  - pattern: "https://app.squads.so/"
 useGitIgnore: true
