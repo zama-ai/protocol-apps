@@ -29,6 +29,7 @@ Currently, most useful scripts are:
 
 ```
 [*] get-current-pausers
+[*] get-token-roles
 ```
 ### getCurrentPausers
 
@@ -85,3 +86,19 @@ Pausers are IDENTICAL on both chains.
 ```
 
 If pausers differ between chains, the script will show which addresses exist only on one chain.
+
+### getTokenRoles
+
+#### Usage
+
+```bash
+npm run get-token-roles
+```
+
+The script will:
+1. Use `RPC_ETHEREUM` and `ZAMA_TOKEN_ERC20_ETHEREUM` from your `.env` file.
+2. Find the deployment block for the ZamaERC20 token contract on Ethereum.
+3. Fetch all `RoleGranted` and `RoleRevoked` events from deployment to the latest block.
+4. Compute the current holders of `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE`, and `MINTING_PAUSER_ROLE`.
+5. Display a summary of role holders with their ETH balances and event counts per role.
+
