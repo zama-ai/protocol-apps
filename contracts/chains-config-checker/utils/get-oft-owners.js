@@ -4,10 +4,31 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const { ethers } = require('ethers');
 const { isValidAddress } = require('./get-deployment-block');
 
-const ETHEREUM_RPC_URL = process.env.RPC_ETHEREUM;
-const ZAMA_OFT_ADAPTER_ETHEREUM = process.env.ZAMA_OFT_ADAPTER_ETHEREUM;
+// Chain configurations from environment (OFT/OFTAdapter per chain)
+const CHAINS = {
+  ethereumAdapter: {
+    name: 'Ethereum OFT Adapter',
+    rpcEnv: 'RPC_ETHEREUM',
+    addrEnv: 'ZAMA_OFT_ADAPTER_ETHEREUM',
+  },
+  gatewayOft: {
+    name: 'Gateway OFT',
+    rpcEnv: 'RPC_GATEWAY',
+    addrEnv: 'ZAMA_OFT_GATEWAY',
+  },
+  bscOft: {
+    name: 'BSC OFT',
+    rpcEnv: 'RPC_BSC',
+    addrEnv: 'ZAMA_OFT_BSC',
+  },
+  hyperEvmOft: {
+    name: 'HyperEVM OFT',
+    rpcEnv: 'RPC_HYPEREVM',
+    addrEnv: 'ZAMA_OFT_HYPEREVM',
+  },
+};
 
-const ADAPTER_ABI = [
+const ADAPTER_OR_OFT_ABI = [
   'function owner() view returns (address)',
   'function endpoint() view returns (address)',
 ];
@@ -16,50 +37,106 @@ const ENDPOINT_ABI = [
   'function delegates(address) view returns (address)',
 ];
 
-async function getOftOwnerAndDelegate() {
-  if (!ETHEREUM_RPC_URL) {
-    throw new Error('RPC_ETHEREUM is not configured');
+function buildChainConfigs() {
+  const configs = [];
+  for (const [key, chain] of Object.entries(CHAINS)) {
+    const rpcUrl = process.env[chain.rpcEnv];
+    const contractAddress = process.env[chain.addrEnv];
+    configs.push({
+      key,
+      name: chain.name,
+      rpcUrl,
+      contractAddress,
+    });
+  }
+  return configs;
+}
+
+async function getOwnerAndDelegateForChain(chainConfig) {
+  const { name, rpcUrl, contractAddress } = chainConfig;
+
+  if (!rpcUrl) {
+    throw new Error(`[${name}] RPC URL is not configured`);
   }
 
-  if (!ZAMA_OFT_ADAPTER_ETHEREUM) {
-    throw new Error('ZAMA_OFT_ADAPTER_ETHEREUM is not configured');
+  if (!contractAddress) {
+    throw new Error(`[${name}] Contract address is not configured`);
   }
 
-  if (!isValidAddress(ZAMA_OFT_ADAPTER_ETHEREUM)) {
-    throw new Error('Invalid ZAMA_OFT_ADAPTER_ETHEREUM address format');
+  if (!isValidAddress(contractAddress)) {
+    throw new Error(`[${name}] Invalid contract address format`);
   }
 
-  const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
-  const adapter = new ethers.Contract(ZAMA_OFT_ADAPTER_ETHEREUM, ADAPTER_ABI, provider);
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const app = new ethers.Contract(contractAddress, ADAPTER_OR_OFT_ABI, provider);
 
   const [owner, endpointAddress] = await Promise.all([
-    adapter.owner(),
-    adapter.endpoint(),
+    app.owner(),
+    app.endpoint(),
   ]);
 
   const endpoint = new ethers.Contract(endpointAddress, ENDPOINT_ABI, provider);
-  const delegate = await endpoint.delegates(ZAMA_OFT_ADAPTER_ETHEREUM);
+  const delegate = await endpoint.delegates(contractAddress);
 
-  return { owner, endpointAddress, delegate, provider };
+  return {
+    name,
+    contractAddress,
+    endpointAddress,
+    owner,
+    delegate,
+    provider,
+  };
 }
 
-async function printOftOwnerAndDelegate({ owner, endpointAddress, delegate, provider }) {
-  console.log('[Ethereum ZamaOFTAdapter]');
-  console.log(`  Adapter address : ${ZAMA_OFT_ADAPTER_ETHEREUM}`);
-  console.log(`  Endpoint address: ${endpointAddress}`);
-  console.log(`  Owner           : ${owner}`);
-  console.log(`  Delegate        : ${delegate}`);
+async function printOwnerAndDelegate(info) {
+  const { name, contractAddress, endpointAddress, owner, delegate, provider } = info;
+
+  console.log(`\n[${name}]`);
+  console.log(`  Adapter/OFT address : ${contractAddress}`);
+  console.log(`  Endpoint address    : ${endpointAddress}`);
+  console.log(`  Owner              : ${owner}`);
+  console.log(`  Delegate           : ${delegate}`);
 }
 
 async function main() {
-  try {
-    const info = await getOftOwnerAndDelegate();
-    await printOftOwnerAndDelegate(info);
-  } catch (error) {
-    console.error(`\nError: ${error.message}`);
+  const configs = buildChainConfigs();
+  const toRun = configs.filter((c) => c.rpcUrl && c.contractAddress && isValidAddress(c.contractAddress));
+  const toSkip = configs.filter((c) => !c.rpcUrl || !c.contractAddress || !isValidAddress(c.contractAddress || ''));
+
+  for (const c of toSkip) {
+    if (!c.rpcUrl) {
+      console.log(`  Skipping ${c.name}: RPC not configured`);
+    } else if (!c.contractAddress) {
+      console.log(`  Skipping ${c.name}: Contract address not configured`);
+    } else {
+      console.log(`  Skipping ${c.name}: Invalid address format`);
+    }
+  }
+
+  if (toRun.length === 0) {
+    console.error('Error: No chains configured. Set RPC and contract address env vars in .env');
+    process.exit(1);
+  }
+
+  let hadError = false;
+  for (const chainConfig of toRun) {
+    const resolved = {
+      name: chainConfig.name,
+      rpcUrl: chainConfig.rpcUrl,
+      contractAddress: chainConfig.contractAddress,
+    };
+    try {
+      const info = await getOwnerAndDelegateForChain(resolved);
+      await printOwnerAndDelegate(info);
+    } catch (error) {
+      console.error(`\n[${chainConfig.name}] Error: ${error.message}`);
+      hadError = true;
+    }
+  }
+
+  if (hadError) {
     process.exit(1);
   }
 }
 
 main();
-

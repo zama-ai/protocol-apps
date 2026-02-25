@@ -103,6 +103,30 @@ The script will:
 4. Compute the current holders of `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE`, and `MINTING_PAUSER_ROLE`.
 5. Display a summary of role holders with their ETH balances and event counts per role.
 
+Example Output:
+
+```
+DEFAULT_ADMIN_ROLE:
+  1. 0x... (0 ETH)
+  Events: 1 granted, 0 revoked
+  Total: 1 address(es)
+
+MINTER_ROLE:
+  1. 0x... (0 ETH)
+  2. 0x... (0 ETH)
+  Events: 2 granted, 0 revoked
+  Total: 2 address(es)
+
+MINTING_PAUSER_ROLE:
+  1. 0x... (0 ETH)
+  Events: 1 granted, 0 revoked
+  Total: 1 address(es)
+
+--------------------------------------------------
+Total RoleGranted events: 4
+Total RoleRevoked events: 0
+```
+
 ### getOftOwners
 
 #### Usage
@@ -111,12 +135,33 @@ The script will:
 npm run get-oft-owners
 ```
 
-The script will:
-1. Use `RPC_ETHEREUM` and `ZAMA_OFT_ADAPTER_ETHEREUM` from your `.env` file.
-2. Read the `ZamaOFTAdapter` contract on Ethereum to get:
-   - The current `owner()` address.
-   - The associated LayerZero endpoint address via `endpoint()`.
-3. Read the LayerZero endpoint’s `delegates(adapter)` mapping to get the current delegate address for the adapter.
-4. Print the adapter address, endpoint address, owner, delegate, and (where possible) their ETH balances.
+The script checks multiple chains (as configured in `.env`) and reports the current **owner** and **LayerZero delegate** for each ZamaOFTAdapter (Ethereum) or ZamaOFT (Gateway, BSC, HyperEVM). It uses on-chain view calls only (`owner()`, `endpoint()`, `delegates(oapp)`).
+
+For each configured chain it will:
+1. Read the OFT/OFTAdapter contract to get `owner()` and `endpoint()`.
+2. Read the endpoint's `delegates(contractAddress)` to get the current delegate.
+3. Print adapter/OFT address, endpoint address, owner, delegate, and (where available) native token balances.
+
+**Environment variables (per chain):**
+
+| Chain            | RPC env       | Contract address env      |
+|------------------|---------------|----------------------------|
+| Ethereum Adapter | `RPC_ETHEREUM` | `ZAMA_OFT_ADAPTER_ETHEREUM` |
+| Gateway OFT      | `RPC_GATEWAY`  | `ZAMA_OFT_GATEWAY`          |
+| BSC OFT          | `RPC_BSC`      | `ZAMA_OFT_BSC`              |
+| HyperEVM OFT     | `RPC_HYPEREVM` | `ZAMA_OFT_HYPEREVM`         |
+
+Chains missing RPC or contract address are skipped. Example output:
+
+```
+[Ethereum Adapter]
+  Adapter/OFT address : 0x...
+  Endpoint address    : 0x...
+  Owner              : 0x...
+  Delegate           : 0x...
+
+[Gateway OFT]
+  ...
+```
 
 
