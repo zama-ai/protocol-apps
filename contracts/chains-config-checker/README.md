@@ -30,6 +30,7 @@ Currently, most useful scripts are:
 ```
 [*] get-current-pausers
 [*] get-token-roles
+[*] get-oft-owners
 ```
 ### getCurrentPausers
 
@@ -101,4 +102,21 @@ The script will:
 3. Fetch all `RoleGranted` and `RoleRevoked` events from deployment to the latest block.
 4. Compute the current holders of `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE`, and `MINTING_PAUSER_ROLE`.
 5. Display a summary of role holders with their ETH balances and event counts per role.
+
+### getOftOwners
+
+#### Usage
+
+```bash
+npm run get-oft-owners
+```
+
+The script will:
+1. Use `RPC_ETHEREUM` and `ZAMA_OFT_ADAPTER_ETHEREUM` from your `.env` file.
+2. Read the `ZamaOFTAdapter` contract on Ethereum to get:
+   - The current `owner()` address.
+   - The associated LayerZero endpoint address via `endpoint()`.
+3. Read the LayerZero endpoint’s `delegates(adapter)` mapping to get the current delegate address for the adapter.
+4. Print the adapter address, endpoint address, owner, delegate, and (where possible) their ETH balances.
+
 
