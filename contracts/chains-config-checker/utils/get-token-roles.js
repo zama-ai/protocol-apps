@@ -36,12 +36,6 @@ async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) 
   return events;
 }
 
-function formatEth(balanceWei) {
-  const balanceEth = ethers.formatEther(balanceWei);
-  const formatted = parseFloat(balanceEth).toFixed(6).replace(/\.?0+$/, '');
-  return formatted === '' ? '0' : formatted;
-}
-
 async function getRolesForEthereum() {
   if (!ETHEREUM_RPC_URL) {
     throw new Error('RPC_ETHEREUM is not configured');
@@ -170,9 +164,7 @@ async function printRoles(rolesByName, provider, roleStats, totalEvents) {
     } else {
       for (let i = 0; i < addresses.length; i++) {
         const addr = addresses[i];
-        const balance = await provider.getBalance(addr);
-        const balanceEth = formatEth(balance);
-        console.log(`  ${i + 1}. ${addr} (${balanceEth} ETH)`);
+        console.log(`  ${i + 1}. ${addr} `);
       }
     }
 
