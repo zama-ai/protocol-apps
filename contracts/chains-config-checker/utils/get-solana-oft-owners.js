@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const { Connection, PublicKey } = require('@solana/web3.js');
+const { createUmi } = require('@metaplex-foundation/umi-bundle-defaults');
+const { fetchMint, mplToolbox } = require('@metaplex-foundation/mpl-toolbox');
+const { publicKey, unwrapOption } = require('@metaplex-foundation/umi');
+const { toWeb3JsPublicKey } = require('@metaplex-foundation/umi-web3js-adapters');
+const { EndpointPDADeriver, EndpointProgram } = require('@layerzerolabs/lz-solana-sdk-v2');
+const { oft } = require('@layerzerolabs/oft-v2-solana-sdk');
+
+const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_STORE', 'SOLANA_TOKEN_MINT'];
+
+function validateEnv() {
+  const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    console.error(`Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
+async function main() {
+  validateEnv();
+
+  const rpcUrl = process.env.SOLANA_RPC_URL;
+  const oftStoreAddress = process.env.SOLANA_OFT_STORE;
+  const tokenMintAddress = process.env.SOLANA_TOKEN_MINT;
+
+  const connection = new Connection(rpcUrl);
+  const umi = createUmi(rpcUrl).use(mplToolbox());
+
+  const oftStoreKey = publicKey(oftStoreAddress);
+
+  // Fetch OFTStore account (admin, endpointProgram, tokenMint, tokenEscrow)
+  let oftStoreInfo;
+  try {
+    oftStoreInfo = await oft.accounts.fetchOFTStore(umi, oftStoreKey);
+  } catch (e) {
+    console.error(`Failed to fetch OFTStore at ${oftStoreAddress}:`, e.message);
+    process.exit(1);
+  }
+
+  // Derive OAppRegistry PDA from the endpoint program and fetch delegate
+  const endpointProgramKey = new PublicKey(oftStoreInfo.endpointProgram);
+  const epDeriver = new EndpointPDADeriver(endpointProgramKey);
+  const [oAppRegistryPda] = epDeriver.oappRegistry(toWeb3JsPublicKey(oftStoreKey));
+
+  let oAppRegistryInfo;
+  try {
+    oAppRegistryInfo = await EndpointProgram.accounts.OAppRegistry.fromAccountAddress(
+      connection,
+      oAppRegistryPda
+    );
+  } catch (e) {
+    console.error(`Failed to fetch OAppRegistry at ${oAppRegistryPda.toBase58()}:`, e.message);
+    process.exit(1);
+  }
+
+  // Fetch mint account for authority info
+  const mintAccount = await fetchMint(umi, publicKey(oftStoreInfo.tokenMint));
+  const mintAuthority = unwrapOption(mintAccount.mintAuthority) ?? 'None';
+  const freezeAuthority = unwrapOption(mintAccount.freezeAuthority) ?? 'None';
+
+  console.log('\n=== Solana OFT Info ===');
+
+  console.log(`\nOFT Store:         ${oftStoreAddress}`);
+  console.log(`  Admin (Owner):   ${oftStoreInfo.admin}`);
+  console.log(`  Endpoint Prog:   ${oftStoreInfo.endpointProgram}`);
+  console.log(`  Token Mint:      ${oftStoreInfo.tokenMint}`);
+  console.log(`  Token Escrow:    ${oftStoreInfo.tokenEscrow}`);
+
+  const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
+  console.log(`\nOApp Delegate:     ${delegate}`);
+
+  console.log(`\nToken Mint:        ${tokenMintAddress}`);
+  console.log(`  Mint Authority:  ${mintAuthority}`);
+  console.log(`  Freeze Authority: ${freezeAuthority}`);
+}
+
+main();
