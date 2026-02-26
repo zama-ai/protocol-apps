@@ -31,6 +31,7 @@ Currently, most useful scripts are:
 [*] get-current-pausers
 [*] get-token-roles
 [*] get-oft-owners
+[*] get-solana-oft-owners
 ```
 ### getCurrentPausers
 
@@ -164,4 +165,44 @@ Chains missing RPC or contract address are skipped. Example output:
   ...
 ```
 
+### getSolanaOftInfo
 
+#### Usage
+
+```bash
+npm run get-solana-oft-owners
+```
+
+Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, and token **mint/freeze authority**.
+
+The script will:
+1. Fetch the **OFTStore** account to get admin (owner), endpoint program, token mint, and token escrow.
+2. Derive the **OAppRegistry** PDA from the endpoint program and fetch the delegate.
+3. Fetch the **Mint** account to get mint authority and freeze authority.
+4. Print a summary.
+
+**Required environment variables:**
+
+| Variable           | Description                     | Example                                          |
+|--------------------|---------------------------------|--------------------------------------------------|
+| `SOLANA_RPC_URL`   | Solana RPC endpoint             | `https://api.mainnet-beta.solana.com`            |
+| `SOLANA_OFT_STORE` | OFTStore address            | `H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3` |
+| `SOLANA_TOKEN_MINT`| Token mint address              | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
+
+Example output:
+
+```
+=== Solana OFT Info ===
+
+OFT Store:         H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
+  Admin (Owner):   G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+  Endpoint Prog:   76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6
+  Token Mint:      4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
+  Token Escrow:    22tZd8TXQGuTXEitCqxVKacdY2TAdjydsKJCFEC8jyuH
+
+OApp Delegate:     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+
+Token Mint:        4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
+  Mint Authority:  H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
+  Freeze Authority: None
+```
