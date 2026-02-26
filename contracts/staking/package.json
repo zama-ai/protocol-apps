@@ -15,12 +15,15 @@
     "lint:sol": "prettier --loglevel warn '{contracts,test}/**/*.sol' --check && solhint --config solhint.config.js '{contracts,test}/**/*.sol'",
     "lint:sol:fix": "solhint --config solhint.config.js '{contracts,test}/**/*.sol' --fix; prettier --loglevel warn '{contracts,test}/**/*.sol' --write",
     "test": "hardhat test",
+    "test:fuzz": "forge test",
+    "test:fuzz:verbose": "forge test -vvv",
     "test:tasks": "hardhat test:tasks",
     "test:gas": "REPORT_GAS=true hardhat test",
     "test:pragma": "npm run compile && scripts/checks/pragma-validity.js artifacts/build-info/*",
     "coverage": "SOLIDITY_COVERAGE=true hardhat coverage"
   },
   "devDependencies": {
+    "@layerzerolabs/toolbox-foundry": "~0.1.12",
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.9.0",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
