@@ -101,7 +101,7 @@ The script will:
 2. Find the deployment block for the ZamaERC20 token contract on Ethereum.
 3. Fetch all `RoleGranted` and `RoleRevoked` events from deployment to the latest block.
 4. Compute the current holders of `DEFAULT_ADMIN_ROLE`, `MINTER_ROLE`, and `MINTING_PAUSER_ROLE`.
-5. Display a summary of role holders with their ETH balances and event counts per role.
+5. Display a summary of role holders with the event counts per role.
 
 Example Output:
 
@@ -140,7 +140,7 @@ The script checks multiple chains (as configured in `.env`) and reports the curr
 For each configured chain it will:
 1. Read the OFT/OFTAdapter contract to get `owner()` and `endpoint()`.
 2. Read the endpoint's `delegates(contractAddress)` to get the current delegate.
-3. Print adapter/OFT address, endpoint address, owner, delegate, and (where available) native token balances.
+3. Print adapter/OFT address, endpoint address, owner, and delegate.
 
 **Environment variables (per chain):**
 
