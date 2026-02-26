@@ -6,7 +6,7 @@ const { isValidAddress } = require('./get-deployment-block');
 
 // Chain configurations from environment (OFT/OFTAdapter per chain)
 const CHAINS = {
-  ethereumAdapter: {
+  ethereumOftAdapter: {
     name: 'Ethereum OFT Adapter',
     rpcEnv: 'RPC_ETHEREUM',
     addrEnv: 'ZAMA_OFT_ADAPTER_ETHEREUM',
