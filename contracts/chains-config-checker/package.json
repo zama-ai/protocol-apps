@@ -4,7 +4,9 @@
   "description": "FHEVM onchain configuration checker utilities",
   "scripts": {
     "get-deployment-block": "node utils/get-deployment-block.js",
-    "get-current-pausers": "node utils/get-current-pausers.js"
+    "get-current-pausers": "node utils/get-current-pausers.js",
+    "get-token-roles": "node utils/get-token-roles.js",
+    "get-oft-owners": "node utils/get-oft-owners.js"
   },
   "dependencies": {
     "dotenv": "^16.0.0",
