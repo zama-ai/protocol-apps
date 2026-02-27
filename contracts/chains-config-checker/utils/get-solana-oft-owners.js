@@ -9,7 +9,7 @@ const { toWeb3JsPublicKey } = require('@metaplex-foundation/umi-web3js-adapters'
 const { EndpointPDADeriver, EndpointProgram } = require('@layerzerolabs/lz-solana-sdk-v2');
 const { oft } = require('@layerzerolabs/oft-v2-solana-sdk');
 
-const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_STORE', 'SOLANA_TOKEN_MINT'];
+const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_STORE'];
 
 function validateEnv() {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -24,7 +24,6 @@ async function main() {
 
   const rpcUrl = process.env.SOLANA_RPC_URL;
   const oftStoreAddress = process.env.SOLANA_OFT_STORE;
-  const tokenMintAddress = process.env.SOLANA_TOKEN_MINT;
 
   const connection = new Connection(rpcUrl);
   const umi = createUmi(rpcUrl).use(mplToolbox());
@@ -72,7 +71,7 @@ async function main() {
   const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
   console.log(`\nOApp Delegate:     ${delegate}`);
 
-  console.log(`\nToken Mint:        ${tokenMintAddress}`);
+  console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
   console.log(`  Mint Authority:  ${mintAuthority}`);
   console.log(`  Freeze Authority: ${freezeAuthority}`);
 }
