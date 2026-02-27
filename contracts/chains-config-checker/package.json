@@ -19,5 +19,8 @@
     "@solana/web3.js": "~1.95.8",
     "dotenv": "^16.0.0",
     "ethers": "^6.0.0"
+  },
+  "overrides": {
+    "@solana/web3.js": "~1.95.8"
   }
 }
