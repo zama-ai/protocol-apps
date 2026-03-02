@@ -66,12 +66,7 @@ async function main() {
   }
 
   console.log('\n=== Solana OFT ===');
-
-  console.log(`\nOFT Store:         ${oftStoreKey}`);
-  console.log(`  Admin (Owner):   ${oftStoreInfo.admin}`);
-  console.log(`  Endpoint Prog:   ${oftStoreInfo.endpointProgram}`);
-  console.log(`  Token Mint:      ${oftStoreInfo.tokenMint}`);
-  console.log(`  Token Escrow:    ${oftStoreInfo.tokenEscrow}`);
+  console.log(`\nAdmin (Owner):   ${oftStoreInfo.admin}`);
 
   const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
   console.log(`\nOApp Delegate:     ${delegate}`);
