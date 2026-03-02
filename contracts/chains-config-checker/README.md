@@ -2,8 +2,6 @@
 
 Utilities for checking FHEVM protocol contract configurations.
 
-Returns the current set of active pausers for PauserSet contracts on Ethereum and Gateway chains by analyzing on-chain events.
-
 ## Prerequisites
 
 - Node.js (v18+)
@@ -39,6 +37,8 @@ Currently, most useful scripts are:
 ```bash
 npm run get-current-pausers
 ```
+
+Returns the current set of active pausers for PauserSet contracts on Ethereum and Gateway chains by analyzing on-chain events.
 
 The script will:
 1. Query both Ethereum and Gateway chains (if configured)
