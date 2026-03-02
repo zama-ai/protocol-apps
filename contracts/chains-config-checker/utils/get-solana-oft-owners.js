@@ -9,7 +9,7 @@ const { toWeb3JsPublicKey } = require('@metaplex-foundation/umi-web3js-adapters'
 const { EndpointPDADeriver, EndpointProgram } = require('@layerzerolabs/lz-solana-sdk-v2');
 const { oft } = require('@layerzerolabs/oft-v2-solana-sdk');
 
-const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_MINT'];
+const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_MINT', 'SOLANA_LOADER_PROGRAM'];
 
 function validateEnv() {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -24,6 +24,7 @@ async function main() {
 
   const rpcUrl = process.env.SOLANA_RPC_URL;
   const oftMintAddress = process.env.SOLANA_OFT_MINT;
+  const loaderProgramAddress = process.env.SOLANA_LOADER_PROGRAM;
 
   const connection = new Connection(rpcUrl);
   const umi = createUmi(rpcUrl).use(mplToolbox());
@@ -66,9 +67,9 @@ async function main() {
   }
 
   // Get OFT Program Upgrade Authority
-  // Loader program account found here: https://solana.com/docs/core/programs/program-deployment#loader-programs
+  // Loader program address found here: https://solana.com/docs/core/programs/program-deployment#loader-programs
   const oftProgramId = new PublicKey(oftStoreInfo.header.owner);
-  const BPF_LOADER_UPGRADEABLE = new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111');
+  const BPF_LOADER_UPGRADEABLE = new PublicKey(loaderProgramAddress);
   const [programDataAddress] = PublicKey.findProgramAddressSync(
     [oftProgramId.toBytes()],
     BPF_LOADER_UPGRADEABLE

@@ -165,7 +165,7 @@ Chains missing RPC or contract address are skipped. Example output:
   ...
 ```
 
-### getSolanaOftInfo
+### getSolanaOftOwners
 
 #### Usage
 
@@ -173,36 +173,39 @@ Chains missing RPC or contract address are skipped. Example output:
 npm run get-solana-oft-owners
 ```
 
-Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, and token **mint/freeze authority**.
+Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, **upgrade authority**, and token **mint authority**. Verifies that admin, delegate, and upgrade authority are all equal.
 
 The script will:
-1. Fetch the **OFTStore** account to get admin (owner), endpoint program, token mint, and token escrow.
-2. Derive the **OAppRegistry** PDA from the endpoint program and fetch the delegate.
-3. Fetch the **Mint** account to get mint authority and freeze authority.
-4. Print a summary.
+1. Fetch the **Mint** account to get the mint authority (which is the OFTStore address).
+2. Fetch the **OFTStore** account to get admin (owner) and endpoint program.
+3. Derive the **OAppRegistry** PDA from the endpoint program and fetch the delegate.
+4. Derive the **ProgramData** PDA from the OFT program and the BPF Loader to fetch the upgrade authority.
+5. Verify that admin, delegate, and upgrade authority are all the same address.
+6. Print a summary with results.
 
 **Required environment variables:**
 
 | Variable           | Description                     | Example                                          |
 |--------------------|---------------------------------|--------------------------------------------------|
 | `SOLANA_RPC_URL`   | Solana RPC endpoint             | `https://api.mainnet-beta.solana.com`            |
-| `SOLANA_OFT_STORE` | OFTStore address            | `H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3` |
-| `SOLANA_TOKEN_MINT`| Token mint address              | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
+| `SOLANA_OFT_MINT` | OFTMint address            | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
+| `SOLANA_LOADER_PROGRAM`| Solana BPF Loader Program              | `BPFLoaderUpgradeab1e11111111111111111111111` |
+
+*Note: If requried, the Solana BPF Loader Program can be found on the official Solana docs [here](https://solana.com/docs/core/programs/program-deployment#loader-programs).*
 
 Example output:
 
 ```
-=== Solana OFT Info ===
+=== Solana OFT ===
 
-OFT Store:         H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
-  Admin (Owner):   G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
-  Endpoint Prog:   76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6
-  Token Mint:      4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
-  Token Escrow:    22tZd8TXQGuTXEitCqxVKacdY2TAdjydsKJCFEC8jyuH
+Admin (Owner):     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 
 OApp Delegate:     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 
+Upgrade Authority: G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+
 Token Mint:        4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
   Mint Authority:  H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
-  Freeze Authority: None
+
+Admin, Upgrade Authority, and Delegate are equal
 ```
