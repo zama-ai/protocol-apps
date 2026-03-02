@@ -76,16 +76,25 @@ async function main() {
   const response = await connection.getParsedAccountInfo(programDataAddress);
   const upgradeAuthority = response.value?.data?.parsed?.info?.authority ?? 'None (immutable)';
 
+  const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
+  const equalityCheck = oftStoreInfo.admin === upgradeAuthority && oftStoreInfo.admin === delegate;
+
   console.log('\n=== Solana OFT ===');
   console.log(`\nAdmin (Owner):     ${oftStoreInfo.admin}`);
 
-  const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
   console.log(`\nOApp Delegate:     ${delegate}`);
 
   console.log(`\nUpgrade Authority: ${upgradeAuthority}`);
 
   console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
   console.log(`  Mint Authority:  ${mintAuthority}`);
+
+  if (!equalityCheck) {
+    console.error(`Admin, Upgrade Authority, and Delegate are not equal`);
+    process.exit(1);
+  } else {
+    console.log(`\nAdmin, Upgrade Authority, and Delegate are equal`);
+  }
 }
 
 main();
