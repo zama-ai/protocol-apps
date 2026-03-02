@@ -82,19 +82,17 @@ async function main() {
 
   console.log('\n=== Solana OFT ===');
   console.log(`\nAdmin (Owner):     ${oftStoreInfo.admin}`);
-
-  console.log(`\nOApp Delegate:     ${delegate}`);
-
-  console.log(`\nUpgrade Authority: ${upgradeAuthority}`);
+  console.log(`OApp Delegate:     ${delegate}`);
+  console.log(`Upgrade Authority: ${upgradeAuthority}`);
 
   console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
   console.log(`  Mint Authority:  ${mintAuthority}`);
 
   if (!equalityCheck) {
-    console.error(`Admin, Upgrade Authority, and Delegate are not equal`);
+    console.error(`Admin, Upgrade Authority, and Delegate are NOT IDENTICAL on Solana`);
     process.exit(1);
   } else {
-    console.log(`\nAdmin, Upgrade Authority, and Delegate are equal`);
+    console.log(`\nAdmin, Upgrade Authority, and Delegate are IDENTICAL on Solana`);
   }
 }
 

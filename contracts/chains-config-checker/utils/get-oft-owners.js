@@ -94,8 +94,8 @@ async function printOwnerAndDelegate(info) {
   console.log(`\n[${name}]`);
   console.log(`  Adapter/OFT address : ${contractAddress}`);
   console.log(`  Endpoint address    : ${endpointAddress}`);
-  console.log(`  Owner              : ${owner}`);
-  console.log(`  Delegate           : ${delegate}`);
+  console.log(`  Owner               : ${owner}`);
+  console.log(`  Delegate            : ${delegate}`);
 }
 
 async function main() {
@@ -119,6 +119,7 @@ async function main() {
   }
 
   let hadError = false;
+  console.log('\n=== EVM OFT ===');
   for (const chainConfig of toRun) {
     const resolved = {
       name: chainConfig.name,
