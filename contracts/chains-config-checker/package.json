@@ -6,8 +6,9 @@
     "get-deployment-block": "node utils/get-deployment-block.js",
     "get-current-pausers": "node utils/get-current-pausers.js",
     "get-token-roles": "node utils/get-token-roles.js",
-    "get-oft-owners": "node utils/get-oft-owners.js",
-    "get-solana-oft-owners": "node utils/get-solana-oft-owners.js"
+    "get-oft-owners-evm": "node utils/get-oft-owners-evm.js",
+    "get-oft-owners-solana": "node utils/get-oft-owners-solana.js",
+    "get-oft-owners": "node utils/get-oft-owners-evm.js && node utils/get-oft-owners-solana.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",

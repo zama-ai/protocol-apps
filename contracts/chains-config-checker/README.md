@@ -31,7 +31,6 @@ Currently, most useful scripts are:
 [*] get-current-pausers
 [*] get-token-roles
 [*] get-oft-owners
-[*] get-solana-oft-owners
 ```
 ### getCurrentPausers
 
@@ -130,13 +129,22 @@ Total RoleRevoked events: 0
 
 ### getOftOwners
 
-#### Usage
+Reports the current **owner** and **delegate** for all OFT/OFTAdapter contracts across EVM chains and Solana. This is the recommended command to run for a full overview.
 
 ```bash
 npm run get-oft-owners
 ```
 
-The script checks multiple chains (as configured in `.env`) and reports the current **owner** and **LayerZero delegate** for each ZamaOFTAdapter (Ethereum) or ZamaOFT (Gateway, BSC, HyperEVM). It uses on-chain view calls only (`owner()`, `endpoint()`, `delegates(oapp)`).
+To run only EVM or Solana individually:
+
+```bash
+npm run get-oft-owners-evm
+npm run get-oft-owners-solana
+```
+
+#### EVM
+
+Checks each configured EVM chain and reports the current **owner** and **LayerZero delegate** for each ZamaOFTAdapter (Ethereum) or ZamaOFT (Gateway, BSC, HyperEVM). Uses on-chain view calls only (`owner()`, `endpoint()`, `delegates(oapp)`).
 
 For each configured chain it will:
 1. Read the OFT/OFTAdapter contract to get `owner()` and `endpoint()`.
@@ -155,6 +163,8 @@ For each configured chain it will:
 Chains missing RPC or contract address are skipped. Example output:
 
 ```
+=== EVM OFT ===
+
 [Ethereum Adapter]
   Adapter/OFT address : 0x...
   Endpoint address    : 0x...
@@ -165,13 +175,7 @@ Chains missing RPC or contract address are skipped. Example output:
   ...
 ```
 
-### getSolanaOftOwners
-
-#### Usage
-
-```bash
-npm run get-solana-oft-owners
-```
+#### Solana
 
 Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, **upgrade authority**, and token **mint authority**. Verifies that admin, delegate, and upgrade authority are all equal.
 
@@ -183,15 +187,15 @@ The script will:
 5. Verify that admin, delegate, and upgrade authority are all the same address.
 6. Print a summary with results.
 
-**Required environment variables:**
+**Environment variables:**
 
 | Variable           | Description                     | Example                                          |
 |--------------------|---------------------------------|--------------------------------------------------|
 | `SOLANA_RPC_URL`   | Solana RPC endpoint             | `https://api.mainnet-beta.solana.com`            |
-| `SOLANA_OFT_MINT` | OFTMint address            | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
+| `SOLANA_OFT_MINT` | OFT Mint address            | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
 | `SOLANA_LOADER_PROGRAM`| Solana BPF Loader Program              | `BPFLoaderUpgradeab1e11111111111111111111111` |
 
-*Note: If requried, the Solana BPF Loader Program can be found on the official Solana docs [here](https://solana.com/docs/core/programs/program-deployment#loader-programs).*
+*Note: If required, the Solana BPF Loader Program can be found on the official Solana docs [here](https://solana.com/docs/core/programs/program-deployment#loader-programs).*
 
 Example output:
 
@@ -199,13 +203,11 @@ Example output:
 === Solana OFT ===
 
 Admin (Owner):     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
-
 OApp Delegate:     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
-
 Upgrade Authority: G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 
 Token Mint:        4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
   Mint Authority:  H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
 
-Admin, Upgrade Authority, and Delegate are equal
+Admin, Upgrade Authority, and Delegate are IDENTICAL on Solana
 ```
