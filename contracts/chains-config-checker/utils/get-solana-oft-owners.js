@@ -41,7 +41,7 @@ async function main() {
   }
 
   let oftStoreInfo;
-  let oftStoreKey = publicKey(mintAuthority);
+  const oftStoreKey = publicKey(mintAuthority);
   try {
     oftStoreInfo = await oft.accounts.fetchOFTStore(umi, oftStoreKey);
   } catch (e) {
@@ -65,11 +65,24 @@ async function main() {
     process.exit(1);
   }
 
+  // Get OFT Program Upgrade Authority
+  // Loader program account found here: https://solana.com/docs/core/programs/program-deployment#loader-programs
+  const oftProgramId = new PublicKey(oftStoreInfo.header.owner);
+  const BPF_LOADER_UPGRADEABLE = new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111');
+  const [programDataAddress] = PublicKey.findProgramAddressSync(
+    [oftProgramId.toBytes()],
+    BPF_LOADER_UPGRADEABLE
+  );
+  const response = await connection.getParsedAccountInfo(programDataAddress);
+  const upgradeAuthority = response.value?.data?.parsed?.info?.authority ?? 'None (immutable)';
+
   console.log('\n=== Solana OFT ===');
-  console.log(`\nAdmin (Owner):   ${oftStoreInfo.admin}`);
+  console.log(`\nAdmin (Owner):     ${oftStoreInfo.admin}`);
 
   const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
   console.log(`\nOApp Delegate:     ${delegate}`);
+
+  console.log(`\nUpgrade Authority: ${upgradeAuthority}`);
 
   console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
   console.log(`  Mint Authority:  ${mintAuthority}`);
