@@ -9,7 +9,7 @@ const { toWeb3JsPublicKey } = require('@metaplex-foundation/umi-web3js-adapters'
 const { EndpointPDADeriver, EndpointProgram } = require('@layerzerolabs/lz-solana-sdk-v2');
 const { oft } = require('@layerzerolabs/oft-v2-solana-sdk');
 
-const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_STORE'];
+const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_MINT'];
 
 function validateEnv() {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -23,19 +23,29 @@ async function main() {
   validateEnv();
 
   const rpcUrl = process.env.SOLANA_RPC_URL;
-  const oftStoreAddress = process.env.SOLANA_OFT_STORE;
+  const oftMintAddress = process.env.SOLANA_OFT_MINT;
 
   const connection = new Connection(rpcUrl);
   const umi = createUmi(rpcUrl).use(mplToolbox());
 
-  const oftStoreKey = publicKey(oftStoreAddress);
+  const oftMintKey = publicKey(oftMintAddress);
 
-  // Fetch OFTStore account (admin, endpointProgram, tokenMint, tokenEscrow)
+  // Fetch mint account for authority info
+  let mintAuthority;
+  try {
+    const mintAccount = await fetchMint(umi, oftMintKey);
+    mintAuthority = unwrapOption(mintAccount.mintAuthority);
+  } catch (e) {
+    console.error(`Failed to fetch mint account at ${oftMintKey.toBase58()}:`, e.message);
+    process.exit(1);
+  }
+
   let oftStoreInfo;
+  let oftStoreKey = publicKey(mintAuthority);
   try {
     oftStoreInfo = await oft.accounts.fetchOFTStore(umi, oftStoreKey);
   } catch (e) {
-    console.error(`Failed to fetch OFTStore at ${oftStoreAddress}:`, e.message);
+    console.error(`Failed to fetch OFT Store account at ${oftStoreKey.toBase58()}:`, e.message);
     process.exit(1);
   }
 
@@ -55,14 +65,9 @@ async function main() {
     process.exit(1);
   }
 
-  // Fetch mint account for authority info
-  const mintAccount = await fetchMint(umi, publicKey(oftStoreInfo.tokenMint));
-  const mintAuthority = unwrapOption(mintAccount.mintAuthority) ?? 'None';
-  const freezeAuthority = unwrapOption(mintAccount.freezeAuthority) ?? 'None';
+  console.log('\n=== Solana OFT ===');
 
-  console.log('\n=== Solana OFT Info ===');
-
-  console.log(`\nOFT Store:         ${oftStoreAddress}`);
+  console.log(`\nOFT Store:         ${oftStoreKey}`);
   console.log(`  Admin (Owner):   ${oftStoreInfo.admin}`);
   console.log(`  Endpoint Prog:   ${oftStoreInfo.endpointProgram}`);
   console.log(`  Token Mint:      ${oftStoreInfo.tokenMint}`);
@@ -73,7 +78,6 @@ async function main() {
 
   console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
   console.log(`  Mint Authority:  ${mintAuthority}`);
-  console.log(`  Freeze Authority: ${freezeAuthority}`);
 }
 
 main();
