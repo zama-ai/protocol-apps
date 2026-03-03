@@ -85,14 +85,14 @@ async function main() {
   console.log(`OApp Delegate:     ${delegate}`);
   console.log(`Upgrade Authority: ${upgradeAuthority}`);
 
-  console.log(`\nToken Mint:        ${oftStoreInfo.tokenMint}`);
-  console.log(`  Mint Authority:  ${mintAuthority}`);
-
   if (!equalityCheck) {
     console.error(`Admin, Upgrade Authority, and Delegate are NOT IDENTICAL on Solana`);
     process.exit(1);
   } else {
-    console.log(`\nAdmin, Upgrade Authority, and Delegate are IDENTICAL on Solana`);
+    console.log(
+  '\nAdmin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,\n' +
+  'and it should be a Squads multisig wallet owned by Zama FB_i operators'
+);
   }
 }
 

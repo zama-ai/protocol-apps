@@ -206,8 +206,6 @@ Admin (Owner):     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 OApp Delegate:     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 Upgrade Authority: G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 
-Token Mint:        4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
-  Mint Authority:  H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3
-
-Admin, Upgrade Authority, and Delegate are IDENTICAL on Solana
+Admin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,
+and it should be a Squads multisig wallet owned by Zama FB_i operators
 ```
