@@ -80,10 +80,12 @@ async function main() {
   const delegate = oAppRegistryInfo?.delegate?.toBase58() ?? 'None';
   const equalityCheck = oftStoreInfo.admin === upgradeAuthority && oftStoreInfo.admin === delegate;
 
+  const pad = (s) => s.padEnd(19);
   console.log('\n=== Solana OFT ===');
-  console.log(`\nAdmin (Owner):     ${oftStoreInfo.admin}`);
-  console.log(`OApp Delegate:     ${delegate}`);
-  console.log(`Upgrade Authority: ${upgradeAuthority}`);
+  console.log(`\n  ${pad('OFT Mint')} : ${oftMintAddress}`);
+  console.log(`  ${pad('Admin (Owner)')} : ${oftStoreInfo.admin}`);
+  console.log(`  ${pad('OApp Delegate')} : ${delegate}`);
+  console.log(`  ${pad('Upgrade Authority')} : ${upgradeAuthority}`);
 
   if (!equalityCheck) {
     console.error(`Admin, Upgrade Authority, and Delegate are NOT IDENTICAL on Solana`);
