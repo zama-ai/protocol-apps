@@ -165,14 +165,20 @@ Chains missing RPC or contract address are skipped. Example output:
 ```
 === EVM OFT ===
 
-[Ethereum Adapter]
+[Ethereum OFT Adapter]
   Adapter/OFT address : 0x...
-  Endpoint address    : 0x...
-  Owner              : 0x...
-  Delegate           : 0x...
+  Owner               : 0x...
+  Delegate            : 0x...
 
 [Gateway OFT]
-  ...
+  Adapter/OFT address : 0x...
+  Owner               : 0x...
+  Delegate            : 0x...
+
+...
+
+Owner and Delegate should be IDENTICAL on EVM chains,
+and it should be the Zama DAO or a Safe multisig wallet owned by Zama FB_i operators
 ```
 
 #### Solana
@@ -199,9 +205,10 @@ Example output:
 ```
 === Solana OFT ===
 
-Admin (Owner):     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
-OApp Delegate:     G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
-Upgrade Authority: G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+  OFT Mint            : 4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh
+  Admin (Owner)       : G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+  OApp Delegate       : G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
+  Upgrade Authority   : G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5
 
 Admin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,
 and it should be a Squads multisig wallet owned by Zama FB_i operators
