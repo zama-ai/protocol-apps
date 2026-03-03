@@ -106,19 +106,31 @@ The script will:
 Example Output:
 
 ```
+[Ethereum]
+  Finding deployment block for 0x...
+  Deployment block: 23790400
+  Current block: 24578326
+  Fetching role events...
+    RoleGranted: 100% - found 4 events..
+    RoleRevoked: 100% - found 0 events..
+
+==================================================
+CURRENT ROLE HOLDERS
+==================================================
+
 DEFAULT_ADMIN_ROLE:
-  1. 0x... (0 ETH)
+  1. 0x... 
   Events: 1 granted, 0 revoked
   Total: 1 address(es)
 
 MINTER_ROLE:
-  1. 0x... (0 ETH)
-  2. 0x... (0 ETH)
+  1. 0x...
+  2. 0x...
   Events: 2 granted, 0 revoked
   Total: 2 address(es)
 
 MINTING_PAUSER_ROLE:
-  1. 0x... (0 ETH)
+  1. 0x...
   Events: 1 granted, 0 revoked
   Total: 1 address(es)
 
