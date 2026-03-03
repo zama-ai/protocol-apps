@@ -9,7 +9,7 @@ const { toWeb3JsPublicKey } = require('@metaplex-foundation/umi-web3js-adapters'
 const { EndpointPDADeriver, EndpointProgram } = require('@layerzerolabs/lz-solana-sdk-v2');
 const { oft } = require('@layerzerolabs/oft-v2-solana-sdk');
 
-const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_MINT', 'SOLANA_LOADER_PROGRAM'];
+const REQUIRED_ENV = ['SOLANA_RPC_URL', 'SOLANA_OFT_MINT'];
 
 function validateEnv() {
   const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
@@ -24,7 +24,7 @@ async function main() {
 
   const rpcUrl = process.env.SOLANA_RPC_URL;
   const oftMintAddress = process.env.SOLANA_OFT_MINT;
-  const loaderProgramAddress = process.env.SOLANA_LOADER_PROGRAM;
+  const loaderProgramAddress = "BPFLoaderUpgradeab1e11111111111111111111111";
 
   const connection = new Connection(rpcUrl);
   const umi = createUmi(rpcUrl).use(mplToolbox());

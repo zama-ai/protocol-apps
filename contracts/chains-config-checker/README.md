@@ -177,7 +177,7 @@ Chains missing RPC or contract address are skipped. Example output:
 
 #### Solana
 
-Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, **upgrade authority**, and token **mint authority**. Verifies that admin, delegate, and upgrade authority are all equal.
+Reads Solana on-chain accounts to report the OFT **admin (owner)**, LayerZero **delegate**, **upgrade authority**. Verifies that admin, delegate, and upgrade authority are all equal.
 
 The script will:
 1. Fetch the **Mint** account to get the mint authority (which is the OFTStore address).
@@ -193,9 +193,6 @@ The script will:
 |--------------------|---------------------------------|--------------------------------------------------|
 | `SOLANA_RPC_URL`   | Solana RPC endpoint             | `https://api.mainnet-beta.solana.com`            |
 | `SOLANA_OFT_MINT` | OFT Mint address            | `4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh` |
-| `SOLANA_LOADER_PROGRAM`| Solana BPF Loader Program              | `BPFLoaderUpgradeab1e11111111111111111111111` |
-
-*Note: If required, the Solana BPF Loader Program can be found on the official Solana docs [here](https://solana.com/docs/core/programs/program-deployment#loader-programs).*
 
 Example output:
 
