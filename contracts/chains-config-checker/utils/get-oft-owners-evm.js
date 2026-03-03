@@ -151,7 +151,7 @@ async function main() {
     process.exit(1);
   } else {
     console.log('\nOwner and Delegate should be IDENTICAL on EVM chains,');
-    console.log('and it should be a Safe multisig wallet owned by Zama FB_i operators');
+    console.log('and it should be the Zama DAO or a Safe multisig wallet owned by Zama FB_i operators');
   }
 }
 
