@@ -30,6 +30,8 @@ contract ProtocolStakingHandler is Test {
     mapping(address => uint256) public ghost_claimed;
     mapping(address => uint256) public ghost_lastClaimedPlusEarned;
     mapping(address => uint256) public ghost_lastAwaitingRelease;
+    mapping(address => uint256) public ghost_totalStaked;
+    mapping(address => uint256) public ghost_totalReleased;
 
     // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION
     uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
@@ -173,6 +175,7 @@ contract ProtocolStakingHandler is Test {
         amount = bound(amount, 1, balance);
         vm.prank(actor);
         protocolStaking.stake(amount);
+        ghost_totalStaked[actor] += amount;
     }
 
     function unstake(uint256 actorIndex, uint256 amount) external {
@@ -197,10 +200,11 @@ contract ProtocolStakingHandler is Test {
     function release(uint256 actorIndex) external {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
+        uint256 awaitingBefore = protocolStaking.awaitingRelease(account);
         protocolStaking.release(account);
-
-        // Update the last awaiting release for the invariant
-        ghost_lastAwaitingRelease[account] = protocolStaking.awaitingRelease(account);
+        uint256 awaitingAfter = protocolStaking.awaitingRelease(account);
+        ghost_totalReleased[account] += (awaitingBefore - awaitingAfter);
+        ghost_lastAwaitingRelease[account] = awaitingAfter;
     }
 
     /// @notice Unstake then warp past cooldown to allow for valid release() calls.

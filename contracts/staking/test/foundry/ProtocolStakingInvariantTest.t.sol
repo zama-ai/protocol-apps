@@ -181,4 +181,15 @@ contract ProtocolStakingInvariantTest is Test {
        }
        assertGe(balance, sumAwaitingRelease, "pending withdrawals solvency");
    }
+
+    function invariant_StakedFundsSolvency() public view {
+        for (uint256 i = 0; i < handler.actorsLength(); i++) {
+            address account = handler.actorAt(i);
+            uint256 totalStaked = handler.ghost_totalStaked(account);
+            uint256 balance = protocolStaking.balanceOf(account);
+            uint256 awaiting = protocolStaking.awaitingRelease(account);
+            uint256 released = handler.ghost_totalReleased(account);
+            assertEq(totalStaked, balance + awaiting + released, "staked funds solvency");
+        }
+    }
 }
