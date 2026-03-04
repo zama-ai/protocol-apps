@@ -14,5 +14,10 @@ remappings = [
     'ds-test/=node_modules/@layerzerolabs/toolbox-foundry/lib/ds-test',
     '@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/',
     '@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/',
-    'token/=../token/'
+    'token/=../token/',
 ]
+
+[invariant]
+runs = 256
+depth = 100
+fail_on_revert = false

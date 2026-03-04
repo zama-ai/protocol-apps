@@ -6,11 +6,13 @@ import {console} from "forge-std/console.sol";
 import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
+import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
 
 // Invariant fuzz test for ProtocolStaking
 contract ProtocolStakingInvariantTest is Test {
     ProtocolStaking internal protocolStaking;
     ZamaERC20 internal zama;
+    ProtocolStakingHandler internal handler;
 
     address internal governor = address(1);
     address internal manager = address(2);
@@ -75,6 +77,31 @@ contract ProtocolStakingInvariantTest is Test {
 
         // Record baseline time for the invariant
         startTimestamp = block.timestamp;
+
+        // Deploy handler and target it for invariant tests
+        handler = new ProtocolStakingHandler(
+            protocolStaking,
+            zama,
+            manager,
+            staker,
+            INITIAL_REWARD_RATE
+        );
+        targetContract(address(handler));
+
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = ProtocolStakingHandler.warp.selector;
+        selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
+        selectors[2] = ProtocolStakingHandler.stake.selector;
+        selectors[3] = ProtocolStakingHandler.claimRewards.selector;
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+    }
+
+    function invariant_TotalSupplyBoundedByRewardRate() public view {
+        assertLe(
+            zama.totalSupply(),
+            initialTotalSupply + handler.ghost_accumulatedRewardCapacity(),
+            "totalSupply exceeds piecewise rewardRate bound"
+        );
     }
 
     function testFuzz_TotalSupplyBoundedByRewardRate_MultiplePeriods(
