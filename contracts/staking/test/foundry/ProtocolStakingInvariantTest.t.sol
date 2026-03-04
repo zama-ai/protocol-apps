@@ -7,6 +7,7 @@ import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Invariant fuzz test for ProtocolStaking
 contract ProtocolStakingInvariantTest is Test {
@@ -170,4 +171,14 @@ contract ProtocolStakingInvariantTest is Test {
             "baseline not updated when release bypasses handler; invariant would fail"
         );
     }
+
+    function invariant_PendingWithdrawalsSolvency() public view {
+       address token = protocolStaking.stakingToken();
+       uint256 balance = IERC20(token).balanceOf(address(protocolStaking));
+       uint256 sumAwaitingRelease;
+       for (uint256 i = 0; i < handler.actorsLength(); i++) {
+           sumAwaitingRelease += protocolStaking.awaitingRelease(handler.actorAt(i));
+       }
+       assertGe(balance, sumAwaitingRelease, "pending withdrawals solvency");
+   }
 }
