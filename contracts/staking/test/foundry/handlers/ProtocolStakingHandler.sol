@@ -23,6 +23,8 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_currentRate;
     uint256 public ghost_initialTotalSupply;
 
+    address[] public ghost_eligibleAccounts;
+
     constructor(
         ProtocolStaking _protocolStaking,
         ZamaERC20 _zama,
@@ -35,6 +37,20 @@ contract ProtocolStakingHandler is Test {
         staker = _staker;
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
+        ghost_eligibleAccounts.push(_staker);
+    }
+
+    function ghost_eligibleAccountsLength() external view returns (uint256) {
+        return ghost_eligibleAccounts.length;
+    }
+
+    function computeExpectedTotalWeight() external view returns (uint256 total) {
+        for (uint256 i = 0; i < ghost_eligibleAccounts.length; i++) {
+            address account = ghost_eligibleAccounts[i];
+            if (protocolStaking.isEligibleAccount(account)) {
+                total += protocolStaking.weight(protocolStaking.balanceOf(account));
+            }
+        }
     }
 
     function warp(uint256 duration) external {
@@ -56,6 +72,14 @@ contract ProtocolStakingHandler is Test {
         amount = bound(amount, 1, balance);
         vm.prank(staker);
         protocolStaking.stake(amount);
+    }
+
+    function unstake(uint256 amount) external {
+        uint256 stakedBalance = protocolStaking.balanceOf(staker);
+        if (stakedBalance == 0) return;
+        amount = bound(amount, 1, stakedBalance);
+        vm.prank(staker);
+        protocolStaking.unstake(amount);
     }
 
     function claimRewards() external {

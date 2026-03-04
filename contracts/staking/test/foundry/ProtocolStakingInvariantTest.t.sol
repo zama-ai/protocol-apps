@@ -75,12 +75,21 @@ contract ProtocolStakingInvariantTest is Test {
         );
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](4);
+        bytes4[] memory selectors = new bytes4[](5);
         selectors[0] = ProtocolStakingHandler.warp.selector;
         selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
         selectors[2] = ProtocolStakingHandler.stake.selector;
-        selectors[3] = ProtocolStakingHandler.claimRewards.selector;
+        selectors[3] = ProtocolStakingHandler.unstake.selector;
+        selectors[4] = ProtocolStakingHandler.claimRewards.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+    }
+
+    function invariant_TotalStakedWeightEqualsEligibleWeights() public view {
+        assertEq(
+            protocolStaking.totalStakedWeight(),
+            handler.computeExpectedTotalWeight(),
+            "totalStakedWeight does not match sum of eligible weights"
+        );
     }
 
     function invariant_TotalSupplyBoundedByRewardRate() public view {
