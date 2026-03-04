@@ -14,7 +14,7 @@ contract ProtocolStakingHandler is Test {
     ZamaERC20 public zama;
 
     address public manager;
-    address public staker;
+    address[] public actors;
 
     uint256 public constant MAX_PERIOD_DURATION = 30 days;
     uint256 public constant MAX_REWARD_RATE = 1e24;
@@ -24,21 +24,24 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_initialTotalSupply;
 
     address[] public ghost_eligibleAccounts;
+    mapping(address => bool) public ghost_eligibleAccountsSeen;
 
     constructor(
         ProtocolStaking _protocolStaking,
         ZamaERC20 _zama,
         address _manager,
-        address _staker
+        address[] memory _actors
     ) {
+        require(_actors.length > 0, "need at least one actor");
         protocolStaking = _protocolStaking;
         zama = _zama;
         manager = _manager;
-        staker = _staker;
+        actors = _actors;
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
-        ghost_eligibleAccounts.push(_staker);
     }
+
+    // **************** Helper functions ****************
 
     function ghost_eligibleAccountsLength() external view returns (uint256) {
         return ghost_eligibleAccounts.length;
@@ -53,11 +56,14 @@ contract ProtocolStakingHandler is Test {
         }
     }
 
+    // Move the block timestamp forward by a given duration.
     function warp(uint256 duration) external {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
         vm.warp(block.timestamp + duration);
     }
+
+    // **************** ProtocolStaking actions ****************
 
     function setRewardRate(uint256 rate) external {
         rate = bound(rate, 0, MAX_REWARD_RATE);
@@ -66,23 +72,48 @@ contract ProtocolStakingHandler is Test {
         ghost_currentRate = rate;
     }
 
-    function stake(uint256 amount) external {
-        uint256 balance = zama.balanceOf(staker);
+    function addEligibleAccount(uint256 actorIndex) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+        if (protocolStaking.isEligibleAccount(account)) return;
+        vm.prank(manager);
+        protocolStaking.addEligibleAccount(account);
+        if (!ghost_eligibleAccountsSeen[account]) {
+            ghost_eligibleAccountsSeen[account] = true;
+            ghost_eligibleAccounts.push(account);
+        }
+    }
+
+    function removeEligibleAccount(uint256 actorIndex) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+        if (!protocolStaking.isEligibleAccount(account)) return;
+        vm.prank(manager);
+        protocolStaking.removeEligibleAccount(account);
+    }
+
+    function stake(uint256 actorIndex, uint256 amount) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address actor = actors[actorIndex];
+        uint256 balance = zama.balanceOf(actor);
         if (balance == 0) return;
         amount = bound(amount, 1, balance);
-        vm.prank(staker);
+        vm.prank(actor);
         protocolStaking.stake(amount);
     }
 
-    function unstake(uint256 amount) external {
-        uint256 stakedBalance = protocolStaking.balanceOf(staker);
+    function unstake(uint256 actorIndex, uint256 amount) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address actor = actors[actorIndex];
+        uint256 stakedBalance = protocolStaking.balanceOf(actor);
         if (stakedBalance == 0) return;
         amount = bound(amount, 1, stakedBalance);
-        vm.prank(staker);
+        vm.prank(actor);
         protocolStaking.unstake(amount);
     }
 
-    function claimRewards() external {
-        protocolStaking.claimRewards(staker);
+    function claimRewards(uint256 actorIndex) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        protocolStaking.claimRewards(actors[actorIndex]);
     }
 }
