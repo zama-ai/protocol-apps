@@ -104,36 +104,4 @@ contract ProtocolStakingInvariantTest is Test {
         );
     }
 
-    // /**
-    //  * Regression test: replay the exact failing invariant sequence (shrunk) with raw args.
-    //  * Handler's bound() is applied inside each call, so we pass the same fuzz inputs.
-    //  */
-    // function test_Regression_TotalSupplyBounded_ReplaySequence() public {
-    //     uint256 warpArg = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
-    //     uint256 claimActor0 = 0;
-    //     uint256 stakeAmount = 1850516410237196839017186097888669920685906233373366;
-    //     uint256 stakeActor = 44;
-    //     uint256 addEligibleArg = 29457029157298376876832589705601458738507623714791313838295191856;
-    //     uint256 removeEligibleArg = 3245075685557285;
-    //     uint256 claimActor1 = 170327125951;
-
-    //     handler.warp(warpArg);
-    //     handler.claimRewards(claimActor0);
-    //     handler.stake(stakeAmount, stakeActor);
-    //     handler.addEligibleAccount(addEligibleArg);
-    //     handler.removeEligibleAccount(removeEligibleArg);
-    //     handler.claimRewards(claimActor1);
-
-    //     uint256 upperBound = handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity();
-    //     uint256 actualSupply = zama.totalSupply();
-    //     console.log("upperBound (ghost)", upperBound);
-    //     console.log("actualSupply", actualSupply);
-    //     console.log("diff", actualSupply > upperBound ? actualSupply - upperBound : 0);
-
-    //     assertLe(
-    //         actualSupply,
-    //         upperBound,
-    //         "totalSupply exceeds piecewise rewardRate bound"
-    //     );
-    // }
 }
