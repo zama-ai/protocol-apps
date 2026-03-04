@@ -78,7 +78,7 @@ contract ProtocolStakingInvariantTest is Test {
         );
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](8);
+        bytes4[] memory selectors = new bytes4[](9);
         selectors[0] = ProtocolStakingHandler.warp.selector;
         selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
         selectors[2] = ProtocolStakingHandler.addEligibleAccount.selector;
@@ -87,6 +87,7 @@ contract ProtocolStakingInvariantTest is Test {
         selectors[5] = ProtocolStakingHandler.unstake.selector;
         selectors[6] = ProtocolStakingHandler.claimRewards.selector;
         selectors[7] = ProtocolStakingHandler.release.selector;
+        selectors[8] = ProtocolStakingHandler.unstakeThenWarp.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -120,23 +121,53 @@ contract ProtocolStakingInvariantTest is Test {
     function invariant_ClaimedPlusClaimableNeverDecreases() public {
         for (uint256 i = 0; i < handler.ghost_eligibleAccountsLength(); i++) {
             address account = handler.ghost_eligibleAccountAt(i);
-            if (account == address(0)) continue;
             uint256 current = handler.ghost_claimed(account) + protocolStaking.earned(account);
             assertGe(current, handler.ghost_lastClaimedPlusEarned(account), "claimed+claimable must not decrease");
             handler.setLastClaimedPlusEarned(account, current);
         }
     }
 
+    // TODO: Confirm that this correctly proves the invariant: awaitingRelease never decreases except after release.
     function invariant_AwaitingReleaseNeverDecreases() public {
         for (uint256 i = 0; i < handler.actorsLength(); i++) {
             address account = handler.actorAt(i);
-            if (account == address(0)) continue;
             uint256 current = protocolStaking.awaitingRelease(account);
-            if (account != handler.ghost_lastReleaseAccount()) {
-                assertGe(current, handler.ghost_lastAwaitingRelease(account), "awaitingRelease must not decrease");
-            }
+            assertGe(current, handler.ghost_lastAwaitingRelease(account), "awaitingRelease must not decrease");
             handler.setLastAwaitingRelease(account, current);
-            handler.clearLastReleaseAccount();
         }
+    }
+
+    /// @dev release() updates the baseline in the handler. This test passes if the invariant is correct.
+    function test_awaitingReleaseInvariantWithHandlerRelease() public {
+        handler.addEligibleAccount(0);
+        handler.stake(0, 1e18);
+        handler.unstakeThenWarp(0);
+        assertGt(protocolStaking.awaitingRelease(handler.actorAt(0)), 0, "tokens awaiting release");
+
+        handler.release(0);
+
+        assertEq(protocolStaking.awaitingRelease(handler.actorAt(0)), 0, "release should clear awaitingRelease");
+        invariant_AwaitingReleaseNeverDecreases();
+    }
+
+    /// @dev Direct release (bypassing handler) does not update the baseline, so the invariant would fail.
+    function test_awaitingReleaseInvariantFailsWhenReleaseBypassesHandler() public {
+        address actor0 = handler.actorAt(0);
+        handler.addEligibleAccount(0);
+        handler.stake(0, 1e18);
+        handler.unstakeThenWarp(0);
+
+        uint256 awaitingBeforeRelease = protocolStaking.awaitingRelease(actor0);
+        assertGt(awaitingBeforeRelease, 0, "tokens awaiting release");
+        handler.setLastAwaitingRelease(actor0, awaitingBeforeRelease);
+
+        protocolStaking.release(actor0);
+
+        assertEq(protocolStaking.awaitingRelease(actor0), 0, "release should clear awaitingRelease");
+        assertLt(
+            protocolStaking.awaitingRelease(actor0),
+            handler.ghost_lastAwaitingRelease(actor0),
+            "baseline not updated when release bypasses handler; invariant would fail"
+        );
     }
 }

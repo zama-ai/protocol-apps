@@ -30,7 +30,6 @@ contract ProtocolStakingHandler is Test {
     mapping(address => uint256) public ghost_claimed;
     mapping(address => uint256) public ghost_lastClaimedPlusEarned;
     mapping(address => uint256) public ghost_lastAwaitingRelease;
-    address public ghost_lastReleaseAccount;
 
     // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION
     uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
@@ -76,10 +75,6 @@ contract ProtocolStakingHandler is Test {
 
     function setLastAwaitingRelease(address account, uint256 value) external {
         ghost_lastAwaitingRelease[account] = value;
-    }
-
-    function clearLastReleaseAccount() external {
-        ghost_lastReleaseAccount = address(0);
     }
 
     // **************** Storage reading functions ****************
@@ -133,7 +128,7 @@ contract ProtocolStakingHandler is Test {
     }
 
     // Move the block timestamp forward by a given duration.
-    function warp(uint256 duration) external {
+    function warp(uint256 duration) public {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         if (protocolStaking.totalStakedWeight() > 0) {
             ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
@@ -204,8 +199,21 @@ contract ProtocolStakingHandler is Test {
         address account = actors[actorIndex];
         protocolStaking.release(account);
 
-        // The awaitingRelease(account) should be allowed to decrease after release only for the given account, 
-        // so we need to track the last released account to prevent the invariant from failing.
-        // ghost_lastReleaseAccount = account;
+        // Update the last awaiting release for the invariant
+        ghost_lastAwaitingRelease[account] = protocolStaking.awaitingRelease(account);
+    }
+
+    /// @notice Unstake then warp past cooldown to allow for valid release() calls.
+    function unstakeThenWarp(uint256 actorIndex) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+        uint256 stakedBalance = protocolStaking.balanceOf(account);
+        if (stakedBalance == 0) return;
+
+        vm.prank(account);
+        protocolStaking.unstake(stakedBalance);
+
+        uint256 cooldown = protocolStaking.unstakeCooldownPeriod();
+        warp(cooldown + 1);
     }
 }
