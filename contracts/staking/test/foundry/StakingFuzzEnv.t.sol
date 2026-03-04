@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
-import {console2} from "forge-std/console2.sol";
+import {console} from "forge-std/console.sol";
 import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
@@ -21,6 +21,9 @@ contract ProtocolStakingInvariantTest is Test {
     uint256 internal constant BASE_STAKE_AMOUNT = 1_000 ether;
     uint256 internal constant MAX_TIME_DELTA = 365 days;
     uint256 internal constant INITIAL_REWARD_RATE = 1e18; // 1 token/second
+    uint256 internal constant MAX_PERIODS = 50;
+    uint256 internal constant MAX_PERIOD_DURATION = 30 days;
+    uint256 internal constant MAX_REWARD_RATE = 1e24;
 
     uint256 internal initialTotalSupply;
     uint256 internal startTimestamp;
@@ -74,52 +77,41 @@ contract ProtocolStakingInvariantTest is Test {
         startTimestamp = block.timestamp;
     }
 
-    function _upperBoundSupply() internal view returns (uint256) {
-        uint256 elapsed = block.timestamp - startTimestamp;
-        uint256 rate = protocolStaking.rewardRate();
-        return initialTotalSupply + rate * elapsed;
-    }
-
-    function _logState(string memory label) internal view {
-        console2.log("=== ", label, " ===");
-        console2.log("block.timestamp", block.timestamp);
-        console2.log("startTimestamp", startTimestamp);
-        console2.log("elapsed", block.timestamp - startTimestamp);
-        console2.log("rewardRate", protocolStaking.rewardRate());
-        console2.log("initialTotalSupply", initialTotalSupply);
-        console2.log("currentTotalSupply", zama.totalSupply());
-    }
-
-    function testFuzz_TotalSupplyBoundedByRewardRate(
-        uint256 timeDelta,
-        uint256 extraStakeAmount
+    function testFuzz_TotalSupplyBoundedByRewardRate_MultiplePeriods(
+        uint256 numPeriods,
+        uint256[MAX_PERIODS] memory periodDurations,
+        uint256[MAX_PERIODS] memory periodRates
     ) public {
-        // Bound and apply time delta
-        timeDelta = bound(timeDelta, 1, MAX_TIME_DELTA);
-        vm.warp(startTimestamp + timeDelta);
+        numPeriods = bound(numPeriods, 1, MAX_PERIODS);
 
-        // Optionally stake extra during the period
-        uint256 maxExtraStake = INITIAL_STAKER_BALANCE - BASE_STAKE_AMOUNT;
-        if (maxExtraStake > 0) {
-            extraStakeAmount = bound(extraStakeAmount, 0, maxExtraStake);
-            if (extraStakeAmount > 0) {
-                vm.prank(staker);
-                protocolStaking.stake(extraStakeAmount);
-            }
+        console.log("initialTotalSupply", initialTotalSupply);
+
+        uint256 accumulatedRewardCapacity = 0;
+        uint256 currentRate = INITIAL_REWARD_RATE;
+
+        for (uint256 i = 0; i < numPeriods; i++) {
+            uint256 rateThisPeriod = currentRate;
+            uint256 duration = bound(periodDurations[i], 1, MAX_PERIOD_DURATION);
+
+            // Update local upper bound capacity
+            accumulatedRewardCapacity += rateThisPeriod * duration;
+
+            // Advance time by this period
+            vm.warp(block.timestamp + duration);
+
+            // Fuzz the next reward rate for subsequent periods
+            uint256 rateForNextPeriod = bound(periodRates[i], 0, MAX_REWARD_RATE);
+            vm.prank(manager);
+            protocolStaking.setRewardRate(rateForNextPeriod);
+            currentRate = rateForNextPeriod;
+
+            // Mint rewards for the staker
+            vm.prank(staker);
+            protocolStaking.claimRewards(staker);
         }
-
-        // Claim rewards for the staker
-        protocolStaking.claimRewards(staker);
-
-        // Check simplified invariant: totalSupply <= initialTotalSupply + rewardRate * elapsed
         uint256 actualSupply = zama.totalSupply();
-        uint256 upperBound = _upperBoundSupply();
+        uint256 upperBound = initialTotalSupply + accumulatedRewardCapacity;
 
-        if (actualSupply > upperBound) {
-            _logState("supply invariant violation");
-            console2.log("upperBound", upperBound);
-            console2.log("actualSupply", actualSupply);
-            fail();
-        }
+        assertLe(actualSupply, upperBound);
     }
 }
