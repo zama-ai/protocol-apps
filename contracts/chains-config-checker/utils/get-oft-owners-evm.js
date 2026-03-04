@@ -78,24 +78,24 @@ async function getOwnerAndDelegateForChain(chainConfig) {
   const endpoint = new ethers.Contract(endpointAddress, ENDPOINT_ABI, provider);
   const delegate = await endpoint.delegates(contractAddress);
 
+  const equal = owner === delegate;
+
   return {
     name,
     contractAddress,
-    endpointAddress,
     owner,
     delegate,
-    provider,
+    equal
   };
 }
 
 async function printOwnerAndDelegate(info) {
-  const { name, contractAddress, endpointAddress, owner, delegate, provider } = info;
+  const { name, contractAddress, owner, delegate } = info;
 
   console.log(`\n[${name}]`);
   console.log(`  Adapter/OFT address : ${contractAddress}`);
-  console.log(`  Endpoint address    : ${endpointAddress}`);
-  console.log(`  Owner              : ${owner}`);
-  console.log(`  Delegate           : ${delegate}`);
+  console.log(`  Owner               : ${owner}`);
+  console.log(`  Delegate            : ${delegate}`);
 }
 
 async function main() {
@@ -119,6 +119,9 @@ async function main() {
   }
 
   let hadError = false;
+  const equalityResults = []; // { name, equal }
+
+  console.log('\n=== EVM OFT ===');
   for (const chainConfig of toRun) {
     const resolved = {
       name: chainConfig.name,
@@ -128,6 +131,7 @@ async function main() {
     try {
       const info = await getOwnerAndDelegateForChain(resolved);
       await printOwnerAndDelegate(info);
+      equalityResults.push({ name: chainConfig.name, equal: info.equal });
     } catch (error) {
       console.error(`\n[${chainConfig.name}] Error: ${error.message}`);
       hadError = true;
@@ -136,6 +140,18 @@ async function main() {
 
   if (hadError) {
     process.exit(1);
+  }
+
+  const failed = equalityResults.filter((r) => !r.equal);
+
+  if (failed.length > 0) {
+    for (const { name } of failed) {
+      console.error(`Owner and Delegate are NOT IDENTICAL on ${name}`);
+    }
+    process.exit(1);
+  } else {
+    console.log('\nOwner and Delegate should be IDENTICAL on EVM chains,');
+    console.log('and it should be the Zama DAO or a Safe multisig wallet owned by Zama FB_i operators');
   }
 }
 
