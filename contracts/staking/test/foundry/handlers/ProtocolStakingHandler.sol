@@ -26,7 +26,12 @@ contract ProtocolStakingHandler is Test {
 
     address[] public ghost_eligibleAccounts;
     mapping(address => bool) public ghost_eligibleAccountsSeen;
-    
+
+    mapping(address => uint256) public ghost_claimed;
+    mapping(address => uint256) public ghost_lastClaimedPlusEarned;
+    mapping(address => uint256) public ghost_lastAwaitingRelease;
+    address public ghost_lastReleaseAccount;
+
     // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION
     uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
 
@@ -49,6 +54,32 @@ contract ProtocolStakingHandler is Test {
 
     function ghost_eligibleAccountsLength() external view returns (uint256) {
         return ghost_eligibleAccounts.length;
+    }
+
+    function ghost_eligibleAccountAt(uint256 index) external view returns (address) {
+        if (index >= ghost_eligibleAccounts.length) return address(0);
+        return ghost_eligibleAccounts[index];
+    }
+
+    function actorsLength() external view returns (uint256) {
+        return actors.length;
+    }
+
+    function actorAt(uint256 index) external view returns (address) {
+        if (index >= actors.length) return address(0);
+        return actors[index];
+    }
+
+    function setLastClaimedPlusEarned(address account, uint256 value) external {
+        ghost_lastClaimedPlusEarned[account] = value;
+    }
+
+    function setLastAwaitingRelease(address account, uint256 value) external {
+        ghost_lastAwaitingRelease[account] = value;
+    }
+
+    function clearLastReleaseAccount() external {
+        ghost_lastReleaseAccount = address(0);
     }
 
     // **************** Storage reading functions ****************
@@ -104,7 +135,9 @@ contract ProtocolStakingHandler is Test {
     // Move the block timestamp forward by a given duration.
     function warp(uint256 duration) external {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
-        ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
+        if (protocolStaking.totalStakedWeight() > 0) {
+            ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
+        }
         vm.warp(block.timestamp + duration);
     }
 
@@ -160,7 +193,19 @@ contract ProtocolStakingHandler is Test {
     function claimRewards(uint256 actorIndex) external {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
+        uint256 amount = protocolStaking.earned(account);
         protocolStaking.claimRewards(account);
         assertEq(protocolStaking.earned(account), 0, "earned(account) must be 0 after claimRewards");
+        ghost_claimed[account] += amount;
+    }
+
+    function release(uint256 actorIndex) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+        protocolStaking.release(account);
+
+        // The awaitingRelease(account) should be allowed to decrease after release only for the given account, 
+        // so we need to track the last released account to prevent the invariant from failing.
+        // ghost_lastReleaseAccount = account;
     }
 }
