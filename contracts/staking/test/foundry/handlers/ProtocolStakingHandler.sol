@@ -21,19 +21,20 @@ contract ProtocolStakingHandler is Test {
 
     uint256 public ghost_accumulatedRewardCapacity;
     uint256 public ghost_currentRate;
+    uint256 public ghost_initialTotalSupply;
 
     constructor(
         ProtocolStaking _protocolStaking,
         ZamaERC20 _zama,
         address _manager,
-        address _staker,
-        uint256 _initialRewardRate
+        address _staker
     ) {
         protocolStaking = _protocolStaking;
         zama = _zama;
         manager = _manager;
         staker = _staker;
-        ghost_currentRate = _initialRewardRate;
+        ghost_currentRate = _protocolStaking.rewardRate();
+        ghost_initialTotalSupply = _zama.totalSupply();
     }
 
     function warp(uint256 duration) external {

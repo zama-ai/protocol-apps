@@ -21,17 +21,9 @@ contract ProtocolStakingInvariantTest is Test {
 
     uint256 internal constant INITIAL_STAKER_BALANCE = 1_000_000 ether;
     uint256 internal constant BASE_STAKE_AMOUNT = 1_000 ether;
-    uint256 internal constant MAX_TIME_DELTA = 365 days;
     uint256 internal constant INITIAL_REWARD_RATE = 1e18; // 1 token/second
-    uint256 internal constant MAX_PERIODS = 50;
-    uint256 internal constant MAX_PERIOD_DURATION = 30 days;
-    uint256 internal constant MAX_REWARD_RATE = 1e24;
-
-    uint256 internal initialTotalSupply;
-    uint256 internal startTimestamp;
 
     function setUp() public {
-        vm.warp(1_000_000);
 
         // Deploy ZamaERC20, mint all to staker, admin is DEFAULT_ADMIN
         address[] memory receivers = new address[](1);
@@ -40,7 +32,6 @@ contract ProtocolStakingInvariantTest is Test {
         amounts[0] = INITIAL_STAKER_BALANCE;
 
         zama = new ZamaERC20("Zama", "ZAMA", receivers, amounts, admin);
-        initialTotalSupply = zama.totalSupply();
 
         // Deploy ProtocolStaking behind ERC1967 proxy
         ProtocolStaking impl = new ProtocolStaking();
@@ -75,16 +66,12 @@ contract ProtocolStakingInvariantTest is Test {
         protocolStaking.stake(BASE_STAKE_AMOUNT);
         vm.stopPrank();
 
-        // Record baseline time for the invariant
-        startTimestamp = block.timestamp;
-
         // Deploy handler and target it for invariant tests
         handler = new ProtocolStakingHandler(
             protocolStaking,
             zama,
             manager,
-            staker,
-            INITIAL_REWARD_RATE
+            staker
         );
         targetContract(address(handler));
 
@@ -99,46 +86,8 @@ contract ProtocolStakingInvariantTest is Test {
     function invariant_TotalSupplyBoundedByRewardRate() public view {
         assertLe(
             zama.totalSupply(),
-            initialTotalSupply + handler.ghost_accumulatedRewardCapacity(),
+            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity(),
             "totalSupply exceeds piecewise rewardRate bound"
         );
-    }
-
-    function testFuzz_TotalSupplyBoundedByRewardRate_MultiplePeriods(
-        uint256 numPeriods,
-        uint256[MAX_PERIODS] memory periodDurations,
-        uint256[MAX_PERIODS] memory periodRates
-    ) public {
-        numPeriods = bound(numPeriods, 1, MAX_PERIODS);
-
-        console.log("initialTotalSupply", initialTotalSupply);
-
-        uint256 accumulatedRewardCapacity = 0;
-        uint256 currentRate = INITIAL_REWARD_RATE;
-
-        for (uint256 i = 0; i < numPeriods; i++) {
-            uint256 rateThisPeriod = currentRate;
-            uint256 duration = bound(periodDurations[i], 1, MAX_PERIOD_DURATION);
-
-            // Update local upper bound capacity
-            accumulatedRewardCapacity += rateThisPeriod * duration;
-
-            // Advance time by this period
-            vm.warp(block.timestamp + duration);
-
-            // Fuzz the next reward rate for subsequent periods
-            uint256 rateForNextPeriod = bound(periodRates[i], 0, MAX_REWARD_RATE);
-            vm.prank(manager);
-            protocolStaking.setRewardRate(rateForNextPeriod);
-            currentRate = rateForNextPeriod;
-
-            // Mint rewards for the staker
-            vm.prank(staker);
-            protocolStaking.claimRewards(staker);
-        }
-        uint256 actualSupply = zama.totalSupply();
-        uint256 upperBound = initialTotalSupply + accumulatedRewardCapacity;
-
-        assertLe(actualSupply, upperBound);
     }
 }
