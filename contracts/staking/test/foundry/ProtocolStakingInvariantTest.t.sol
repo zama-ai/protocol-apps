@@ -104,4 +104,12 @@ contract ProtocolStakingInvariantTest is Test {
         );
     }
 
+    function invariant_RewardDebtConservation() public view {
+        // Only check when there is positive staked weight -- when no one has staked, LHS = 0
+        if (handler.ghost_eligibleAccountsLength() == 0 || protocolStaking.totalStakedWeight() == 0) return;
+        int256 lhs = handler.computeRewardDebtLHS();
+        int256 rhs = handler.computeRewardDebtRHS();
+        // Contract comment: "Accounting rounding may have a marginal impact on earned rewards (dust)."
+        assertApproxEqAbs(lhs, rhs, ACTOR_COUNT, "reward debt conservation");
+    }
 }

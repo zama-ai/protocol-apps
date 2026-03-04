@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ProtocolStaking} from "../../../contracts/ProtocolStaking.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 
@@ -25,6 +26,9 @@ contract ProtocolStakingHandler is Test {
 
     address[] public ghost_eligibleAccounts;
     mapping(address => bool) public ghost_eligibleAccountsSeen;
+    
+    // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION
+    uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
 
     constructor(
         ProtocolStaking _protocolStaking,
@@ -45,6 +49,47 @@ contract ProtocolStakingHandler is Test {
 
     function ghost_eligibleAccountsLength() external view returns (uint256) {
         return ghost_eligibleAccounts.length;
+    }
+
+    // **************** Storage reading functions ****************
+
+    function _readPaid(address proxy, address account) internal view returns (int256) {
+        bytes32 slot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + 9)));
+        return int256(uint256(vm.load(proxy, slot)));
+    }
+
+    function _readTotalVirtualPaid(address proxy) internal view returns (int256) {
+        bytes32 slot = bytes32(_STORAGE_BASE_SLOT + 10);
+        return int256(uint256(vm.load(proxy, slot)));
+    }
+
+    function _readHistoricalReward(address proxy) internal view returns (uint256) {
+        uint256 lastUpdateTimestamp = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 5)));
+        uint256 lastUpdateReward = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 6)));
+        uint256 rewardRate = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 7)));
+        return lastUpdateReward + (block.timestamp - lastUpdateTimestamp) * rewardRate;
+    }
+
+
+    // **************** Invariant functions ****************
+
+    function computeRewardDebtLHS() external view returns (int256) {
+        int256 sumPaid;
+        uint256 sumEarned;
+        address proxy = address(protocolStaking);
+        for (uint256 i = 0; i < ghost_eligibleAccounts.length; i++) {
+            address account = ghost_eligibleAccounts[i];
+            sumPaid += _readPaid(proxy, account);
+            sumEarned += protocolStaking.earned(account);
+        }
+        return sumPaid + SafeCast.toInt256(sumEarned);
+    }
+
+    function computeRewardDebtRHS() external view returns (int256) {
+        address proxy = address(protocolStaking);
+        int256 totalVirtualPaid = _readTotalVirtualPaid(proxy);
+        uint256 histReward = _readHistoricalReward(proxy);
+        return totalVirtualPaid + SafeCast.toInt256(histReward);
     }
 
     function computeExpectedTotalWeight() external view returns (uint256 total) {
@@ -114,6 +159,8 @@ contract ProtocolStakingHandler is Test {
 
     function claimRewards(uint256 actorIndex) external {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
-        protocolStaking.claimRewards(actors[actorIndex]);
+        address account = actors[actorIndex];
+        protocolStaking.claimRewards(account);
+        assertEq(protocolStaking.earned(account), 0, "earned(account) must be 0 after claimRewards");
     }
 }
