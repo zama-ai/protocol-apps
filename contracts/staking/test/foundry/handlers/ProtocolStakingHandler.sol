@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ProtocolStaking} from "../../../contracts/ProtocolStaking.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
@@ -20,6 +21,9 @@ contract ProtocolStakingHandler is Test {
     uint256 public constant MAX_PERIOD_DURATION = 30 days;
     uint256 public constant MAX_REWARD_RATE = 1e24;
 
+    // Amount in wei to allow for rounding errors in equivalence invariants.
+    uint256 public constant EQUIVALENCE_EARNED_TOLERANCE = 50;
+
     uint256 public ghost_accumulatedRewardCapacity;
     uint256 public ghost_currentRate;
     uint256 public ghost_initialTotalSupply;
@@ -33,9 +37,25 @@ contract ProtocolStakingHandler is Test {
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
 
-
     mapping(address => uint48) public ghost_lastCheckpointKey;
     mapping(address => uint208) public ghost_lastCheckpointValue;
+
+    // Equivalence scenario: store results for invariant to assert (only set when scenario runs)
+    uint256 public ghost_sharesSingle;
+    uint256 public ghost_sharesDouble;
+    uint256 public ghost_weightSingle;
+    uint256 public ghost_weightDouble;
+    uint256 public ghost_earnedSingle;
+    uint256 public ghost_earnedDouble;
+    bool public ghost_lastCallWasStakeEquivalenceScenario;
+
+    uint256 public ghost_sharesUnstakeA;
+    uint256 public ghost_sharesUnstakeB;
+    uint256 public ghost_weightUnstakeA;
+    uint256 public ghost_weightUnstakeB;
+    uint256 public ghost_earnedUnstakeA;
+    uint256 public ghost_earnedUnstakeB;
+    bool public ghost_lastCallWasUnstakeEquivalenceScenario;
 
     // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
     uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
@@ -92,6 +112,12 @@ contract ProtocolStakingHandler is Test {
     function setLastUnstakeCheckpoint(address account, uint48 key, uint208 value) external {
         ghost_lastCheckpointKey[account] = key;
         ghost_lastCheckpointValue[account] = value;
+    }
+
+    // Clear equivalence scenario flags; call from test after invariant assertions.
+    function clearEquivalenceScenarioFlags() external {
+        ghost_lastCallWasStakeEquivalenceScenario = false;
+        ghost_lastCallWasUnstakeEquivalenceScenario = false;
     }
 
     // **************** Storage reading functions ****************
@@ -198,7 +224,7 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.removeEligibleAccount(account);
     }
 
-    function stake(uint256 actorIndex, uint256 amount) external {
+    function stake(uint256 actorIndex, uint256 amount) public {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address actor = actors[actorIndex];
         uint256 balance = zama.balanceOf(actor);
@@ -209,7 +235,7 @@ contract ProtocolStakingHandler is Test {
         ghost_totalStaked[actor] += amount;
     }
 
-    function unstake(uint256 actorIndex, uint256 amount) external {
+    function unstake(uint256 actorIndex, uint256 amount) public {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address actor = actors[actorIndex];
         uint256 stakedBalance = protocolStaking.balanceOf(actor);
@@ -250,5 +276,129 @@ contract ProtocolStakingHandler is Test {
 
         uint256 cooldown = protocolStaking.unstakeCooldownPeriod();
         warp(cooldown + 1);
+    }
+
+    // **************** Equivalence scenario handlers ****************
+
+    // Compare stake(amount1+amount2) once vs stake(amount1) then stake(amount2).
+    function stakeEquivalenceScenario(
+        uint256 actorIndex,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 duration
+    ) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+
+        if (!protocolStaking.isEligibleAccount(account)) {
+            vm.prank(manager);
+            protocolStaking.addEligibleAccount(account);
+            if (!ghost_eligibleAccountsSeen[account]) {
+                ghost_eligibleAccountsSeen[account] = true;
+                ghost_eligibleAccounts.push(account);
+            }
+        }
+
+        uint256 balance = zama.balanceOf(account);
+        if (balance < 2) return;
+        amount1 = bound(amount1, 1, balance - 1);
+        amount2 = bound(amount2, 1, balance - amount1);
+        uint256 totalAmount = amount1 + amount2;
+
+        duration = bound(duration, 1, MAX_PERIOD_DURATION);
+
+        uint256 snapshot = vm.snapshotState();
+
+        // Path A: single stake
+        stake(actorIndex, totalAmount);
+        uint256 sharesSingle = protocolStaking.balanceOf(account);
+        uint256 weightSingle = protocolStaking.weight(protocolStaking.balanceOf(account));
+
+        // Warp past the duration to allow for valid earned() calls.
+        warp(duration);
+        uint256 earnedSingle = protocolStaking.earned(account);
+
+        vm.revertToState(snapshot);
+
+        // Path B: double stake
+        stake(actorIndex, amount1);
+        stake(actorIndex, amount2);
+        uint256 sharesDouble = protocolStaking.balanceOf(account);
+        uint256 weightDouble = protocolStaking.weight(protocolStaking.balanceOf(account));
+
+        warp(duration);
+        uint256 earnedDouble = protocolStaking.earned(account);
+
+        ghost_sharesSingle = sharesSingle;
+        ghost_sharesDouble = sharesDouble;
+        ghost_weightSingle = weightSingle;
+        ghost_weightDouble = weightDouble;
+        ghost_earnedSingle = earnedSingle;
+        ghost_earnedDouble = earnedDouble;
+        ghost_lastCallWasStakeEquivalenceScenario = true;
+    }
+
+    // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
+    function unstakeEquivalenceScenario(
+        uint256 actorIndex,
+        uint256 initialStake,
+        uint256 targetStake,
+        uint256 duration
+    ) external {
+        actorIndex = bound(actorIndex, 0, actors.length - 1);
+        address account = actors[actorIndex];
+
+        if (!protocolStaking.isEligibleAccount(account)) {
+            vm.prank(manager);
+            protocolStaking.addEligibleAccount(account);
+            if (!ghost_eligibleAccountsSeen[account]) {
+                ghost_eligibleAccountsSeen[account] = true;
+                ghost_eligibleAccounts.push(account);
+            }
+        }
+
+        uint256 balance = zama.balanceOf(account);
+        // Need at least 2 to stake, and leave at least 1 for path B restake (unstaked tokens are queued until release)
+        if (balance < 3) return;
+        initialStake = bound(initialStake, 2, balance - 1);
+        // targetStake must be <= balance - initialStake so path B can restake
+        targetStake = bound(targetStake, 1, Math.min(initialStake - 1, balance - initialStake));
+        uint256 unstakeAmount = initialStake - targetStake;
+        duration = bound(duration, 1, MAX_PERIOD_DURATION);
+
+        uint256 snapshot = vm.snapshotState();
+
+        stake(actorIndex, initialStake);
+        warp(duration);
+
+        // Path A: partial unstake
+        unstake(actorIndex, unstakeAmount);
+        uint256 sharesA = protocolStaking.balanceOf(account);
+        uint256 weightA = protocolStaking.weight(protocolStaking.balanceOf(account));
+
+        warp(duration);
+        uint256 earnedA = protocolStaking.earned(account);
+
+        vm.revertToState(snapshot);
+
+        // Path B: unstake all then restake target
+        stake(actorIndex, initialStake);
+        warp(duration);
+
+        unstake(actorIndex, initialStake);
+        stake(actorIndex, targetStake);
+        uint256 sharesB = protocolStaking.balanceOf(account);
+        uint256 weightB = protocolStaking.weight(protocolStaking.balanceOf(account));
+
+        warp(duration);
+        uint256 earnedB = protocolStaking.earned(account);
+
+        ghost_sharesUnstakeA = sharesA;
+        ghost_sharesUnstakeB = sharesB;
+        ghost_weightUnstakeA = weightA;
+        ghost_weightUnstakeB = weightB;
+        ghost_earnedUnstakeA = earnedA;
+        ghost_earnedUnstakeB = earnedB;
+        ghost_lastCallWasUnstakeEquivalenceScenario = true;
     }
 }

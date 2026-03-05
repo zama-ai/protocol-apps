@@ -2,7 +2,6 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
 import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
@@ -79,7 +78,7 @@ contract ProtocolStakingInvariantTest is Test {
         );
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](9);
+        bytes4[] memory selectors = new bytes4[](11);
         selectors[0] = ProtocolStakingHandler.warp.selector;
         selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
         selectors[2] = ProtocolStakingHandler.addEligibleAccount.selector;
@@ -89,6 +88,8 @@ contract ProtocolStakingInvariantTest is Test {
         selectors[6] = ProtocolStakingHandler.claimRewards.selector;
         selectors[7] = ProtocolStakingHandler.release.selector;
         selectors[8] = ProtocolStakingHandler.unstakeThenWarp.selector;
+        selectors[9] = ProtocolStakingHandler.stakeEquivalenceScenario.selector;
+        selectors[10] = ProtocolStakingHandler.unstakeEquivalenceScenario.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -246,5 +247,34 @@ contract ProtocolStakingInvariantTest is Test {
             uint256 released = handler.ghost_totalReleased(account);
             assertEq(totalStaked, balance + awaiting + released, "staked funds solvency");
         }
+    }
+
+    function invariant_StakeEquivalence() public {
+        if (!handler.ghost_lastCallWasStakeEquivalenceScenario()) return;
+        assertEq(handler.ghost_sharesDouble(), handler.ghost_sharesSingle(), "stake equivalence: shares");
+
+        // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
+        // have not found a counter example for now
+        assertEq(handler.ghost_weightDouble(), handler.ghost_weightSingle(), "stake equivalence: weight");
+        assertApproxEqAbs(
+            handler.ghost_earnedDouble(),
+            handler.ghost_earnedSingle(),
+            handler.EQUIVALENCE_EARNED_TOLERANCE(),
+            "stake equivalence: earned"
+        );
+        handler.clearEquivalenceScenarioFlags();
+    }
+
+    function invariant_UnstakeEquivalence() public {
+        if (!handler.ghost_lastCallWasUnstakeEquivalenceScenario()) return;
+        assertEq(handler.ghost_sharesUnstakeB(), handler.ghost_sharesUnstakeA(), "unstake equivalence: shares");
+        assertEq(handler.ghost_weightUnstakeB(), handler.ghost_weightUnstakeA(), "unstake equivalence: weight");
+        assertApproxEqAbs(
+            handler.ghost_earnedUnstakeB(),
+            handler.ghost_earnedUnstakeA(),
+            handler.EQUIVALENCE_EARNED_TOLERANCE(),
+            "unstake equivalence: earned"
+        );
+        handler.clearEquivalenceScenarioFlags();
     }
 }
