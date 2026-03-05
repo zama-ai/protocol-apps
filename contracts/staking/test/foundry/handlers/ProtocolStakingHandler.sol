@@ -18,6 +18,7 @@ contract ProtocolStakingHandler is Test {
     address public manager;
     address[] public actors;
 
+    // @dev Maximum duration to warp the block timestamp by. Must be <= 365 days for the cooldown period.
     uint256 public constant MAX_PERIOD_DURATION = 30 days;
     uint256 public constant MAX_REWARD_RATE = 1e24;
 
@@ -57,8 +58,8 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_earnedUnstakeB;
     bool public ghost_lastCallWasUnstakeEquivalenceScenario;
 
-    // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
-    uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
+    /// @dev _STORAGE_BASE_SLOT must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
+    uint256 private constant _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
     uint256 private constant _UNSTAKE_REQUESTS_SLOT = 3;
     uint256 private constant _LAST_UPDATE_TIMESTAMP_SLOT = 5;
     uint256 private constant _LAST_UPDATE_REWARD_SLOT = 6;
@@ -101,20 +102,23 @@ contract ProtocolStakingHandler is Test {
         return actors[index];
     }
 
+    /// @dev Only the invariant test contract should call; used to update baseline after each check.
     function setLastClaimedPlusEarned(address account, uint256 value) external {
         ghost_lastClaimedPlusEarned[account] = value;
     }
 
+    /// @dev Only the invariant test contract should call; used to update baseline after each check.
     function setLastAwaitingRelease(address account, uint256 value) external {
         ghost_lastAwaitingRelease[account] = value;
     }
 
+    /// @dev Only the invariant test contract should call; used to update baseline after each check.
     function setLastUnstakeCheckpoint(address account, uint48 key, uint208 value) external {
         ghost_lastCheckpointKey[account] = key;
         ghost_lastCheckpointValue[account] = value;
     }
 
-    // Clear equivalence scenario flags; call from test after invariant assertions.
+    /// @dev Clear equivalence scenario flags; call from test after invariant assertions.
     function clearEquivalenceScenarioFlags() external {
         ghost_lastCallWasStakeEquivalenceScenario = false;
         ghost_lastCallWasUnstakeEquivalenceScenario = false;
@@ -139,13 +143,13 @@ contract ProtocolStakingHandler is Test {
         return lastUpdateReward + (block.timestamp - lastUpdateTimestamp) * rewardRate;
     }
 
-    // Returns the length of _unstakeRequests[account]._checkpoints for an actor
+    /// @dev Returns the length of _unstakeRequests[account]._checkpoints for an actor
     function getUnstakeRequestCheckpointCount(address account) external view returns (uint256) {
         bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
         return uint256(vm.load(address(protocolStaking), traceSlot));
     }
 
-    // Returns the checkpoint at index for _unstakeRequests[account] (key = timestamp, value = cumulative amount).
+    /// @dev Returns the checkpoint at index for _unstakeRequests[account] (key = timestamp, value = cumulative amount).
     function getUnstakeRequestCheckpointAt(address account, uint256 index) external view returns (uint48 key, uint208 value)
     {
         bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
@@ -186,12 +190,10 @@ contract ProtocolStakingHandler is Test {
         }
     }
 
-    // Move the block timestamp forward by a given duration.
+    /// @dev Move the block timestamp forward by a given duration.
     function warp(uint256 duration) public {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
-        if (protocolStaking.totalStakedWeight() > 0) {
-            ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
-        }
+        ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
         vm.warp(block.timestamp + duration);
     }
 
@@ -225,7 +227,7 @@ contract ProtocolStakingHandler is Test {
     }
 
     function setUnstakeCooldownPeriod(uint256 cooldownPeriod) external {
-        cooldownPeriod = bound(cooldownPeriod, 1, 365 days);
+        cooldownPeriod = bound(cooldownPeriod, 1, MAX_PERIOD_DURATION - 1);
         vm.prank(manager);
         protocolStaking.setUnstakeCooldownPeriod(SafeCast.toUint48(cooldownPeriod));
     }
