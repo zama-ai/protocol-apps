@@ -224,6 +224,12 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.removeEligibleAccount(account);
     }
 
+    function setUnstakeCooldownPeriod(uint256 cooldownPeriod) external {
+        cooldownPeriod = bound(cooldownPeriod, 1, 365 days);
+        vm.prank(manager);
+        protocolStaking.setUnstakeCooldownPeriod(SafeCast.toUint48(cooldownPeriod));
+    }
+
     function stake(uint256 actorIndex, uint256 amount) public {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address actor = actors[actorIndex];

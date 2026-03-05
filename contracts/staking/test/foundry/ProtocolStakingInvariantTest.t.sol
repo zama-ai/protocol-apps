@@ -78,7 +78,7 @@ contract ProtocolStakingInvariantTest is Test {
         );
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](11);
+        bytes4[] memory selectors = new bytes4[](12);
         selectors[0] = ProtocolStakingHandler.warp.selector;
         selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
         selectors[2] = ProtocolStakingHandler.addEligibleAccount.selector;
@@ -90,6 +90,7 @@ contract ProtocolStakingInvariantTest is Test {
         selectors[8] = ProtocolStakingHandler.unstakeThenWarp.selector;
         selectors[9] = ProtocolStakingHandler.stakeEquivalenceScenario.selector;
         selectors[10] = ProtocolStakingHandler.unstakeEquivalenceScenario.selector;
+        selectors[11] = ProtocolStakingHandler.setUnstakeCooldownPeriod.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
