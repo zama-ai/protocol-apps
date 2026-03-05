@@ -172,6 +172,61 @@ contract ProtocolStakingInvariantTest is Test {
         );
     }
 
+    function invariant_UnstakeQueueMonotonicity() public {
+        for (uint256 i = 0; i < handler.actorsLength(); i++) {
+            address account = handler.actorAt(i);
+            uint256 length = handler.getUnstakeRequestCheckpointCount(account);
+            if (length > 0) {
+                (uint48 keyCur, uint208 valueCur) = handler.getUnstakeRequestCheckpointAt(account, length - 1);
+                uint48 lastKey = handler.ghost_lastCheckpointKey(account);
+                uint208 lastValue = handler.ghost_lastCheckpointValue(account);
+                assertGe(keyCur, lastKey, "unstake request keys must be non-decreasing");
+                if (keyCur == lastKey) {
+                    assertGe(valueCur, lastValue, "unstake request values must be non-decreasing for same key");
+                }
+                handler.setLastUnstakeCheckpoint(account, keyCur, valueCur);
+            }
+            // awaitingRelease() must never revert: released[account] <= unstakeRequests[account].latest()
+            protocolStaking.awaitingRelease(account);
+        }
+    }
+
+    /// @dev Verifies that handler storage reads for _unstakeRequests match contract behavior (explicit values).
+    function test_unstakeQueueMonotonicity() public {
+        address actor = handler.actorAt(0);
+        handler.addEligibleAccount(0);
+        uint256 amount1 = 1e18;
+        handler.stake(0, amount1);
+
+        vm.prank(actor);
+        protocolStaking.unstake(amount1);
+
+        // Exactly one checkpoint after first unstake.
+        assertEq(handler.getUnstakeRequestCheckpointCount(actor), 1, "checkpoint count after first unstake");
+        (uint48 key0, uint208 value0) = handler.getUnstakeRequestCheckpointAt(actor, 0);
+        assertEq(value0, amount1, "first checkpoint value = unstaked amount");
+        assertEq(uint256(key0), block.timestamp + INITIAL_UNSTAKE_COOLDOWN_PERIOD, "first checkpoint key = release time");
+
+        // awaitingRelease(actor) must equal latest checkpoint value minus released (0 so far).
+        assertEq(protocolStaking.awaitingRelease(actor), value0, "awaitingRelease equals latest checkpoint when released=0");
+
+        // Second unstake: warp past cooldown so we can stake again, then stake and unstake to get a second checkpoint.
+        vm.warp(block.timestamp + INITIAL_UNSTAKE_COOLDOWN_PERIOD + 1);
+
+        uint256 amount2 = 2e18;
+        handler.stake(0, amount2);
+        vm.prank(actor);
+        protocolStaking.unstake(amount2);
+
+        assertEq(handler.getUnstakeRequestCheckpointCount(actor), 2, "checkpoint count after second unstake");
+        (uint48 key1, uint208 value1) = handler.getUnstakeRequestCheckpointAt(actor, 1);
+        assertGe(key1, key0, "keys non-decreasing");
+        assertEq(value1, value0 + amount2, "second checkpoint value = cumulative amount");
+
+        // Cross-check: awaitingRelease = latest value - released (still 0).
+        assertEq(protocolStaking.awaitingRelease(actor), value1, "awaitingRelease equals latest after second unstake");
+    }
+
     function invariant_PendingWithdrawalsSolvency() public view {
        address token = protocolStaking.stakingToken();
        uint256 balance = IERC20(token).balanceOf(address(protocolStaking));

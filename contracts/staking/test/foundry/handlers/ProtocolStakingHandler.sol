@@ -33,8 +33,18 @@ contract ProtocolStakingHandler is Test {
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
 
-    // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION
+
+    mapping(address => uint48) public ghost_lastCheckpointKey;
+    mapping(address => uint208) public ghost_lastCheckpointValue;
+
+    // Must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
     uint256 private _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
+    uint256 private constant _UNSTAKE_REQUESTS_SLOT = 3;
+    uint256 private constant _LAST_UPDATE_TIMESTAMP_SLOT = 5;
+    uint256 private constant _LAST_UPDATE_REWARD_SLOT = 6;
+    uint256 private constant _REWARD_RATE_SLOT = 7;
+    uint256 private constant _PAID_SLOT = 9;
+    uint256 private constant _TOTAL_VIRTUAL_PAID_SLOT = 10;
 
     constructor(
         ProtocolStaking _protocolStaking,
@@ -79,25 +89,46 @@ contract ProtocolStakingHandler is Test {
         ghost_lastAwaitingRelease[account] = value;
     }
 
+    function setLastUnstakeCheckpoint(address account, uint48 key, uint208 value) external {
+        ghost_lastCheckpointKey[account] = key;
+        ghost_lastCheckpointValue[account] = value;
+    }
+
     // **************** Storage reading functions ****************
 
     function _readPaid(address proxy, address account) internal view returns (int256) {
-        bytes32 slot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + 9)));
+        bytes32 slot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _PAID_SLOT)));
         return int256(uint256(vm.load(proxy, slot)));
     }
 
     function _readTotalVirtualPaid(address proxy) internal view returns (int256) {
-        bytes32 slot = bytes32(_STORAGE_BASE_SLOT + 10);
+        bytes32 slot = bytes32(_STORAGE_BASE_SLOT + _TOTAL_VIRTUAL_PAID_SLOT);
         return int256(uint256(vm.load(proxy, slot)));
     }
 
     function _readHistoricalReward(address proxy) internal view returns (uint256) {
-        uint256 lastUpdateTimestamp = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 5)));
-        uint256 lastUpdateReward = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 6)));
-        uint256 rewardRate = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + 7)));
+        uint256 lastUpdateTimestamp = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _LAST_UPDATE_TIMESTAMP_SLOT)));
+        uint256 lastUpdateReward = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _LAST_UPDATE_REWARD_SLOT)));
+        uint256 rewardRate = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _REWARD_RATE_SLOT)));
         return lastUpdateReward + (block.timestamp - lastUpdateTimestamp) * rewardRate;
     }
 
+    // Returns the length of _unstakeRequests[account]._checkpoints for an actor
+    function getUnstakeRequestCheckpointCount(address account) external view returns (uint256) {
+        bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
+        return uint256(vm.load(address(protocolStaking), traceSlot));
+    }
+
+    // Returns the checkpoint at index for _unstakeRequests[account] (key = timestamp, value = cumulative amount).
+    function getUnstakeRequestCheckpointAt(address account, uint256 index) external view returns (uint48 key, uint208 value)
+    {
+        bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
+        bytes32 arrayBase = keccak256(abi.encode(traceSlot));
+        bytes32 checkpointSlot = bytes32(uint256(arrayBase) + index);
+        uint256 data = uint256(vm.load(address(protocolStaking), checkpointSlot));
+        key = uint48(data);
+        value = uint208(data >> 48);
+    }
 
     // **************** Invariant functions ****************
 
