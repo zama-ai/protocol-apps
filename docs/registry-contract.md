@@ -12,9 +12,9 @@ This document explains the **Confidential Token Wrappers Registry,** an onchain 
 * **Invalid**: An invalid confidential wrapper has been revoked by the registry owner and should not be used to wrap and unwrap tokens from the underlying token.
 * **Owner**: The owner of the registry. In the FHEVM protocol, this is a DAO governance contract handled by Zama.
 
-## Mainnet address
+## Contract addresses
 
-The official registry address on Ethereum mainnet is [`0xeb5015fF021DB115aCe010f23F55C2591059bBA0`](https://etherscan.io/address/0xeb5015fF021DB115aCe010f23F55C2591059bBA0).
+All deployed registry contract addresses can be found in the [addresses directory](addresses/README.md).
 
 ## Quick Start
 
