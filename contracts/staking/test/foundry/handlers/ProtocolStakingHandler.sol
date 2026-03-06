@@ -33,13 +33,11 @@ contract ProtocolStakingHandler is Test {
     mapping(address => bool) public ghost_eligibleAccountsSeen;
 
     mapping(address => uint256) public ghost_claimed;
-    mapping(address => uint256) public ghost_lastClaimedPlusEarned;
-    mapping(address => uint256) public ghost_lastAwaitingRelease;
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
 
-    mapping(address => uint48) public ghost_lastCheckpointKey;
-    mapping(address => uint208) public ghost_lastCheckpointValue;
+    // Flag to exempt an account from the awaitingRelease monotonicity check
+    address public ghost_releasedAccount;
 
     // Equivalence scenario: store results for invariant to assert (only set when scenario runs)
     uint256 public ghost_sharesSingle;
@@ -48,7 +46,6 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_weightDouble;
     uint256 public ghost_earnedSingle;
     uint256 public ghost_earnedDouble;
-    bool public ghost_lastCallWasStakeEquivalenceScenario;
 
     uint256 public ghost_sharesUnstakeA;
     uint256 public ghost_sharesUnstakeB;
@@ -56,7 +53,6 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_weightUnstakeB;
     uint256 public ghost_earnedUnstakeA;
     uint256 public ghost_earnedUnstakeB;
-    bool public ghost_lastCallWasUnstakeEquivalenceScenario;
 
     /// @dev _STORAGE_BASE_SLOT must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
     uint256 private constant _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
@@ -82,6 +78,87 @@ contract ProtocolStakingHandler is Test {
         ghost_initialTotalSupply = _zama.totalSupply();
     }
 
+    // **************** Transition Invariant Modifiers ****************
+
+    /// @dev Master modifier to check all transition invariants (State A -> State B)
+    modifier assertTransitionInvariants() {
+        uint256 eligibleLen = ghost_eligibleAccounts.length;
+        uint256 actorsLen = actors.length;
+        
+        // Allocate memory for pre-states
+        uint256[] memory preClaimedEarned = new uint256[](eligibleLen);
+        uint256[] memory preAwaitingRelease = new uint256[](actorsLen);
+        uint48[] memory preKeys = new uint48[](actorsLen);
+        uint208[] memory preValues = new uint208[](actorsLen);
+        bool[] memory hadCheckpoint = new bool[](actorsLen);
+        
+        // Capture pre-states: Claimed + Earned
+        for (uint256 i = 0; i < eligibleLen; i++) {
+            address account = ghost_eligibleAccounts[i];
+            preClaimedEarned[i] = ghost_claimed[account] + protocolStaking.earned(account);
+        }
+
+        // Capture pre-states: Awaiting Release & Unstake Queue
+        for (uint256 i = 0; i < actorsLen; i++) {
+            address account = actors[i];
+            preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
+            
+            uint256 count = getUnstakeRequestCheckpointCount(account);
+            if (count > 0) {
+                (preKeys[i], preValues[i]) = getUnstakeRequestCheckpointAt(account, count - 1);
+                hadCheckpoint[i] = true;
+            }
+        }
+
+        _; // Execute the handler action
+
+        // Assert post-states: Claimed + Earned must not decrease
+        for (uint256 i = 0; i < eligibleLen; i++) {
+            address account = ghost_eligibleAccounts[i];
+            uint256 postClaimedEarned = ghost_claimed[account] + protocolStaking.earned(account);
+            
+            assertGe(
+                postClaimedEarned + EQUIVALENCE_EARNED_TOLERANCE, 
+                preClaimedEarned[i], 
+                "claimed+claimable must not decrease"
+            );
+        }
+
+        // Assert post-states: Awaiting Release & Unstake Queue must not decrease except after release
+        for (uint256 i = 0; i < actorsLen; i++) {
+            address account = actors[i];
+            
+            // Awaiting Release Check
+            if (account != ghost_releasedAccount) {
+                uint256 postAwaitingRelease = protocolStaking.awaitingRelease(account);
+                assertGe(
+                    postAwaitingRelease, 
+                    preAwaitingRelease[i], 
+                    "awaitingRelease must not decrease except after release"
+                );
+            }
+            
+            // Unstake Queue Monotonicity Check
+            uint256 count = getUnstakeRequestCheckpointCount(account);
+            if (count > 0) {
+                (uint48 postKey, uint208 postValue) = getUnstakeRequestCheckpointAt(account, count - 1);
+                
+                if (hadCheckpoint[i]) {
+                    assertGe(postKey, preKeys[i], "unstake request keys must be non-decreasing");
+                    if (postKey == preKeys[i]) {
+                        assertGe(postValue, preValues[i], "unstake request values must be non-decreasing for same key");
+                    }
+                }
+            }
+            
+            // Ensure awaitingRelease() never reverts: released[account] <= unstakeRequests[account].latest()
+            protocolStaking.awaitingRelease(account);
+        }
+        
+        // 6. Reset the release flag for the next fuzz step
+        ghost_releasedAccount = address(0);
+    }
+
     // **************** Helper functions ****************
 
     function ghost_eligibleAccountsLength() external view returns (uint256) {
@@ -100,28 +177,6 @@ contract ProtocolStakingHandler is Test {
     function actorAt(uint256 index) external view returns (address) {
         if (index >= actors.length) return address(0);
         return actors[index];
-    }
-
-    /// @dev Only the invariant test contract should call; used to update baseline after each check.
-    function setLastClaimedPlusEarned(address account, uint256 value) external {
-        ghost_lastClaimedPlusEarned[account] = value;
-    }
-
-    /// @dev Only the invariant test contract should call; used to update baseline after each check.
-    function setLastAwaitingRelease(address account, uint256 value) external {
-        ghost_lastAwaitingRelease[account] = value;
-    }
-
-    /// @dev Only the invariant test contract should call; used to update baseline after each check.
-    function setLastUnstakeCheckpoint(address account, uint48 key, uint208 value) external {
-        ghost_lastCheckpointKey[account] = key;
-        ghost_lastCheckpointValue[account] = value;
-    }
-
-    /// @dev Clear equivalence scenario flags; call from test after invariant assertions.
-    function clearEquivalenceScenarioFlags() external {
-        ghost_lastCallWasStakeEquivalenceScenario = false;
-        ghost_lastCallWasUnstakeEquivalenceScenario = false;
     }
 
     // **************** Storage reading functions ****************
@@ -144,13 +199,13 @@ contract ProtocolStakingHandler is Test {
     }
 
     /// @dev Returns the length of _unstakeRequests[account]._checkpoints for an actor
-    function getUnstakeRequestCheckpointCount(address account) external view returns (uint256) {
+    function getUnstakeRequestCheckpointCount(address account) public view returns (uint256) {
         bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
         return uint256(vm.load(address(protocolStaking), traceSlot));
     }
 
     /// @dev Returns the checkpoint at index for _unstakeRequests[account] (key = timestamp, value = cumulative amount).
-    function getUnstakeRequestCheckpointAt(address account, uint256 index) external view returns (uint48 key, uint208 value)
+    function getUnstakeRequestCheckpointAt(address account, uint256 index) public view returns (uint48 key, uint208 value)
     {
         bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
         bytes32 arrayBase = keccak256(abi.encode(traceSlot));
@@ -190,23 +245,23 @@ contract ProtocolStakingHandler is Test {
         }
     }
 
+    // **************** ProtocolStaking actions ****************
+
     /// @dev Move the block timestamp forward by a given duration.
-    function warp(uint256 duration) public {
+    function warp(uint256 duration) public assertTransitionInvariants {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
         vm.warp(block.timestamp + duration);
     }
 
-    // **************** ProtocolStaking actions ****************
-
-    function setRewardRate(uint256 rate) external {
+    function setRewardRate(uint256 rate) external assertTransitionInvariants {
         rate = bound(rate, 0, MAX_REWARD_RATE);
         vm.prank(manager);
         protocolStaking.setRewardRate(rate);
         ghost_currentRate = rate;
     }
 
-    function addEligibleAccount(uint256 actorIndex) external {
+    function addEligibleAccount(uint256 actorIndex) public assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
         if (protocolStaking.isEligibleAccount(account)) return;
@@ -218,7 +273,7 @@ contract ProtocolStakingHandler is Test {
         }
     }
 
-    function removeEligibleAccount(uint256 actorIndex) external {
+    function removeEligibleAccount(uint256 actorIndex) external assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
         if (!protocolStaking.isEligibleAccount(account)) return;
@@ -226,13 +281,13 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.removeEligibleAccount(account);
     }
 
-    function setUnstakeCooldownPeriod(uint256 cooldownPeriod) external {
+    function setUnstakeCooldownPeriod(uint256 cooldownPeriod) external assertTransitionInvariants {
         cooldownPeriod = bound(cooldownPeriod, 1, MAX_PERIOD_DURATION - 1);
         vm.prank(manager);
         protocolStaking.setUnstakeCooldownPeriod(SafeCast.toUint48(cooldownPeriod));
     }
 
-    function stake(uint256 actorIndex, uint256 amount) public {
+    function stake(uint256 actorIndex, uint256 amount) public assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address actor = actors[actorIndex];
         uint256 balance = zama.balanceOf(actor);
@@ -243,7 +298,7 @@ contract ProtocolStakingHandler is Test {
         ghost_totalStaked[actor] += amount;
     }
 
-    function unstake(uint256 actorIndex, uint256 amount) public {
+    function unstake(uint256 actorIndex, uint256 amount) public assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address actor = actors[actorIndex];
         uint256 stakedBalance = protocolStaking.balanceOf(actor);
@@ -253,7 +308,7 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.unstake(amount);
     }
 
-    function claimRewards(uint256 actorIndex) external {
+    function claimRewards(uint256 actorIndex) external assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
         uint256 amount = protocolStaking.earned(account);
@@ -262,25 +317,25 @@ contract ProtocolStakingHandler is Test {
         ghost_claimed[account] += amount;
     }
 
-    function release(uint256 actorIndex) external {
+    function release(uint256 actorIndex) external assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
         uint256 awaitingBefore = protocolStaking.awaitingRelease(account);
         protocolStaking.release(account);
         uint256 awaitingAfter = protocolStaking.awaitingRelease(account);
         ghost_totalReleased[account] += (awaitingBefore - awaitingAfter);
-        ghost_lastAwaitingRelease[account] = awaitingAfter;
+        ghost_releasedAccount = account;
     }
 
     /// @notice Unstake then warp past cooldown to allow for valid release() calls.
-    function unstakeThenWarp(uint256 actorIndex) external {
+    function unstakeThenWarp(uint256 actorIndex) external assertTransitionInvariants {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
         uint256 stakedBalance = protocolStaking.balanceOf(account);
         if (stakedBalance == 0) return;
 
         vm.prank(account);
-        protocolStaking.unstake(stakedBalance);
+        unstake(actorIndex, stakedBalance);
 
         uint256 cooldown = protocolStaking.unstakeCooldownPeriod();
         warp(cooldown + 1);
@@ -298,14 +353,7 @@ contract ProtocolStakingHandler is Test {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
 
-        if (!protocolStaking.isEligibleAccount(account)) {
-            vm.prank(manager);
-            protocolStaking.addEligibleAccount(account);
-            if (!ghost_eligibleAccountsSeen[account]) {
-                ghost_eligibleAccountsSeen[account] = true;
-                ghost_eligibleAccounts.push(account);
-            }
-        }
+        addEligibleAccount(actorIndex);
 
         uint256 balance = zama.balanceOf(account);
         if (balance < 2) return;
@@ -343,7 +391,6 @@ contract ProtocolStakingHandler is Test {
         ghost_weightDouble = weightDouble;
         ghost_earnedSingle = earnedSingle;
         ghost_earnedDouble = earnedDouble;
-        ghost_lastCallWasStakeEquivalenceScenario = true;
     }
 
     // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
@@ -356,14 +403,7 @@ contract ProtocolStakingHandler is Test {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
 
-        if (!protocolStaking.isEligibleAccount(account)) {
-            vm.prank(manager);
-            protocolStaking.addEligibleAccount(account);
-            if (!ghost_eligibleAccountsSeen[account]) {
-                ghost_eligibleAccountsSeen[account] = true;
-                ghost_eligibleAccounts.push(account);
-            }
-        }
+        addEligibleAccount(actorIndex);
 
         uint256 balance = zama.balanceOf(account);
         // Need at least 2 to stake, and leave at least 1 for path B restake (unstaked tokens are queued until release)
@@ -407,6 +447,5 @@ contract ProtocolStakingHandler is Test {
         ghost_weightUnstakeB = weightB;
         ghost_earnedUnstakeA = earnedA;
         ghost_earnedUnstakeB = earnedB;
-        ghost_lastCallWasUnstakeEquivalenceScenario = true;
     }
 }

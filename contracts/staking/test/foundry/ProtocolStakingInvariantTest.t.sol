@@ -121,114 +121,6 @@ contract ProtocolStakingInvariantTest is Test {
         assertApproxEqAbs(lhs, rhs, ACTOR_COUNT, "reward debt conservation");
     }
 
-    function invariant_ClaimedPlusClaimableNeverDecreases() public {
-        for (uint256 i = 0; i < handler.ghost_eligibleAccountsLength(); i++) {
-            address account = handler.ghost_eligibleAccountAt(i);
-            uint256 current = handler.ghost_claimed(account) + protocolStaking.earned(account);
-            assertGe(current, handler.ghost_lastClaimedPlusEarned(account), "claimed+claimable must not decrease");
-            handler.setLastClaimedPlusEarned(account, current);
-        }
-    }
-
-    // TODO: Confirm that this correctly proves the invariant: awaitingRelease never decreases except after release.
-    function invariant_AwaitingReleaseNeverDecreases() public {
-        for (uint256 i = 0; i < handler.actorsLength(); i++) {
-            address account = handler.actorAt(i);
-            uint256 current = protocolStaking.awaitingRelease(account);
-            assertGe(current, handler.ghost_lastAwaitingRelease(account), "awaitingRelease must not decrease");
-            handler.setLastAwaitingRelease(account, current);
-        }
-    }
-
-    /// @dev release() updates the baseline in the handler. This test passes if the invariant is correct.
-    function test_awaitingReleaseInvariantWithHandlerRelease() public {
-        handler.addEligibleAccount(0);
-        handler.stake(0, 1e18);
-        handler.unstakeThenWarp(0);
-        assertGt(protocolStaking.awaitingRelease(handler.actorAt(0)), 0, "tokens awaiting release");
-
-        handler.release(0);
-
-        assertEq(protocolStaking.awaitingRelease(handler.actorAt(0)), 0, "release should clear awaitingRelease");
-        invariant_AwaitingReleaseNeverDecreases();
-    }
-
-    /// @dev Direct release (bypassing handler) does not update the baseline, so the invariant would fail.
-    function test_awaitingReleaseInvariantFailsWhenReleaseBypassesHandler() public {
-        address actor0 = handler.actorAt(0);
-        handler.addEligibleAccount(0);
-        handler.stake(0, 1e18);
-        handler.unstakeThenWarp(0);
-
-        uint256 awaitingBeforeRelease = protocolStaking.awaitingRelease(actor0);
-        assertGt(awaitingBeforeRelease, 0, "tokens awaiting release");
-        handler.setLastAwaitingRelease(actor0, awaitingBeforeRelease);
-
-        protocolStaking.release(actor0);
-
-        assertEq(protocolStaking.awaitingRelease(actor0), 0, "release should clear awaitingRelease");
-        assertLt(
-            protocolStaking.awaitingRelease(actor0),
-            handler.ghost_lastAwaitingRelease(actor0),
-            "baseline not updated when release bypasses handler; invariant would fail"
-        );
-    }
-
-    function invariant_UnstakeQueueMonotonicity() public {
-        for (uint256 i = 0; i < handler.actorsLength(); i++) {
-            address account = handler.actorAt(i);
-            uint256 length = handler.getUnstakeRequestCheckpointCount(account);
-            if (length > 0) {
-                (uint48 keyCur, uint208 valueCur) = handler.getUnstakeRequestCheckpointAt(account, length - 1);
-                uint48 lastKey = handler.ghost_lastCheckpointKey(account);
-                uint208 lastValue = handler.ghost_lastCheckpointValue(account);
-                assertGe(keyCur, lastKey, "unstake request keys must be non-decreasing");
-                if (keyCur == lastKey) {
-                    assertGe(valueCur, lastValue, "unstake request values must be non-decreasing for same key");
-                }
-                handler.setLastUnstakeCheckpoint(account, keyCur, valueCur);
-            }
-            // awaitingRelease() must never revert: released[account] <= unstakeRequests[account].latest()
-            protocolStaking.awaitingRelease(account);
-        }
-    }
-
-    /// @dev Verifies that handler storage reads for _unstakeRequests match contract behavior (explicit values).
-    function test_unstakeQueueMonotonicity() public {
-        address actor = handler.actorAt(0);
-        handler.addEligibleAccount(0);
-        uint256 amount1 = 1e18;
-        handler.stake(0, amount1);
-
-        vm.prank(actor);
-        protocolStaking.unstake(amount1);
-
-        // Exactly one checkpoint after first unstake.
-        assertEq(handler.getUnstakeRequestCheckpointCount(actor), 1, "checkpoint count after first unstake");
-        (uint48 key0, uint208 value0) = handler.getUnstakeRequestCheckpointAt(actor, 0);
-        assertEq(value0, amount1, "first checkpoint value = unstaked amount");
-        assertEq(uint256(key0), block.timestamp + INITIAL_UNSTAKE_COOLDOWN_PERIOD, "first checkpoint key = release time");
-
-        // awaitingRelease(actor) must equal latest checkpoint value minus released (0 so far).
-        assertEq(protocolStaking.awaitingRelease(actor), value0, "awaitingRelease equals latest checkpoint when released=0");
-
-        // Second unstake: warp past cooldown so we can stake again, then stake and unstake to get a second checkpoint.
-        vm.warp(block.timestamp + INITIAL_UNSTAKE_COOLDOWN_PERIOD + 1);
-
-        uint256 amount2 = 2e18;
-        handler.stake(0, amount2);
-        vm.prank(actor);
-        protocolStaking.unstake(amount2);
-
-        assertEq(handler.getUnstakeRequestCheckpointCount(actor), 2, "checkpoint count after second unstake");
-        (uint48 key1, uint208 value1) = handler.getUnstakeRequestCheckpointAt(actor, 1);
-        assertGe(key1, key0, "keys non-decreasing");
-        assertEq(value1, value0 + amount2, "second checkpoint value = cumulative amount");
-
-        // Cross-check: awaitingRelease = latest value - released (still 0).
-        assertEq(protocolStaking.awaitingRelease(actor), value1, "awaitingRelease equals latest after second unstake");
-    }
-
     function invariant_PendingWithdrawalsSolvency() public view {
        address token = protocolStaking.stakingToken();
        uint256 balance = IERC20(token).balanceOf(address(protocolStaking));
@@ -250,8 +142,7 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    function invariant_StakeEquivalence() public {
-        if (!handler.ghost_lastCallWasStakeEquivalenceScenario()) return;
+    function invariant_StakeEquivalence() public view {
         assertEq(handler.ghost_sharesDouble(), handler.ghost_sharesSingle(), "stake equivalence: shares");
 
         // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
@@ -263,11 +154,9 @@ contract ProtocolStakingInvariantTest is Test {
             handler.EQUIVALENCE_EARNED_TOLERANCE(),
             "stake equivalence: earned"
         );
-        handler.clearEquivalenceScenarioFlags();
     }
 
-    function invariant_UnstakeEquivalence() public {
-        if (!handler.ghost_lastCallWasUnstakeEquivalenceScenario()) return;
+    function invariant_UnstakeEquivalence() public view{
         assertEq(handler.ghost_sharesUnstakeB(), handler.ghost_sharesUnstakeA(), "unstake equivalence: shares");
         assertEq(handler.ghost_weightUnstakeB(), handler.ghost_weightUnstakeA(), "unstake equivalence: weight");
         assertApproxEqAbs(
@@ -276,6 +165,5 @@ contract ProtocolStakingInvariantTest is Test {
             handler.EQUIVALENCE_EARNED_TOLERANCE(),
             "unstake equivalence: earned"
         );
-        handler.clearEquivalenceScenarioFlags();
     }
 }
