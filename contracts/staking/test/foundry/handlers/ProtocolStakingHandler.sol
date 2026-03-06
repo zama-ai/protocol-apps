@@ -57,7 +57,7 @@ contract ProtocolStakingHandler is Test {
     /// @dev Master modifier to check all transition invariants (State A -> State B)
     modifier assertTransitionInvariants() {
         uint256 actorsLen = actors.length;
-        
+
         // Allocate memory for pre-states
         uint256[] memory preClaimedEarned = new uint256[](actorsLen);
         uint256[] memory preAwaitingRelease = new uint256[](actorsLen);
@@ -65,7 +65,7 @@ contract ProtocolStakingHandler is Test {
         uint208[] memory preValues = new uint208[](actorsLen);
         bool[] memory hadCheckpoint = new bool[](actorsLen);
 
-        // Capture pre-states: Awaiting Release & Unstake Queue & Claimed + Earned
+        // Capture pre-states: Awaiting Release, Claimed + Earned, and Unstake Queue.
         for (uint256 i = 0; i < actorsLen; i++) {
             address account = actors[i];
             preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
@@ -80,48 +80,59 @@ contract ProtocolStakingHandler is Test {
 
         _; // Execute the handler action
 
-        // Assert post-states: Awaiting Release & Unstake Queue & Claimed + Earned must not decrease except after release
+        // Assert post-states for all transition invariants.
         for (uint256 i = 0; i < actorsLen; i++) {
             address account = actors[i];
-
-            uint256 postClaimedEarned = ghost_claimed[account] + protocolStaking.earned(account);
-            
-            // Claimed + Earned Check
-            assertGe(
-                postClaimedEarned + EQUIVALENCE_EARNED_TOLERANCE, 
-                preClaimedEarned[i], 
-                "claimed+claimable must not decrease"
-            );
-            
-            // Awaiting Release Check
-            if (account != ghost_releasedAccount) {
-                uint256 postAwaitingRelease = protocolStaking.awaitingRelease(account);
-                assertGe(
-                    postAwaitingRelease, 
-                    preAwaitingRelease[i], 
-                    "awaitingRelease must not decrease except after release"
-                );
-            }
-            
-            // Unstake Queue Monotonicity Check
-            uint256 count = _getUnstakeRequestCheckpointCount(account);
-            if (count > 0) {
-                (uint48 postKey, uint208 postValue) = _getUnstakeRequestCheckpointAt(account, count - 1);
-                
-                if (hadCheckpoint[i]) {
-                    assertGe(postKey, preKeys[i], "unstake request keys must be non-decreasing");
-                    if (postKey == preKeys[i]) {
-                        assertGe(postValue, preValues[i], "unstake request values must be non-decreasing for same key");
-                    }
-                }
-            }
-            
-            // Ensure awaitingRelease() never reverts: released[account] <= unstakeRequests[account].latest()
-            protocolStaking.awaitingRelease(account);
+            _assertClaimedPlusEarnedTransition(account, preClaimedEarned[i]);
+            _assertAwaitingReleaseTransition(account, preAwaitingRelease[i]);
+            _assertUnstakeQueueMonotonicityTransition(account, hadCheckpoint[i], preKeys[i], preValues[i]);
         }
-        
-        // Reset the released account flag for the next fuzz step
-        ghost_releasedAccount = address(0);
+
+        _resetTransitionFlags();
+    }
+
+    // **************** Transition invariant assertions ****************
+
+    function _assertClaimedPlusEarnedTransition(address account, uint256 preClaimedEarned) internal view {
+        uint256 postClaimedEarned = ghost_claimed[account] + protocolStaking.earned(account);
+        assertGe(
+            postClaimedEarned + EQUIVALENCE_EARNED_TOLERANCE,
+            preClaimedEarned,
+            "claimed+claimable must not decrease"
+        );
+    }
+
+    function _assertAwaitingReleaseTransition(address account, uint256 preAwaitingRelease) internal view {
+        // Skip the monotonicity check if this specific account was just released.
+        if (account == ghost_releasedAccount) return;
+
+        // inherent check that awaiting release does not revert
+        // _released[account] is always inferior or equal to the latest unstake request in _unstakeRequest[account].latest()
+        uint256 postAwaitingRelease = protocolStaking.awaitingRelease(account);
+        assertGe(
+            postAwaitingRelease,
+            preAwaitingRelease,
+            "awaitingRelease must not decrease except after release"
+        );
+    }
+
+    function _assertUnstakeQueueMonotonicityTransition(
+        address account,
+        bool hadCheckpoint,
+        uint48 preKey,
+        uint208 preValue
+    ) internal view {
+        uint256 count = _getUnstakeRequestCheckpointCount(account);
+        if (count == 0) return;
+
+        (uint48 postKey, uint208 postValue) = _getUnstakeRequestCheckpointAt(account, count - 1);
+
+        if (hadCheckpoint) {
+            assertGe(postKey, preKey, "unstake request keys must be non-decreasing");
+            if (postKey == preKey) {
+                assertGe(postValue, preValue, "unstake request values must be non-decreasing for same key");
+            }
+        }
     }
 
     // **************** Helper functions ****************
@@ -133,6 +144,11 @@ contract ProtocolStakingHandler is Test {
     function actorAt(uint256 index) external view returns (address) {
         if (index >= actors.length) return address(0);
         return actors[index];
+    }
+
+    function _resetTransitionFlags() internal {
+        // Reset the released account flag for the next fuzz step.
+        ghost_releasedAccount = address(0);
     }
 
     // **************** Storage reading functions ****************
