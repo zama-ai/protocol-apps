@@ -29,9 +29,6 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_currentRate;
     uint256 public ghost_initialTotalSupply;
 
-    address[] public ghost_eligibleAccounts;
-    mapping(address => bool) public ghost_eligibleAccountsSeen;
-
     mapping(address => uint256) public ghost_claimed;
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
@@ -73,26 +70,20 @@ contract ProtocolStakingHandler is Test {
 
     /// @dev Master modifier to check all transition invariants (State A -> State B)
     modifier assertTransitionInvariants() {
-        uint256 eligibleLen = ghost_eligibleAccounts.length;
         uint256 actorsLen = actors.length;
         
         // Allocate memory for pre-states
-        uint256[] memory preClaimedEarned = new uint256[](eligibleLen);
+        uint256[] memory preClaimedEarned = new uint256[](actorsLen);
         uint256[] memory preAwaitingRelease = new uint256[](actorsLen);
         uint48[] memory preKeys = new uint48[](actorsLen);
         uint208[] memory preValues = new uint208[](actorsLen);
         bool[] memory hadCheckpoint = new bool[](actorsLen);
-        
-        // Capture pre-states: Claimed + Earned
-        for (uint256 i = 0; i < eligibleLen; i++) {
-            address account = ghost_eligibleAccounts[i];
-            preClaimedEarned[i] = ghost_claimed[account] + protocolStaking.earned(account);
-        }
 
-        // Capture pre-states: Awaiting Release & Unstake Queue
+        // Capture pre-states: Awaiting Release & Unstake Queue & Claimed + Earned
         for (uint256 i = 0; i < actorsLen; i++) {
             address account = actors[i];
             preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
+            preClaimedEarned[i] = ghost_claimed[account] + protocolStaking.earned(account);
             
             uint256 count = _getUnstakeRequestCheckpointCount(account);
             if (count > 0) {
@@ -103,21 +94,18 @@ contract ProtocolStakingHandler is Test {
 
         _; // Execute the handler action
 
-        // Assert post-states: Claimed + Earned must not decrease
-        for (uint256 i = 0; i < eligibleLen; i++) {
-            address account = ghost_eligibleAccounts[i];
+        // Assert post-states: Awaiting Release & Unstake Queue & Claimed + Earned must not decrease except after release
+        for (uint256 i = 0; i < actorsLen; i++) {
+            address account = actors[i];
+
             uint256 postClaimedEarned = ghost_claimed[account] + protocolStaking.earned(account);
             
+            // Claimed + Earned Check
             assertGe(
                 postClaimedEarned + EQUIVALENCE_EARNED_TOLERANCE, 
                 preClaimedEarned[i], 
                 "claimed+claimable must not decrease"
             );
-        }
-
-        // Assert post-states: Awaiting Release & Unstake Queue must not decrease except after release
-        for (uint256 i = 0; i < actorsLen; i++) {
-            address account = actors[i];
             
             // Awaiting Release Check
             if (account != ghost_releasedAccount) {
@@ -151,15 +139,6 @@ contract ProtocolStakingHandler is Test {
     }
 
     // **************** Helper functions ****************
-
-    function ghost_eligibleAccountsLength() external view returns (uint256) {
-        return ghost_eligibleAccounts.length;
-    }
-
-    function ghost_eligibleAccountAt(uint256 index) external view returns (address) {
-        if (index >= ghost_eligibleAccounts.length) return address(0);
-        return ghost_eligibleAccounts[index];
-    }
 
     function actorsLength() external view returns (uint256) {
         return actors.length;
@@ -203,8 +182,8 @@ contract ProtocolStakingHandler is Test {
     function computeRewardDebtLHS() external view returns (int256) {
         int256 sumPaid;
         uint256 sumEarned;
-        for (uint256 i = 0; i < ghost_eligibleAccounts.length; i++) {
-            address account = ghost_eligibleAccounts[i];
+        for (uint256 i = 0; i < actors.length; i++) {
+            address account = actors[i];
             sumPaid += _readPaid(account);
             sumEarned += protocolStaking.earned(account);
         }
@@ -218,8 +197,8 @@ contract ProtocolStakingHandler is Test {
     }
 
     function computeExpectedTotalWeight() external view returns (uint256 total) {
-        for (uint256 i = 0; i < ghost_eligibleAccounts.length; i++) {
-            address account = ghost_eligibleAccounts[i];
+        for (uint256 i = 0; i < actors.length; i++) {
+            address account = actors[i];
             if (protocolStaking.isEligibleAccount(account)) {
                 total += protocolStaking.weight(protocolStaking.balanceOf(account));
             }
@@ -248,10 +227,6 @@ contract ProtocolStakingHandler is Test {
         if (protocolStaking.isEligibleAccount(account)) return;
         vm.prank(manager);
         protocolStaking.addEligibleAccount(account);
-        if (!ghost_eligibleAccountsSeen[account]) {
-            ghost_eligibleAccountsSeen[account] = true;
-            ghost_eligibleAccounts.push(account);
-        }
     }
 
     function removeEligibleAccount(uint256 actorIndex) external assertTransitionInvariants {
