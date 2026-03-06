@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
-import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
+import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
@@ -10,7 +10,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Invariant fuzz test for ProtocolStaking
 contract ProtocolStakingInvariantTest is Test {
-    ProtocolStaking internal protocolStaking;
+    ProtocolStakingHarness internal protocolStaking;
     ZamaERC20 internal zama;
     ProtocolStakingHandler internal handler;
 
@@ -41,9 +41,9 @@ contract ProtocolStakingInvariantTest is Test {
         zama = new ZamaERC20("Zama", "ZAMA", receivers, amounts, admin);
 
         // Deploy ProtocolStaking behind ERC1967 proxy
-        ProtocolStaking impl = new ProtocolStaking();
+        ProtocolStakingHarness impl = new ProtocolStakingHarness();
         bytes memory initData = abi.encodeCall(
-            ProtocolStaking.initialize,
+            protocolStaking.initialize,
             (
                 "Staked ZAMA",
                 "stZAMA",
@@ -56,7 +56,7 @@ contract ProtocolStakingInvariantTest is Test {
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
-        protocolStaking = ProtocolStaking(address(proxy));
+        protocolStaking = ProtocolStakingHarness(address(proxy));
 
         // Grant MINTER_ROLE on Zama to ProtocolStaking
         vm.startPrank(admin);

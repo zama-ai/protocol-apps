@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {Test} from "forge-std/Test.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {ProtocolStaking} from "../../../contracts/ProtocolStaking.sol";
+import {ProtocolStakingHarness} from "../harness/ProtocolStakingHarness.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 
 /**
@@ -12,7 +12,7 @@ import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
  * @notice Handler for invariant tests: wraps ProtocolStaking actions, bounds inputs, and tracks ghost state.
  */
 contract ProtocolStakingHandler is Test {
-    ProtocolStaking public protocolStaking;
+    ProtocolStakingHarness public protocolStaking;
     ZamaERC20 public zama;
 
     address public manager;
@@ -54,17 +54,8 @@ contract ProtocolStakingHandler is Test {
     uint256 public ghost_earnedUnstakeA;
     uint256 public ghost_earnedUnstakeB;
 
-    /// @dev _STORAGE_BASE_SLOT must match ProtocolStaking.PROTOCOL_STAKING_STORAGE_LOCATION and struct slot offsets
-    uint256 private constant _STORAGE_BASE_SLOT = 0xd955b2342c0487c5e5b5f50f5620ec67dcb16d94462ba5d080d7b7472b67b900;
-    uint256 private constant _UNSTAKE_REQUESTS_SLOT = 3;
-    uint256 private constant _LAST_UPDATE_TIMESTAMP_SLOT = 5;
-    uint256 private constant _LAST_UPDATE_REWARD_SLOT = 6;
-    uint256 private constant _REWARD_RATE_SLOT = 7;
-    uint256 private constant _PAID_SLOT = 9;
-    uint256 private constant _TOTAL_VIRTUAL_PAID_SLOT = 10;
-
     constructor(
-        ProtocolStaking _protocolStaking,
+        ProtocolStakingHarness _protocolStaking,
         ZamaERC20 _zama,
         address _manager,
         address[] memory _actors
@@ -103,9 +94,9 @@ contract ProtocolStakingHandler is Test {
             address account = actors[i];
             preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
             
-            uint256 count = getUnstakeRequestCheckpointCount(account);
+            uint256 count = _getUnstakeRequestCheckpointCount(account);
             if (count > 0) {
-                (preKeys[i], preValues[i]) = getUnstakeRequestCheckpointAt(account, count - 1);
+                (preKeys[i], preValues[i]) = _getUnstakeRequestCheckpointAt(account, count - 1);
                 hadCheckpoint[i] = true;
             }
         }
@@ -139,9 +130,9 @@ contract ProtocolStakingHandler is Test {
             }
             
             // Unstake Queue Monotonicity Check
-            uint256 count = getUnstakeRequestCheckpointCount(account);
+            uint256 count = _getUnstakeRequestCheckpointCount(account);
             if (count > 0) {
-                (uint48 postKey, uint208 postValue) = getUnstakeRequestCheckpointAt(account, count - 1);
+                (uint48 postKey, uint208 postValue) = _getUnstakeRequestCheckpointAt(account, count - 1);
                 
                 if (hadCheckpoint[i]) {
                     assertGe(postKey, preKeys[i], "unstake request keys must be non-decreasing");
@@ -181,38 +172,30 @@ contract ProtocolStakingHandler is Test {
 
     // **************** Storage reading functions ****************
 
-    function _readPaid(address proxy, address account) internal view returns (int256) {
-        bytes32 slot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _PAID_SLOT)));
-        return int256(uint256(vm.load(proxy, slot)));
+    /// @dev Reads the paid amount for an account through the ProtocolStakingHarness
+    function _readPaid(address account) internal view returns (int256) {
+        return protocolStaking._harness_getPaid(account);
     }
 
-    function _readTotalVirtualPaid(address proxy) internal view returns (int256) {
-        bytes32 slot = bytes32(_STORAGE_BASE_SLOT + _TOTAL_VIRTUAL_PAID_SLOT);
-        return int256(uint256(vm.load(proxy, slot)));
+    /// @dev Reads the total virtual paid amount through the ProtocolStakingHarness
+    function _readTotalVirtualPaid() internal view returns (int256) {
+        return protocolStaking._harness_getTotalVirtualPaid();
     }
 
-    function _readHistoricalReward(address proxy) internal view returns (uint256) {
-        uint256 lastUpdateTimestamp = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _LAST_UPDATE_TIMESTAMP_SLOT)));
-        uint256 lastUpdateReward = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _LAST_UPDATE_REWARD_SLOT)));
-        uint256 rewardRate = uint256(vm.load(proxy, bytes32(_STORAGE_BASE_SLOT + _REWARD_RATE_SLOT)));
-        return lastUpdateReward + (block.timestamp - lastUpdateTimestamp) * rewardRate;
+    /// @dev Reads the historical reward through the ProtocolStakingHarness
+    function _readHistoricalReward() internal view returns (uint256) {
+        return protocolStaking._harness_getHistoricalReward();
     }
 
-    /// @dev Returns the length of _unstakeRequests[account]._checkpoints for an actor
-    function getUnstakeRequestCheckpointCount(address account) public view returns (uint256) {
-        bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
-        return uint256(vm.load(address(protocolStaking), traceSlot));
+    /// @dev Reads the length of _unstakeRequests[account]._checkpoints for an actor through the ProtocolStakingHarness
+    function _getUnstakeRequestCheckpointCount(address account) internal view returns (uint256) {
+        return protocolStaking._harness_getUnstakeRequestCheckpointCount(account);
     }
 
-    /// @dev Returns the checkpoint at index for _unstakeRequests[account] (key = timestamp, value = cumulative amount).
-    function getUnstakeRequestCheckpointAt(address account, uint256 index) public view returns (uint48 key, uint208 value)
+    /// @dev Reads the checkpoint at index for _unstakeRequests[account] through the ProtocolStakingHarness
+    function _getUnstakeRequestCheckpointAt(address account, uint256 index) internal view returns (uint48 key, uint208 value)
     {
-        bytes32 traceSlot = keccak256(abi.encode(account, bytes32(_STORAGE_BASE_SLOT + _UNSTAKE_REQUESTS_SLOT)));
-        bytes32 arrayBase = keccak256(abi.encode(traceSlot));
-        bytes32 checkpointSlot = bytes32(uint256(arrayBase) + index);
-        uint256 data = uint256(vm.load(address(protocolStaking), checkpointSlot));
-        key = uint48(data);
-        value = uint208(data >> 48);
+        return protocolStaking._harness_getUnstakeRequestCheckpointAt(account, index);
     }
 
     // **************** Invariant functions ****************
@@ -220,19 +203,17 @@ contract ProtocolStakingHandler is Test {
     function computeRewardDebtLHS() external view returns (int256) {
         int256 sumPaid;
         uint256 sumEarned;
-        address proxy = address(protocolStaking);
         for (uint256 i = 0; i < ghost_eligibleAccounts.length; i++) {
             address account = ghost_eligibleAccounts[i];
-            sumPaid += _readPaid(proxy, account);
+            sumPaid += _readPaid(account);
             sumEarned += protocolStaking.earned(account);
         }
         return sumPaid + SafeCast.toInt256(sumEarned);
     }
 
     function computeRewardDebtRHS() external view returns (int256) {
-        address proxy = address(protocolStaking);
-        int256 totalVirtualPaid = _readTotalVirtualPaid(proxy);
-        uint256 histReward = _readHistoricalReward(proxy);
+        int256 totalVirtualPaid = _readTotalVirtualPaid();
+        uint256 histReward = _readHistoricalReward();
         return totalVirtualPaid + SafeCast.toInt256(histReward);
     }
 
