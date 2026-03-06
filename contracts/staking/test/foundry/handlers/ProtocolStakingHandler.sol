@@ -9,7 +9,7 @@ import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 
 /**
  * @title ProtocolStakingHandler
- * @notice Handler for invariant tests: wraps ProtocolStaking actions, bounds inputs, and tracks ghost reward capacity.
+ * @notice Handler for invariant tests: wraps ProtocolStaking actions, bounds inputs, and tracks ghost state.
  */
 contract ProtocolStakingHandler is Test {
     ProtocolStaking public protocolStaking;
@@ -155,7 +155,7 @@ contract ProtocolStakingHandler is Test {
             protocolStaking.awaitingRelease(account);
         }
         
-        // 6. Reset the release flag for the next fuzz step
+        // Reset the released account flag for the next fuzz step
         ghost_releasedAccount = address(0);
     }
 
