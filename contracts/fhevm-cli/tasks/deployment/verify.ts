@@ -2,18 +2,16 @@ import { task } from "hardhat/config";
 import type { TaskArguments } from "hardhat/types";
 
 // Example:
-// npx hardhat task:verifyMultiSigHelper --address 0x... --multisig 0x... --network mainnet
-task("task:verifyMultiSigHelper")
-  .addParam("address", "The deployed MultiSigHelper contract address")
-  .addParam("multisig", "The MultiSig contract address (constructor argument)")
+// npx hardhat task:verifyFHEVMMultiSigHelper --address 0x... --network mainnet
+task("task:verifyFHEVMMultiSigHelper")
+  .addParam("address", "The deployed FHEVMMultiSigHelper contract address")
   .setAction(async function (taskArguments: TaskArguments, { run }) {
-    console.log("Verifying MultiSigHelper at:", taskArguments.address);
+    console.log("Verifying FHEVMMultiSigHelper at:", taskArguments.address);
 
     await run("verify:verify", {
       address: taskArguments.address,
-      constructorArguments: [taskArguments.multisig],
-      contract: "contracts/MultiSigHelper.sol:MultiSigHelper",
+      contract: "contracts/FHEVMMultiSigHelper.sol:FHEVMMultiSigHelper",
     });
 
-    console.log("MultiSigHelper verified successfully!");
+    console.log("FHEVMMultiSigHelper verified successfully!");
   });
