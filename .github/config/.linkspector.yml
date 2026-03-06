@@ -10,4 +10,7 @@ ignorePatterns:
   - pattern: "https://etherscan.io/"
   - pattern: "https://sepolia.etherscan.io/"
   - pattern: "https://app.squads.so/"
+  - pattern: "https://portal.arbitrum.io/*"
+  - pattern: "https://rpc.mainnet.zama.org"
+  - pattern: "https://rpc.testnet.zama.org"
 useGitIgnore: true

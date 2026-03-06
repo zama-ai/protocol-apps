@@ -4,17 +4,13 @@ This directory contains all deployed contract addresses for the Zama protocol, o
 
 ## Mainnet
 
-| Chain | File |
-| ----- | ---- |
-| Ethereum Mainnet            | [ethereum.md](mainnet/ethereum.md) |
-| Gateway Mainnet             | [gateway.md](mainnet/gateway.md) |
-| Binance Smart Chain Mainnet | [bsc.md](mainnet/bsc.md) |
-| HyperEVM Mainnet            | [hyper_evm.md](mainnet/hyper_evm.md) |
-| Solana Mainnet              | [solana.md](mainnet/solana.md) |
+- [Ethereum Mainnet](mainnet/ethereum.md)
+- [Gateway Mainnet](mainnet/gateway.md)
+- [Binance Smart Chain Mainnet](mainnet/bsc.md)
+- [HyperEVM Mainnet](mainnet/hyper_evm.md)
+- [Solana Mainnet](mainnet/solana.md)
 
 ## Testnet
 
-| Chain | File |
-| ----- | ---- |
-| Sepolia Testnet | [sepolia.md](testnet/sepolia.md) |
-| Gateway Testnet | [gateway.md](testnet/gateway.md) |
+- [Sepolia Testnet](testnet/sepolia.md)
+- [Gateway Testnet](testnet/gateway.md)
