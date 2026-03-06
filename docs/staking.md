@@ -110,6 +110,13 @@ The rewards rate is defined as tokens-per-second and is determined as follows:
 2. This total amount is divided between the roles, with 40% going to coprocessor operators and 60% to KMS operators.
 3. Each per role amount is converted into a per role tokens-per-second reward rate for the year.
 
+Currently, the reward rates are as follows for the protocol staking contracts:
+
+| Role         | Reward rate    |
+|--------------|----------------|
+| KMS          | 10.46 tokens/s |
+| Coprocessor  | 6.97 tokens/s  |
+
 ### Eligible
 
 It is important to note that only _eligible_ operator staking contracts generate rewards. For now, becoming eligible is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol. Checking whether an operator is currently eligible can be done onchain.
@@ -119,3 +126,32 @@ Any operator who’s operator staking contract has staked sufficiently on the pr
 ## Redeeming
 
 Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days and is updatable via protocol governance. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+
+> Note: on testnet, the cooldown period is 3 minutes.
+
+
+## Token naming patterns
+
+Each staking token in the Zama protocol uses standardized patterns for their symbol and name to make them easily identifiable:
+
+- **Protocol staking token:**
+  - **Symbol:** `stZAMA-<role>`
+  - **Name:** `Staked ZAMA (<role>)`
+
+- **Operator staking token:**
+  - **Symbol:** `stZAMA-<name>-<role>`
+  - **Name:** `<name> Staked ZAMA (<role>)`
+
+Where:
+- `<name>` is the operator name (e.g., `Zama`, `OpenZeppelin`, etc.).
+- `<role>` is the role of the staking contract (`Coprocessor` or `KMS`).
+
+### Example
+
+The Coprocessor protocol staking token is `stZAMA-Coprocessor` and the KMS protocol staking token is `stZAMA-KMS`.
+
+If the operator's name is `OpenZeppelin` and its role is `Coprocessor`, the operator staking token has:
+- symbol: `stZAMA-OpenZeppelin-Coprocessor`
+- name: `OpenZeppelin Staked ZAMA (Coprocessor)`
+
+This convention ensures clarity and consistency across all staking and operator staking tokens in the protocol.

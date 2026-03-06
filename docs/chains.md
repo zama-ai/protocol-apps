@@ -1,0 +1,92 @@
+# Chains
+
+This page lists the chains involved in the Zama protocol, their block explorers, RPC endpoints, chain IDs, and LayerZero configurations.
+
+## Mainnet
+
+### Block explorers
+
+* Ethereum: [https://etherscan.io/](https://etherscan.io/)
+* Gateway: [https://explorer.mainnet.zama.org/](https://explorer.mainnet.zama.org/)
+* BSC: [https://bscscan.com/](https://bscscan.com/)
+* HyperEVM: [https://hyperevmscan.io/](https://hyperevmscan.io/)
+* Solana: [https://solscan.io/](https://solscan.io/)
+
+### RPC endpoints
+
+* Gateway:
+  - [RPC](https://rpc.mainnet.zama.org): https://rpc.mainnet.zama.org
+
+### EVM chains - Chain IDs
+
+Not to be confused with Endpoint IDs (see section below).
+
+| Name                  |  Chain ID  |
+| --------------------- | ---------- |
+| `Ethereum`            |     1      |
+| `Gateway`             |  261131    |
+| `BSC`                 |    56      |
+| `HyperEVM`            |    999     |
+
+__Note:__ These are only for EVM chains, Solana does not have a chain ID (but has a LayerZero endpoint ID).
+
+### LayerZero
+
+#### Endpoint IDs
+
+Those are LayerZero specific and should not be confused with Chain IDs (see section above).
+
+| Name                  | Endpoint ID (eid) |
+| --------------------- | ----------------- |
+| `Ethereum`            |      30101        |
+| `Gateway`             |      30397        |
+| `BSC`                 |      30102        |
+| `SOL`                 |      30168        |
+| `HyperEVM`            |      30367        |
+
+#### DVN configs
+
+Currently these are the supported pathways:
+
+| Pathway (A to B)       | Required DVNs     | Optional DVNs                      | Optional DVNs threshold | A to B confirmations | B to A confirmations |
+| ---------------------- | ----------------- | ---------------------------------- | ----------------------- | -------------------- | -------------------- |
+| `Ethereum <> Gateway`  | [LayerZero Labs]  | ['Nethermind', 'Luganodes', 'P2P'] |            2            |          15          |         20           |
+| `Ethereum <> BSC`      | [LayerZero Labs]  | ['Nethermind', 'Luganodes', 'P2P'] |            2            |          15          |         20           |
+| `Ethereum <> SOL`      | [LayerZero Labs]  | ['Nethermind', 'Luganodes', 'P2P'] |            2            |          15          |         32           |
+| `Ethereum <> HyperEVM` | [LayerZero Labs]  | ['Nethermind', 'Luganodes', 'P2P'] |            2            |          15          |         1            |
+
+## Testnet
+
+### Block explorers
+
+* Ethereum Sepolia: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
+* Gateway Testnet: [https://explorer.testnet.zama.org/](https://explorer.testnet.zama.org/)
+
+### RPC endpoints
+
+* Gateway:
+  - [RPC](https://rpc.testnet.zama.org): https://rpc.testnet.zama.org
+
+### EVM chains - Chain IDs
+
+| Name                  |  Chain ID  |
+| --------------------- | ---------- |
+| `Ethereum Sepolia`    | 11155111   |
+| `Gateway Testnet`     |  10901     |
+| `BSC Testnet`         |    97      |
+
+### LayerZero
+
+#### Endpoint IDs
+
+| Name                  | Endpoint ID (eid) |
+| --------------------- | ----------------- |
+| `Ethereum Sepolia`    |      40161        |
+| `Gateway Testnet`     |      40424        |
+| `BSC Testnet`         |      40102        |
+
+#### DVN configs
+
+| Pathway (A to B)                      | Required DVNs     | Optional DVNs | Optional DVNs threshold | A to B confirmations | B to A confirmations |
+| ------------------------------------- | ----------------- | ------------- | ----------------------- | -------------------- | -------------------- |
+| `Ethereum Sepolia <> Gateway Testnet` | [LayerZero Labs]  |    []         |            0            |          15          |         20           |

@@ -16,6 +16,17 @@ This document gives an ovrview of the **Confidential Wrapper,** a smart contract
 * **Input proof**: A proof that the encrypted amount is valid. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
 * **Public decryption**: A request to publicly decrypt an encrypted amount. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
 
+```mermaid
+flowchart
+    subgraph Ethereum
+    Protocol-DAO -- owner --> Registry
+        Registry -- registers --> Confidential-Wrapper
+        Protocol-DAO -- owner --> Confidential-Wrapper
+    end
+```
+
+More information on the registry contract can be found in the [registry-contract.md](registry-contract.md) file.
+
 ## Contract addresses
 
 All deployed confidential wrapper addresses can be found in the [addresses directory](addresses/README.md).

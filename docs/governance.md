@@ -4,38 +4,70 @@ Governance in the Zama protocol covers operation and adjustment of the protocol,
 
 ## Structure
 
-The primary governance module is the [Zama Protocol Aragon DAO on Ethereum](https://app.aragon.org/dao/ethereum-mainnet/zama.dao.eth/) controlled by the operators. This means that proposals are voted onchain and (most of them) automatically executed.
+The primary governance module is the Zama Protocol Aragon DAO on Ethereum controlled by the operators. This means that proposals are voted onchain and (most of them) automatically executed.
 
 There are furthermore secondary governance modules, in the form of local multisigs, deployed on every other chain involved in the protocol or token. They act as the owner of contracts on the given chain, and will be linked together with the primary governance module via LayerZero, allowing the latter to act on behalf of all of the secondary modules. This means that the Aragon DAO will be used for all governance under normal circumstances, and the local multisigs will only used as fallbacks in case there is an issue with the LayerZero link.
 
-The diagram below shows this governance structure, and how it works for ownership in the case of the $ZAMA token.
+
+On Ethereum, the Protocol DAO controls a Governance OApp Sender which communicates with a Governance OApp Receiver on the Gateway via LayerZero. The receiver acts through an Admin Module that is a trusted module of the Gateway Safe multisig.
 
 ```mermaid
 
 
 flowchart
-    subgraph Ethereum
-        Protocol-DAO
-        ZAMA-ERC20
-        ZAMA-OFTAdapter
-
-        Protocol-DAO -- owns --> ZAMA-ERC20
-        Protocol-DAO -- owns --> ZAMA-OFTAdapter
-
-        ZAMA-ERC20 -..- ZAMA-OFTAdapter
+    subgraph Operators
+        GOV-ETH-1..n
     end
+
+    subgraph Ethereum
+        Gov-Multisig
+        Protocol-DAO
+        GovernanceOAppSender
+
+        Gov-Multisig -- admin role --> Protocol-DAO
+        Protocol-DAO -- owner + delegate --> GovernanceOAppSender
+    end
+
+    GOV-ETH-1..n -. member .-> Gov-Multisig
 
     subgraph Gateway
+        GovernanceOAppReceiver
+        AdminModule
         Gateway-Safe
-        ZAMA-OFT-GW
 
-        Gateway-Safe -- owns --> ZAMA-OFT-GW
+        GovernanceOAppReceiver -- admin role --> AdminModule
+        AdminModule -. trusted module .-> Gateway-Safe
+        Gateway-Safe -- owner + delegate --> GovernanceOAppReceiver
     end
 
-    Protocol-DAO -. controls (via LayerZero) .-> Gateway-Safe
-
-    ZAMA-OFTAdapter <-. linked (via LayerZero) .-> ZAMA-OFT-GW
+    GovernanceOAppSender -. controls (via LayerZero) .-> GovernanceOAppReceiver
 ```
+
+> On BSC, HyperEVM, and Solana, the governance is currently only controlled by the dedicated multisig contracts (Safe or Squads). This will be improved in the future with the addition of LayerZero links like for the Gateway.
+
+```mermaid
+
+
+flowchart
+    subgraph BSC
+        BNB-Safe
+    end
+
+    subgraph HyperEVM
+        HyperEVM-Safe
+    end
+
+    subgraph Solana
+        Solana-Squads
+    end
+
+```
+
+An example of governance architecture for the token and its OFT contracts can be found in the [zama-token.md](zama-token.md) file.
+
+## Contract addresses
+
+All deployed governance contract addresses can be found in the [addresses directory](addresses/README.md).
 
 ## Operator wallets
 
