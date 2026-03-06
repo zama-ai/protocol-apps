@@ -9,7 +9,11 @@ ignorePatterns:
   - pattern: "^https://staking.zama.org.*$"
   - pattern: "^https://portfolio.zama.org.*$"
   - pattern: "^https://bridge.mainnet.zama.org.*$"
+  - pattern: "^https://bridge.zama.org.*$"
   - pattern: "^https://etherscan.io.*$"
   - pattern: "^https://sepolia.etherscan.io.*$"
   - pattern: "^https://app.squads.so.*$"
+  - pattern: "^https://portal.arbitrum.io.*$"
+  - pattern: "^https://rpc.mainnet.zama.org.*$"
+  - pattern: "^https://rpc.testnet.zama.org.*$"
 useGitIgnore: true

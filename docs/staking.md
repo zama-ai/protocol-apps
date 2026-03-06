@@ -379,7 +379,15 @@ The `OperatorStaking` contract serves as a dedicated staking pool for a specific
 
 ### Operator Staking shares
 
-Each operator has their own `OperatorStaking` instance acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. These token shares are fully transferable and use 20 decimals. 
+Each operator has their own `OperatorStaking` instance acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. Each share token has a unique symbol and name to make them easily identifiable:
+  - **Symbol:** `stZAMA-<name>-<role>`
+  - **Name:** `<name> Staked ZAMA (<role>)`
+
+Where:
+- `<name>` is the operator name (e.g., `Zama`, `OpenZeppelin`, etc.).
+- `<role>` is the role of the staking contract (`Coprocessor` or `KMS`).
+
+These token shares are fully transferable and use 20 decimals. 
 
 #### Operator Staking decimals
 

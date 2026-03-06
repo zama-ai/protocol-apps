@@ -3,13 +3,14 @@
 * [Overview](README.md)
 * [Apps](./apps.md)
 * [Zama Token](./zama-token.md)
-* Governance
-  * [Governance overview](./governance.md)
-  * [Pausing](./pausing.md)
 * [Staking](./staking.md)
 * Confidential Tokens
   * [Confidential wrapper](./confidential-wrapper.md)
   * [Registry](./wrapper-registry.md)
+* Governance
+  * [Governance overview](./governance.md)
+  * [Pausing](./pausing.md)
+* [Chains](./chains.md)
 * [Contract addresses](./addresses/README.md)
   * Mainnet
     * [Ethereum](./addresses/mainnet/ethereum.md)

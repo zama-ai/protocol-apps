@@ -13,7 +13,7 @@
 | ------------------------ | ------- |
 | Governance OApp Receiver | [`0x998E9484Aa2a9Ae5B0C8a93B4bD2ea2a5C1B6fF0`](https://explorer.testnet.zama.org/address/0x998E9484Aa2a9Ae5B0C8a93B4bD2ea2a5C1B6fF0) |
 | Admin Module             | [`0x53dB449A96d0319DD1f90102dA116Bb9aB0483bB`](https://explorer.testnet.zama.org/address/0x53dB449A96d0319DD1f90102dA116Bb9aB0483bB) |
-| Safe multisig            | [`0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9`](https://explorer.testnet.zama.org/address/0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9) |
+| Gateway Testnet multisig | [`0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9`](https://explorer.testnet.zama.org/address/0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9) |
 
 
 ## Pausing

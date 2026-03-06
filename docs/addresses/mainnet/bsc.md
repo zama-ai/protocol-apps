@@ -11,4 +11,4 @@
 
 | Name          | Address |
 | ------------- | ------- |
-| Safe multisig | [`0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B`](https://bscscan.com/address/0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B) |
+| BSC multisig | [`0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B`](https://bscscan.com/address/0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B) |

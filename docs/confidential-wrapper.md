@@ -10,7 +10,7 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 * **Unwrapping**: Converting confidential tokens back into ERC-20 tokens.
 * **Rate**: The conversion ratio between underlying token units and confidential token units (due to decimal differences).
 * **Operator**: An address authorized to transfer confidential tokens on behalf of another address.
-* **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to a DAO [governance](governance.md) contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
+* **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to the Protocol DAO governance (see [governance.md](governance.md)). Ownership will then be transferred to the underlying token's owner.
 * **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](wrapper-registry.md).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
 * **Input proof**: A proof that the encrypted amount is valid. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
@@ -22,6 +22,19 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
 | Source code | [ConfidentialWrapper.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/confidential-wrapper/contracts/ConfidentialWrapper.sol) |
+
+## Structure
+
+```mermaid
+flowchart
+    subgraph Ethereum
+    Protocol-DAO -- owner --> Registry
+        Registry -- registers --> Confidential-Wrapper
+        Protocol-DAO -- owner --> Confidential-Wrapper
+    end
+```
+
+More information on the registry contract can be found in the [wrapper-registry.md](wrapper-registry.md) file.
 
 ## Quick Start
 
@@ -423,4 +436,4 @@ wrapper.supportsInterface(type(IERC165).interfaceId) == true; // 0x01ffc9a7
 
 ## Upgradeability
 
-The contract uses **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade the contract. Initially, the owner is set to a DAO [governance](governance.md) contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
+The contract uses **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade the contract. Initially, the owner is set to the Protocol DAO governance (see [governance.md](governance.md)). Ownership will then be transferred to the underlying token's owner.
