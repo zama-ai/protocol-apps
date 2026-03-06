@@ -113,12 +113,17 @@ contract ProtocolStakingInvariantTest is Test {
     }
 
     function invariant_RewardDebtConservation() public view {
-        // Only check when there is positive staked weight -- when no one has staked, LHS = 0
-        if (protocolStaking.totalStakedWeight() == 0) return;
         int256 lhs = handler.computeRewardDebtLHS();
+        // When the system is empty, net debt across all users should perfectly net out to 0
+        // Σ _paid[account] + Σ earned(account) = 0
+        if (protocolStaking.totalStakedWeight() == 0) {
+            assertEq(lhs, 0, "Net reward debt must be 0 when no one is staked");
+            return;
+        }
         int256 rhs = handler.computeRewardDebtRHS();
+        uint256 tolerance = handler.REWARD_DEBT_CONSERVATION_TOLERANCE();
         // Contract comment: "Accounting rounding may have a marginal impact on earned rewards (dust)."
-        assertApproxEqAbs(lhs, rhs, ACTOR_COUNT, "reward debt conservation");
+        assertApproxEqAbs(lhs, rhs, tolerance, "reward debt conservation");
     }
 
     function invariant_PendingWithdrawalsSolvency() public view {

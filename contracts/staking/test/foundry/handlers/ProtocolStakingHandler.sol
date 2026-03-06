@@ -24,6 +24,7 @@ contract ProtocolStakingHandler is Test {
 
     // Amount in wei to allow for rounding errors in equivalence invariants.
     uint256 public constant EQUIVALENCE_EARNED_TOLERANCE = 50;
+    uint256 public constant REWARD_DEBT_CONSERVATION_TOLERANCE = 5;
 
     uint256 public ghost_accumulatedRewardCapacity;
     uint256 public ghost_currentRate;
