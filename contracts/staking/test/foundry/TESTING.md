@@ -1,20 +1,21 @@
 # ProtocolStaking Testing
 
-Invariant and fuzz testing for the ProtocolStaking contract using Foundry.
+Invariant and stateful fuzz testing for the `ProtocolStaking` contract using Foundry.
 
 ## Prerequisites
 
-- [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge`, `cast`)
+- [Foundry](https://book.getfoundry.sh/getting-started/installation)
 - Node.js (v20+)
-- pnpm
+- npm
 
-## Installation
+## Installation & Setup
 
-From the repository root:
+From the repository root, install the required Node dependencies (OpenZeppelin, etc.):
 
 ```bash
 cd contracts/staking
-pnpm install
+npm install
+forge install foundry-rs/forge-std --no-git
 ```
 
 ## Test Structure
@@ -25,7 +26,7 @@ We separate our invariant rules into two distinct categories to handle EVM state
 
 1. **Global Invariants**: Checked via invariant_* functions in the test contract after every sequence step. These check system-wide accounting rules.
 
-2. **Transition Invariants**: Checked via the assertTransitionInvariants modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected).
+2. **Transition Invariants**: Checked via the `assertTransitionInvariants` modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected).
 
 ### Handler
 
@@ -46,81 +47,73 @@ We separate our invariant rules into two distinct categories to handle EVM state
 
 ## Invariants
 
-### Global invariants (`invariant_*`)
+We separate our testing rules into three distinct categories:
 
-Checked via `invariant_*` functions after every handler call.
+### 1. Global Invariants
 
-#### Total supply bounded by reward rate (`invariant_TotalSupplyBoundedByRewardRate`)
+Checked via `invariant_*` functions in the main test contract after every handler call.
 
+- Total supply bounded by reward rate:
 ```
 totalSupply ≤ initialTotalSupply + Σ(δT_i × rewardRate_i)
 ```
 
-#### Total staked weight (`invariant_TotalStakedWeightEqualsEligibleWeights`)
-
+- Total staked weight:
 ```
-totalStakedWeight() == Σ weight(balanceOf(account)) over eligible accounts
-```
-
-#### Reward debt conservation (`invariant_RewardDebtConservation`)
-
-```
-Σ _paid[account] + Σ earned(account) == _totalVirtualPaid + historicalRewards()
+totalStakedWeight() == Σ weight(balanceOf(account))
 ```
 
-#### Pending withdrawals solvency (`invariant_PendingWithdrawalsSolvency`)
+- Reward debt conservation:
+```
+Σ _paid[account] + Σ earned(account) == _totalVirtualPaid + historicalRewards().
+```
 
+- Pending withdrawals solvency:
 ```
 balanceOf(protocolStaking) ≥ Σ awaitingRelease(account)
 ```
 
-#### Staked funds solvency (`invariant_StakedFundsSolvency`)
-
+- Staked funds solvency:
 ```
 totalStaked == balanceOf(account) + awaitingRelease(account) + released
 ```
 
-#### Stake equivalence (`invariant_StakeEquivalence`)
+### 2. Transition Invariants
 
-```
-stake(a1 + a2) ≈ stake(a1) + stake(a2)  (shares, weight, earned within 50 wei tolerance)
-```
+Because Foundry reverts the EVM state after evaluating `invariant_*` functions, transition checks (State A vs. State B) are executed natively inside the Handler using the `assertTransitionInvariants` modifier.
 
-#### Unstake equivalence (`invariant_UnstakeEquivalence`)
-
+- Claimed + claimable never decreases:
 ```
-partial unstake to target ≈ unstake all + stake(target)  (shares, weight, earned within 50 wei tolerance)
+claimed + earned is strictly non-decreasing per account across any action (incorporating a tolerance for division rounding).
 ```
 
-### Transition invariants (handler modifier)
-
-Because Foundry reverts state after evaluating `invariant_*` functions, these rules are checked in the handler via the `assertTransitionInvariants` modifier (State A → State B).
-
-#### Earned is zero after claim
-
-Checked inside `handler.claimRewards`:
-
+- Awaiting release never decreases:
 ```
-earned(account) == 0 immediately after claimRewards(account)
+awaitingRelease(account) is non-decreasing until release() is explicitly called by that account.
 ```
 
-#### Claimed + claimable never decreases
-
+- Unstake queue monotonicity:
 ```
-claimed + earned is non-decreasing per account (incorporating rounding dust tolerance)
-```
-
-#### Awaiting release never decreases
-
-```
-awaitingRelease(account) is non-decreasing until release() is explicitly called
+_unstakeRequests checkpoints strictly enforce non-decreasing timestamps and cumulative amounts.
 ```
 
-#### Unstake queue monotonicity
-
+- Earned is zero after claim:
 ```
-_unstakeRequests checkpoints: strictly non-decreasing timestamps and cumulative amounts
-_released[account] ≤ _unstakeRequests[account].latest() → awaitingRelease() never reverts
+earned(account) is always zero after a claim
+```
+
+### 3. Equivalence Scenarios
+
+These ensure that complex or batched actions result in the exact same mathematical state as singular actions. They utilize vm.snapshotState() and are checked inline inside the Handler.
+
+- Stake equivalence:
+```
+stake(a1 + a2) results in the exact same shares, weight, and (approx) earned rewards as stake(a1) followed by stake(a2).
+```
+
+- Unstake equivalence:
+```
+A partial unstake to a target amount results in the exact same shares, weight, and (approx) earned rewards as a full unstake followed by a new stake of the target amount.
 ```
 
 ## Running Tests
@@ -131,7 +124,8 @@ From the repository root:
 
 ```bash
 cd contracts/staking
-pnpm install
+npm install
+forge install foundry-rs/forge-std --no-git
 ```
 
 ### 1. Run all invariant tests
@@ -139,7 +133,7 @@ pnpm install
 From `contracts/staking`:
 
 ```bash
-pnpm test:fuzz
+npm test:fuzz
 ```
 
 Or directly with forge:
@@ -151,7 +145,7 @@ forge test
 ### 2. Run with verbose output
 
 ```bash
-pnpm test:fuzz:verbose
+npm test:fuzz:verbose
 ```
 
 Or:
@@ -170,10 +164,7 @@ Replace `invariant_UnstakeEquivalence` with any invariant name (e.g. `invariant_
 
 ### Configuration
 
-[`foundry.toml`](foundry.toml):
-
-- `test = 'test/foundry'`
-- `[invariant] runs = 256`, `depth = 100`
+[`foundry.toml`](foundry.toml)
 
 ## Coverage
 
