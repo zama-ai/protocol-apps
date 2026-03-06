@@ -113,16 +113,16 @@ contract ProtocolStakingInvariantTest is Test {
     }
 
     function invariant_RewardDebtConservation() public view {
+        uint256 tolerance = handler.REWARD_DEBT_CONSERVATION_TOLERANCE();
         int256 lhs = handler.computeRewardDebtLHS();
-        // When the system is empty, net debt across all users should perfectly net out to 0
+        // When the system is empty, net debt across all users should net out to 0
         // Σ _paid[account] + Σ earned(account) = 0
+        // Using ApproxEqAbs per contract comment: "Accounting rounding may have a marginal impact on earned rewards (dust)."
         if (protocolStaking.totalStakedWeight() == 0) {
-            assertEq(lhs, 0, "Net reward debt must be 0 when no one is staked");
+            assertApproxEqAbs(lhs, 0, tolerance, "Net reward debt must be 0 when no one is staked");
             return;
         }
         int256 rhs = handler.computeRewardDebtRHS();
-        uint256 tolerance = handler.REWARD_DEBT_CONSERVATION_TOLERANCE();
-        // Contract comment: "Accounting rounding may have a marginal impact on earned rewards (dust)."
         assertApproxEqAbs(lhs, rhs, tolerance, "reward debt conservation");
     }
 
