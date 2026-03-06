@@ -141,29 +141,4 @@ contract ProtocolStakingInvariantTest is Test {
             assertEq(totalStaked, balance + awaiting + released, "staked funds solvency");
         }
     }
-
-    function invariant_StakeEquivalence() public view {
-        assertEq(handler.ghost_sharesDouble(), handler.ghost_sharesSingle(), "stake equivalence: shares");
-
-        // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
-        // have not found a counter example for now
-        assertEq(handler.ghost_weightDouble(), handler.ghost_weightSingle(), "stake equivalence: weight");
-        assertApproxEqAbs(
-            handler.ghost_earnedDouble(),
-            handler.ghost_earnedSingle(),
-            handler.EQUIVALENCE_EARNED_TOLERANCE(),
-            "stake equivalence: earned"
-        );
-    }
-
-    function invariant_UnstakeEquivalence() public view{
-        assertEq(handler.ghost_sharesUnstakeB(), handler.ghost_sharesUnstakeA(), "unstake equivalence: shares");
-        assertEq(handler.ghost_weightUnstakeB(), handler.ghost_weightUnstakeA(), "unstake equivalence: weight");
-        assertApproxEqAbs(
-            handler.ghost_earnedUnstakeB(),
-            handler.ghost_earnedUnstakeA(),
-            handler.EQUIVALENCE_EARNED_TOLERANCE(),
-            "unstake equivalence: earned"
-        );
-    }
 }

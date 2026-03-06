@@ -36,21 +36,6 @@ contract ProtocolStakingHandler is Test {
     // Flag to exempt an account from the awaitingRelease monotonicity check
     address public ghost_releasedAccount;
 
-    // Equivalence scenario: store results for invariant to assert (only set when scenario runs)
-    uint256 public ghost_sharesSingle;
-    uint256 public ghost_sharesDouble;
-    uint256 public ghost_weightSingle;
-    uint256 public ghost_weightDouble;
-    uint256 public ghost_earnedSingle;
-    uint256 public ghost_earnedDouble;
-
-    uint256 public ghost_sharesUnstakeA;
-    uint256 public ghost_sharesUnstakeB;
-    uint256 public ghost_weightUnstakeA;
-    uint256 public ghost_weightUnstakeB;
-    uint256 public ghost_earnedUnstakeA;
-    uint256 public ghost_earnedUnstakeB;
-
     constructor(
         ProtocolStakingHarness _protocolStaking,
         ZamaERC20 _zama,
@@ -341,12 +326,16 @@ contract ProtocolStakingHandler is Test {
         warp(duration);
         uint256 earnedDouble = protocolStaking.earned(account);
 
-        ghost_sharesSingle = sharesSingle;
-        ghost_sharesDouble = sharesDouble;
-        ghost_weightSingle = weightSingle;
-        ghost_weightDouble = weightDouble;
-        ghost_earnedSingle = earnedSingle;
-        ghost_earnedDouble = earnedDouble;
+        assertEq(sharesDouble, sharesSingle, "stake equivalence: shares");
+        // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
+        // have not found a counter example for now
+        assertEq(weightDouble, weightSingle, "stake equivalence: weight");
+        assertApproxEqAbs(
+            earnedDouble,
+            earnedSingle,
+            EQUIVALENCE_EARNED_TOLERANCE,
+            "stake equivalence: earned"
+        );
     }
 
     // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
@@ -377,11 +366,11 @@ contract ProtocolStakingHandler is Test {
 
         // Path A: partial unstake
         unstake(actorIndex, unstakeAmount);
-        uint256 sharesA = protocolStaking.balanceOf(account);
-        uint256 weightA = protocolStaking.weight(protocolStaking.balanceOf(account));
+        uint256 sharesPartial = protocolStaking.balanceOf(account);
+        uint256 weightPartial = protocolStaking.weight(protocolStaking.balanceOf(account));
 
         warp(duration);
-        uint256 earnedA = protocolStaking.earned(account);
+        uint256 earnedPartial = protocolStaking.earned(account);
 
         vm.revertToState(snapshot);
 
@@ -391,17 +380,27 @@ contract ProtocolStakingHandler is Test {
 
         unstake(actorIndex, initialStake);
         stake(actorIndex, targetStake);
-        uint256 sharesB = protocolStaking.balanceOf(account);
-        uint256 weightB = protocolStaking.weight(protocolStaking.balanceOf(account));
+        uint256 sharesRestaked = protocolStaking.balanceOf(account);
+        uint256 weightRestaked = protocolStaking.weight(protocolStaking.balanceOf(account));
 
         warp(duration);
-        uint256 earnedB = protocolStaking.earned(account);
+        uint256 earnedRestaked = protocolStaking.earned(account);
 
-        ghost_sharesUnstakeA = sharesA;
-        ghost_sharesUnstakeB = sharesB;
-        ghost_weightUnstakeA = weightA;
-        ghost_weightUnstakeB = weightB;
-        ghost_earnedUnstakeA = earnedA;
-        ghost_earnedUnstakeB = earnedB;
+        assertEq(
+            sharesRestaked, 
+            sharesPartial, 
+            "unstake equivalence: shares"
+        );
+        assertEq(
+            weightRestaked, 
+            weightPartial, 
+            "unstake equivalence: weight"
+        );
+        assertApproxEqAbs(
+            earnedRestaked, 
+            earnedPartial, 
+            EQUIVALENCE_EARNED_TOLERANCE, 
+            "unstake equivalence: earned"
+        );
     }
 }
