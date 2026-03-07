@@ -37,12 +37,7 @@ contract ProtocolStakingHandler is Test {
     // Flag to exempt an account from the awaitingRelease monotonicity check
     address public ghost_releasedAccount;
 
-    constructor(
-        ProtocolStakingHarness _protocolStaking,
-        ZamaERC20 _zama,
-        address _manager,
-        address[] memory _actors
-    ) {
+    constructor(ProtocolStakingHarness _protocolStaking, ZamaERC20 _zama, address _manager, address[] memory _actors) {
         require(_actors.length > 0, "need at least one actor");
         protocolStaking = _protocolStaking;
         zama = _zama;
@@ -70,7 +65,7 @@ contract ProtocolStakingHandler is Test {
             address account = actors[i];
             preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
             preClaimedEarned[i] = ghost_claimed[account] + protocolStaking.earned(account);
-            
+
             uint256 count = _getUnstakeRequestCheckpointCount(account);
             if (count > 0) {
                 (preKeys[i], preValues[i]) = _getUnstakeRequestCheckpointAt(account, count - 1);
@@ -109,11 +104,7 @@ contract ProtocolStakingHandler is Test {
         // inherent check that awaiting release does not revert
         // _released[account] is always inferior or equal to the latest unstake request in _unstakeRequest[account].latest()
         uint256 postAwaitingRelease = protocolStaking.awaitingRelease(account);
-        assertGe(
-            postAwaitingRelease,
-            preAwaitingRelease,
-            "awaitingRelease must not decrease except after release"
-        );
+        assertGe(postAwaitingRelease, preAwaitingRelease, "awaitingRelease must not decrease except after release");
     }
 
     function _assertUnstakeQueueMonotonicityTransition(
@@ -174,8 +165,10 @@ contract ProtocolStakingHandler is Test {
     }
 
     /// @dev Reads the checkpoint at index for _unstakeRequests[account] through the ProtocolStakingHarness
-    function _getUnstakeRequestCheckpointAt(address account, uint256 index) internal view returns (uint48 key, uint208 value)
-    {
+    function _getUnstakeRequestCheckpointAt(
+        address account,
+        uint256 index
+    ) internal view returns (uint48 key, uint208 value) {
         return protocolStaking._harness_getUnstakeRequestCheckpointAt(account, index);
     }
 
@@ -302,12 +295,7 @@ contract ProtocolStakingHandler is Test {
     // **************** Equivalence scenario handlers ****************
 
     // Compare stake(amount1+amount2) once vs stake(amount1) then stake(amount2).
-    function stakeEquivalenceScenario(
-        uint256 actorIndex,
-        uint256 amount1,
-        uint256 amount2,
-        uint256 duration
-    ) external {
+    function stakeEquivalenceScenario(uint256 actorIndex, uint256 amount1, uint256 amount2, uint256 duration) external {
         actorIndex = bound(actorIndex, 0, actors.length - 1);
         address account = actors[actorIndex];
 
@@ -347,12 +335,7 @@ contract ProtocolStakingHandler is Test {
         // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
         // have not found a counter example for now
         assertEq(weightDouble, weightSingle, "stake equivalence: weight");
-        assertApproxEqAbs(
-            earnedDouble,
-            earnedSingle,
-            EQUIVALENCE_EARNED_TOLERANCE,
-            "stake equivalence: earned"
-        );
+        assertApproxEqAbs(earnedDouble, earnedSingle, EQUIVALENCE_EARNED_TOLERANCE, "stake equivalence: earned");
     }
 
     // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
@@ -403,21 +386,8 @@ contract ProtocolStakingHandler is Test {
         warp(duration);
         uint256 earnedRestaked = protocolStaking.earned(account);
 
-        assertEq(
-            sharesRestaked, 
-            sharesPartial, 
-            "unstake equivalence: shares"
-        );
-        assertEq(
-            weightRestaked, 
-            weightPartial, 
-            "unstake equivalence: weight"
-        );
-        assertApproxEqAbs(
-            earnedRestaked, 
-            earnedPartial, 
-            EQUIVALENCE_EARNED_TOLERANCE, 
-            "unstake equivalence: earned"
-        );
+        assertEq(sharesRestaked, sharesPartial, "unstake equivalence: shares");
+        assertEq(weightRestaked, weightPartial, "unstake equivalence: weight");
+        assertApproxEqAbs(earnedRestaked, earnedPartial, EQUIVALENCE_EARNED_TOLERANCE, "unstake equivalence: earned");
     }
 }

@@ -25,8 +25,13 @@ contract ProtocolStakingHarness is ProtocolStaking {
         return _getProtocolStakingStorage()._unstakeRequests[account]._checkpoints.length;
     }
 
-    function _harness_getUnstakeRequestCheckpointAt(address account, uint256 index) external view returns (uint48 key, uint208 value) {
-        Checkpoints.Checkpoint208 memory cp = _getProtocolStakingStorage()._unstakeRequests[account]._checkpoints[index];
+    function _harness_getUnstakeRequestCheckpointAt(
+        address account,
+        uint256 index
+    ) external view returns (uint48 key, uint208 value) {
+        Checkpoints.Checkpoint208 memory cp = _getProtocolStakingStorage()._unstakeRequests[account]._checkpoints[
+            index
+        ];
         return (cp._key, cp._value);
     }
 }

@@ -70,12 +70,7 @@ contract ProtocolStakingInvariantTest is Test {
         }
 
         // Deploy handler with actors list
-        handler = new ProtocolStakingHandler(
-            protocolStaking,
-            zama,
-            manager,
-            actorsList
-        );
+        handler = new ProtocolStakingHandler(protocolStaking, zama, manager, actorsList);
         targetContract(address(handler));
 
         bytes4[] memory selectors = new bytes4[](12);
@@ -127,14 +122,14 @@ contract ProtocolStakingInvariantTest is Test {
     }
 
     function invariant_PendingWithdrawalsSolvency() public view {
-       address token = protocolStaking.stakingToken();
-       uint256 balance = IERC20(token).balanceOf(address(protocolStaking));
-       uint256 sumAwaitingRelease;
-       for (uint256 i = 0; i < handler.actorsLength(); i++) {
-           sumAwaitingRelease += protocolStaking.awaitingRelease(handler.actorAt(i));
-       }
-       assertGe(balance, sumAwaitingRelease, "pending withdrawals solvency");
-   }
+        address token = protocolStaking.stakingToken();
+        uint256 balance = IERC20(token).balanceOf(address(protocolStaking));
+        uint256 sumAwaitingRelease;
+        for (uint256 i = 0; i < handler.actorsLength(); i++) {
+            sumAwaitingRelease += protocolStaking.awaitingRelease(handler.actorAt(i));
+        }
+        assertGe(balance, sumAwaitingRelease, "pending withdrawals solvency");
+    }
 
     function invariant_StakedFundsSolvency() public view {
         for (uint256 i = 0; i < handler.actorsLength(); i++) {
