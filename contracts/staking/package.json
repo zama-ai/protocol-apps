@@ -15,6 +15,8 @@
     "lint:sol": "prettier --loglevel warn '{contracts,test}/**/*.sol' --check && solhint --config solhint.config.js '{contracts,test}/**/*.sol'",
     "lint:sol:fix": "solhint --config solhint.config.js '{contracts,test}/**/*.sol' --fix; prettier --loglevel warn '{contracts,test}/**/*.sol' --write",
     "test": "hardhat test",
+    "test:fuzz": "forge test",
+    "test:fuzz:verbose": "forge test -vvv",
     "test:tasks": "hardhat test:tasks",
     "test:gas": "REPORT_GAS=true hardhat test",
     "test:pragma": "npm run compile && scripts/checks/pragma-validity.js artifacts/build-info/*",
