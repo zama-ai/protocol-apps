@@ -30,7 +30,7 @@ We separate our invariant rules into two distinct categories to handle EVM state
 
 ### Handler
 
-[`test/foundry/handlers/ProtocolStakingHandler.sol`](test/foundry/handlers/ProtocolStakingHandler.sol)
+[`handlers/ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol)
 
 - Wraps ProtocolStaking actions: `stake`, `unstake`, `claimRewards`, `release`, `warp`, `setRewardRate`, `addEligibleAccount`, `removeEligibleAccount`, `setUnstakeCooldownPeriod`, `unstakeThenWarp`
 - Bounds inputs (e.g. `amount ≤ balance`, `actorIndex ∈ [0, actors.length)`)
@@ -39,7 +39,7 @@ We separate our invariant rules into two distinct categories to handle EVM state
 
 ### Invariant Test Contract
 
-[`test/foundry/ProtocolStakingInvariantTest.t.sol`](test/foundry/ProtocolStakingInvariantTest.t.sol)
+[`ProtocolStakingInvariantTest.t.sol`](ProtocolStakingInvariantTest.t.sol)
 
 - Defines invariants via `invariant_*` functions
 - Uses `targetContract` and `targetSelector` to limit which handler methods are fuzzed
@@ -164,7 +164,7 @@ Replace `invariant_UnstakeEquivalence` with any invariant name (e.g. `invariant_
 
 ### Configuration
 
-[`foundry.toml`](foundry.toml)
+[`foundry.toml`](../../foundry.toml)
 
 ## Coverage
 
