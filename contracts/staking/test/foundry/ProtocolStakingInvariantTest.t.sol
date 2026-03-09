@@ -84,6 +84,10 @@ contract ProtocolStakingInvariantTest is Test {
         // Deploy handler with actors list
         handler = new ProtocolStakingHandler(protocolStaking, zama, manager, actorsList);
         targetContract(address(handler));
+        
+        for (uint256 i = 0; i < actorCount; i++) {
+            targetSender(actorsList[i]);
+        }
     }
 
     function invariant_TotalStakedWeightEqualsEligibleWeights() public view {

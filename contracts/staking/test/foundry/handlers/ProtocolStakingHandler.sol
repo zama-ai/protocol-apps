@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ProtocolStakingHarness} from "../harness/ProtocolStakingHarness.sol";
@@ -216,17 +217,15 @@ contract ProtocolStakingHandler is Test {
         ghost_currentRate = rate;
     }
 
-    function addEligibleAccount(uint256 actorIndex) public assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function addEligibleAccount() public assertTransitionInvariants {
+        address account = msg.sender;
         if (protocolStaking.isEligibleAccount(account)) return;
         vm.prank(manager);
         protocolStaking.addEligibleAccount(account);
     }
 
-    function removeEligibleAccount(uint256 actorIndex) external assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function removeEligibleAccount() external assertTransitionInvariants {
+        address account = msg.sender;
         if (!protocolStaking.isEligibleAccount(account)) return;
         vm.prank(manager);
         protocolStaking.removeEligibleAccount(account);
@@ -238,9 +237,8 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.setUnstakeCooldownPeriod(SafeCast.toUint48(cooldownPeriod));
     }
 
-    function stake(uint256 actorIndex, uint256 amount) public assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address actor = actors[actorIndex];
+    function stake(uint256 amount) public assertTransitionInvariants {
+        address actor = msg.sender;
         uint256 balance = zama.balanceOf(actor);
         if (balance == 0) return;
         amount = bound(amount, 1, balance);
@@ -249,9 +247,8 @@ contract ProtocolStakingHandler is Test {
         ghost_totalStaked[actor] += amount;
     }
 
-    function unstake(uint256 actorIndex, uint256 amount) public assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address actor = actors[actorIndex];
+    function unstake(uint256 amount) public assertTransitionInvariants {
+        address actor = msg.sender;
         uint256 stakedBalance = protocolStaking.balanceOf(actor);
         if (stakedBalance == 0) return;
         amount = bound(amount, 1, stakedBalance);
@@ -259,18 +256,16 @@ contract ProtocolStakingHandler is Test {
         protocolStaking.unstake(amount);
     }
 
-    function claimRewards(uint256 actorIndex) external assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function claimRewards() external assertTransitionInvariants {
+        address account = msg.sender;
         uint256 amount = protocolStaking.earned(account);
         protocolStaking.claimRewards(account);
         assertEq(protocolStaking.earned(account), 0, "earned(account) must be 0 after claimRewards");
         ghost_claimed[account] += amount;
     }
 
-    function release(uint256 actorIndex) external assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function release() external assertTransitionInvariants {
+        address account = msg.sender;
         uint256 awaitingBefore = protocolStaking.awaitingRelease(account);
         protocolStaking.release(account);
         uint256 awaitingAfter = protocolStaking.awaitingRelease(account);
@@ -279,14 +274,12 @@ contract ProtocolStakingHandler is Test {
     }
 
     /// @notice Unstake then warp past cooldown to allow for valid release() calls.
-    function unstakeThenWarp(uint256 actorIndex) external assertTransitionInvariants {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function unstakeThenWarp() external assertTransitionInvariants {
+        address account = msg.sender;
         uint256 stakedBalance = protocolStaking.balanceOf(account);
         if (stakedBalance == 0) return;
 
-        vm.prank(account);
-        unstake(actorIndex, stakedBalance);
+        unstake(stakedBalance);
 
         uint256 cooldown = protocolStaking.unstakeCooldownPeriod();
         warp(cooldown + 1);
@@ -295,11 +288,10 @@ contract ProtocolStakingHandler is Test {
     // **************** Equivalence scenario handlers ****************
 
     // Compare stake(amount1+amount2) once vs stake(amount1) then stake(amount2).
-    function stakeEquivalenceScenario(uint256 actorIndex, uint256 amount1, uint256 amount2, uint256 duration) external {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+    function stakeEquivalenceScenario(uint256 amount1, uint256 amount2, uint256 duration) external {
+        address account = msg.sender;
 
-        addEligibleAccount(actorIndex);
+        addEligibleAccount();
 
         uint256 balance = zama.balanceOf(account);
         if (balance < 2) return;
@@ -312,7 +304,7 @@ contract ProtocolStakingHandler is Test {
         uint256 snapshot = vm.snapshotState();
 
         // Path A: single stake
-        stake(actorIndex, totalAmount);
+        stake(totalAmount);
         uint256 sharesSingle = protocolStaking.balanceOf(account);
         uint256 weightSingle = protocolStaking.weight(protocolStaking.balanceOf(account));
 
@@ -323,8 +315,8 @@ contract ProtocolStakingHandler is Test {
         vm.revertToState(snapshot);
 
         // Path B: double stake
-        stake(actorIndex, amount1);
-        stake(actorIndex, amount2);
+        stake(amount1);
+        stake(amount2);
         uint256 sharesDouble = protocolStaking.balanceOf(account);
         uint256 weightDouble = protocolStaking.weight(protocolStaking.balanceOf(account));
 
@@ -340,15 +332,13 @@ contract ProtocolStakingHandler is Test {
 
     // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
     function unstakeEquivalenceScenario(
-        uint256 actorIndex,
         uint256 initialStake,
         uint256 targetStake,
         uint256 duration
     ) external {
-        actorIndex = bound(actorIndex, 0, actors.length - 1);
-        address account = actors[actorIndex];
+        address account = msg.sender;
 
-        addEligibleAccount(actorIndex);
+        addEligibleAccount();
 
         uint256 balance = zama.balanceOf(account);
         // Need at least 2 to stake, and leave at least 1 for path B restake (unstaked tokens are queued until release)
@@ -361,11 +351,11 @@ contract ProtocolStakingHandler is Test {
 
         uint256 snapshot = vm.snapshotState();
 
-        stake(actorIndex, initialStake);
+        stake(initialStake);
         warp(duration);
 
         // Path A: partial unstake
-        unstake(actorIndex, unstakeAmount);
+        unstake(unstakeAmount);
         uint256 sharesPartial = protocolStaking.balanceOf(account);
         uint256 weightPartial = protocolStaking.weight(protocolStaking.balanceOf(account));
 
@@ -375,11 +365,11 @@ contract ProtocolStakingHandler is Test {
         vm.revertToState(snapshot);
 
         // Path B: unstake all then restake target
-        stake(actorIndex, initialStake);
+        stake(initialStake);
         warp(duration);
 
-        unstake(actorIndex, initialStake);
-        stake(actorIndex, targetStake);
+        unstake(initialStake);
+        stake(targetStake);
         uint256 sharesRestaked = protocolStaking.balanceOf(account);
         uint256 weightRestaked = protocolStaking.weight(protocolStaking.balanceOf(account));
 
