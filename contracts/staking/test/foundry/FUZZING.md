@@ -1,4 +1,4 @@
-# ProtocolStaking Testing
+# ProtocolStaking Invariant Fuzz Testing
 
 Invariant and stateful fuzz testing for the `ProtocolStaking` contract using Foundry.
 
