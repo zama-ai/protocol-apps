@@ -213,7 +213,11 @@ contract ProtocolStakingHandler is Test {
     /// @dev Move the block timestamp forward by a given duration.
     function warp(uint256 duration) public assertTransitionInvariants {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
-        ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
+
+        // If there are no staked tokens, the accumulated reward capacity is not updated
+        if (protocolStaking.totalStakedWeight() > 0) {
+            ghost_accumulatedRewardCapacity += ghost_currentRate * duration;
+        }
         vm.warp(block.timestamp + duration);
     }
 
