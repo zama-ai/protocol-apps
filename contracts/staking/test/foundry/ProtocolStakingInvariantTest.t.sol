@@ -18,24 +18,36 @@ contract ProtocolStakingInvariantTest is Test {
     address internal manager = address(2);
     address internal admin = address(3);
 
-    uint256 internal constant ACTOR_COUNT = 5;
-    uint256 internal constant INITIAL_TOTAL_SUPPLY = 1_000_000 ether;
-    uint256 internal constant INITIAL_REWARD_RATE = 1e18; // 1 token/second
-    uint48 internal constant INITIAL_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
+    uint256 internal constant MIN_ACTOR_COUNT = 5;
+    uint256 internal constant MAX_ACTOR_COUNT = 20;
+
+    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1 ether;
+    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1_000_000_000 ether;
+
+    uint256 internal constant MIN_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
+    uint256 internal constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
+
+    uint256 internal constant MIN_REWARD_RATE = 0;
+    uint256 internal constant MAX_REWARD_RATE = 1e24;
 
     function setUp() public {
-        address[] memory actorsList = new address[](ACTOR_COUNT);
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
+
+        uint256 initialDistribution = uint256(vm.randomUint(MIN_INITIAL_DISTRIBUTION, MAX_INITIAL_DISTRIBUTION));
+        uint48 initialUnstakeCooldownPeriod = uint48(vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD));
+        uint256 initialRewardRate = uint256(vm.randomUint(MIN_REWARD_RATE, MAX_REWARD_RATE));
+        uint256 actorCount = uint256(vm.randomUint(MIN_ACTOR_COUNT, MAX_ACTOR_COUNT));
+
+        address[] memory actorsList = new address[](actorCount);
+        for (uint256 i = 0; i < actorCount; i++) {
             actorsList[i] = address(uint160(4 + i));
         }
 
         // Deploy ZamaERC20, mint to all actors, admin is DEFAULT_ADMIN
-        uint256 initialActorBalance = INITIAL_TOTAL_SUPPLY / ACTOR_COUNT;
-        address[] memory receivers = new address[](ACTOR_COUNT);
-        uint256[] memory amounts = new uint256[](ACTOR_COUNT);
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
+        address[] memory receivers = new address[](actorCount);
+        uint256[] memory amounts = new uint256[](actorCount);
+        for (uint256 i = 0; i < actorCount; i++) {
             receivers[i] = actorsList[i];
-            amounts[i] = initialActorBalance;
+            amounts[i] = initialDistribution;
         }
 
         zama = new ZamaERC20("Zama", "ZAMA", receivers, amounts, admin);
@@ -51,8 +63,8 @@ contract ProtocolStakingInvariantTest is Test {
                 address(zama),
                 governor,
                 manager,
-                INITIAL_UNSTAKE_COOLDOWN_PERIOD,
-                INITIAL_REWARD_RATE
+                initialUnstakeCooldownPeriod,
+                initialRewardRate
             )
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
@@ -64,7 +76,7 @@ contract ProtocolStakingInvariantTest is Test {
         vm.stopPrank();
 
         // Approve ProtocolStaking for all actors
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
+        for (uint256 i = 0; i < actorCount; i++) {
             vm.prank(actorsList[i]);
             zama.approve(address(protocolStaking), type(uint256).max);
         }
