@@ -14,9 +14,9 @@ contract ProtocolStakingInvariantTest is Test {
     ZamaERC20 internal zama;
     ProtocolStakingHandler internal handler;
 
-    address internal governor = address(1);
-    address internal manager = address(2);
-    address internal admin = address(3);
+    address internal governor = makeAddr("governor");
+    address internal manager = makeAddr("manager");
+    address internal admin = makeAddr("admin");
 
     uint256 internal constant MIN_ACTOR_COUNT = 5;
     uint256 internal constant MAX_ACTOR_COUNT = 20;
@@ -39,7 +39,7 @@ contract ProtocolStakingInvariantTest is Test {
 
         address[] memory actorsList = new address[](actorCount);
         for (uint256 i = 0; i < actorCount; i++) {
-            actorsList[i] = address(uint160(4 + i));
+            actorsList[i] = makeAddr(string(abi.encodePacked("actor", i)));
         }
 
         // Deploy ZamaERC20, mint to all actors, admin is DEFAULT_ADMIN
