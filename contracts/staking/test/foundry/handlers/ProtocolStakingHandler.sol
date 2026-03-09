@@ -20,8 +20,11 @@ contract ProtocolStakingHandler is Test {
     address[] public actors;
     mapping(address => bool) public isOutgroup;
 
-    // @dev Maximum duration to warp the block timestamp by. Must be <= 365 days for the cooldown period.
-    uint256 public constant MAX_PERIOD_DURATION = 30 days;
+    // @dev Maximum duration to warp the block timestamp by.
+    uint256 public constant MAX_PERIOD_DURATION = 365 days * 3;
+    // @dev Maximum unstake cooldown period. Must be <= 365 days for required checks.
+    uint256 public constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
+    // @dev Maximum reward rate.
     uint256 public constant MAX_REWARD_RATE = 1e24;
 
     // Amount in wei to allow for rounding errors in equivalence invariants.
@@ -245,7 +248,7 @@ contract ProtocolStakingHandler is Test {
     }
 
     function setUnstakeCooldownPeriod(uint256 cooldownPeriod) external assertTransitionInvariants {
-        cooldownPeriod = bound(cooldownPeriod, 1, MAX_PERIOD_DURATION - 1);
+        cooldownPeriod = bound(cooldownPeriod, 1, MAX_UNSTAKE_COOLDOWN_PERIOD - 1);
         vm.prank(manager);
         protocolStaking.setUnstakeCooldownPeriod(SafeCast.toUint48(cooldownPeriod));
     }
