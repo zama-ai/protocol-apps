@@ -18,6 +18,7 @@ contract ProtocolStakingHandler is Test {
 
     address public manager;
     address[] public actors;
+    mapping(address => bool) public isOutgroup;
 
     // @dev Maximum duration to warp the block timestamp by. Must be <= 365 days for the cooldown period.
     uint256 public constant MAX_PERIOD_DURATION = 30 days;
@@ -46,6 +47,12 @@ contract ProtocolStakingHandler is Test {
         actors = _actors;
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
+
+        uint256 outgroupCount = _actors.length / 5; 
+        uint256 outgroupStartIndex = _actors.length - outgroupCount;
+        for (uint256 i = outgroupStartIndex; i < _actors.length; i++) {
+            isOutgroup[_actors[i]] = true;
+        }
     }
 
     // **************** Transition Invariant Modifiers ****************
@@ -219,14 +226,16 @@ contract ProtocolStakingHandler is Test {
 
     function addEligibleAccount() public assertTransitionInvariants {
         address account = msg.sender;
-        if (protocolStaking.isEligibleAccount(account)) return;
+
+        // Outgroup accounts are not ever eligible to earn rewards
+        if (isOutgroup[account]) return;
+
         vm.prank(manager);
         protocolStaking.addEligibleAccount(account);
     }
 
     function removeEligibleAccount() external assertTransitionInvariants {
         address account = msg.sender;
-        if (!protocolStaking.isEligibleAccount(account)) return;
         vm.prank(manager);
         protocolStaking.removeEligibleAccount(account);
     }
