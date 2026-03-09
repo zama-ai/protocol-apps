@@ -84,21 +84,6 @@ contract ProtocolStakingInvariantTest is Test {
         // Deploy handler with actors list
         handler = new ProtocolStakingHandler(protocolStaking, zama, manager, actorsList);
         targetContract(address(handler));
-
-        bytes4[] memory selectors = new bytes4[](12);
-        selectors[0] = ProtocolStakingHandler.warp.selector;
-        selectors[1] = ProtocolStakingHandler.setRewardRate.selector;
-        selectors[2] = ProtocolStakingHandler.addEligibleAccount.selector;
-        selectors[3] = ProtocolStakingHandler.removeEligibleAccount.selector;
-        selectors[4] = ProtocolStakingHandler.stake.selector;
-        selectors[5] = ProtocolStakingHandler.unstake.selector;
-        selectors[6] = ProtocolStakingHandler.claimRewards.selector;
-        selectors[7] = ProtocolStakingHandler.release.selector;
-        selectors[8] = ProtocolStakingHandler.unstakeThenWarp.selector;
-        selectors[9] = ProtocolStakingHandler.stakeEquivalenceScenario.selector;
-        selectors[10] = ProtocolStakingHandler.unstakeEquivalenceScenario.selector;
-        selectors[11] = ProtocolStakingHandler.setUnstakeCooldownPeriod.selector;
-        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
     function invariant_TotalStakedWeightEqualsEligibleWeights() public view {
