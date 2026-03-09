@@ -103,7 +103,7 @@ contract ProtocolStakingInvariantTest is Test {
             zama.totalSupply(),
             // TODO: Occasional Off-by-one error in the ghost total supply calculation, need to locate the source of the error
             // adding small buffer of 1 wei to account for this for now
-            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity() + 1,
+            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity(),
             "totalSupply exceeds piecewise rewardRate bound"
         );
     }
