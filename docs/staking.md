@@ -164,7 +164,7 @@ def compute_native_apr(
     """
     assert len(num_tokens_per_pool) == len(fees_per_pool), "Pool/Fee length mismatch"
     assert all(0 <= fee <= 10000 for fee in fees_per_pool), "Fees must be within 0 and 10000"
-    assert all(0 <= tokens for tokens in num_tokens_per_pool), "Tokens must be non-negative"
+    assert all(0 <= tokens for tokens in num_tokens_per_pool), "Token amounts must be non-negative"
     assert reward_rate >= 0, "Reward rate must be non-negative"
 
     weights = [int(math.sqrt(tokens)) for tokens in num_tokens_per_pool]
@@ -180,6 +180,51 @@ def compute_native_apr(
         pool_aprs.append(pool_apr)
     
     return pool_aprs
+```
+
+### Claiming Rewards
+
+Rewards are not claimable from the the `OperatorStaking` or `ProtocolStaking` contracts directly. Instead, you should look at the associated `OperatorRewarder` contract (accessible through the `rewarder()` view function of an `OperatorStaking` contract).
+
+Delegators can claim their rewards at any time by calling the `claimRewards(address receiver)` function on the `OperatorRewarder` contract, where `receiver` is the address that will receive the rewards. By default, only the caller is authorized to claim rewards on behalf of themselves, but a delegator can set another address as an allowed caller through the `setClaimer(address claimer_)` function. 
+
+Rewards are calculated based on the amount of $ZAMA delegated to the operator and the reward rate. The rewards are paid out in $ZAMA and are subject to a commission fee to the operator. The fee is set by the operator and can be changed at any time.
+
+### Claiming manually
+
+Rewards can be claimed manually using the Zama staking dashboard. 
+
+1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
+2. Navigate to the pool you have delegated to.
+3. Click on **Stake/Manage** for the pool and then on **Claim Rewards** and confirm the transaction in your wallet.
+
+### Claiming programmatically
+
+Alternatively, rewards can be claimed programmatically by interacting with the smart contracts directly. This example assumes you are using `ethers.js` or a similar library, but the concepts apply universally.
+
+First, you need the deployed contract addresses. These can be found in the [Contract addresses](#contract-addresses) section. You will need the address of the `OperatorStaking` contract that you delegated tokens to.
+
+With the `OperatorStaking` address, you can fetch the associated `OperatorRewarder` contract, which handles the distribution of rewards.
+
+```javascript
+// ABI containing the rewarder() function
+const operatorStakingAbi = ["function rewarder() view returns (address)"];
+const operatorStaking = new ethers.Contract(operatorStakingAddress, operatorStakingAbi, provider);
+
+// Fetch the rewarder address
+const rewarderAddress = await operatorStaking.rewarder();
+```
+
+Once you have the `OperatorRewarder` address, you can call `claimRewards(address)` to claim the pending rewards.
+
+```javascript
+// ABI containing the claimRewards() function
+const rewarderAbi = ["function claimRewards(address receiver)"];
+const operatorRewarder = new ethers.Contract(rewarderAddress, rewarderAbi, signer);
+
+// Claim rewards, sending them to the connected wallet
+const tx = await operatorRewarder.claimRewards(await signer.getAddress());
+await tx.wait();
 ```
 
 ### Eligible
