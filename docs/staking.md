@@ -227,6 +227,32 @@ const tx = await operatorRewarder.claimRewards(await signer.getAddress());
 await tx.wait();
 ```
 
+### OperatorRewarder beneficiary
+
+The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the contract owner through the `transferBeneficiary(address newBeneficiary)` function.
+
+To find the beneficiary of an `OperatorRewarder` contract, you can use the `beneficiary()` view function.
+
+An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by protocol governance.
+
+The beneficiary also has the right to claim the accumulated fees from the `OperatorRewarder` contract through the `claimFee()` function. This will transfer and unpaid fees to the beneficiary address.
+
+### Claiming fees
+
+Continuing from the above examples, operators can claim their accumulated fees from the `OperatorRewarder` contract.
+
+Claimed fees are sent to the beneficiary of the `OperatorRewarder` contract.
+
+```javascript
+// ABI containing the claimFee() function
+const rewarderAbi = ["function claimFee()"];
+const operatorRewarder = new ethers.Contract(rewarderAddress, rewarderAbi, beneficiarySigner);
+
+// Claim accumulated commission fees
+const tx = await operatorRewarder.claimFee();
+await tx.wait();
+```
+
 ### Eligible
 
 It is important to note that only _eligible_ operator staking contracts generate rewards. For now, becoming eligible is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol. Checking whether an operator is currently eligible can be done onchain.
