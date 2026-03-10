@@ -110,6 +110,78 @@ The rewards rate is defined as tokens-per-second and is determined as follows:
 2. This total amount is divided between the roles, with 40% going to coprocessor operators and 60% to KMS operators.
 3. Each per role amount is converted into a per role tokens-per-second reward rate for the year.
 
+To calculate the rewards rate for each role, we can use the following formula:
+
+```python
+SECONDS_PER_YEAR = 365 * 24 * 60 * 60
+TOTAL_YEARLY_INFLATION_PROPORTION = 0.05
+TOTAL_SUPPLY = 11_000_000_000 * 10**18
+
+def get_reward_rate() -> tuple[int, int]:
+    """
+    Compute the reward rates for KMS and Coprocessors based on total supply.
+    
+    :return: A tuple (rate_kms, rate_coprocessors) in tokens per second
+    """
+    # Calculate the total yearly fees and rewards
+    total_fees_rewards = int(TOTAL_SUPPLY * TOTAL_YEARLY_INFLATION_PROPORTION)
+    
+    # Divide into KMS (60%) and Coprocessors (40%)
+    total_fees_rewards_kms = int(total_fees_rewards * 0.60)
+    total_fees_rewards_coprocessors = int(total_fees_rewards * 0.40)
+    
+    # Calculate the per-second rates
+    rate_kms = total_fees_rewards_kms // SECONDS_PER_YEAR
+    rate_coprocessors = total_fees_rewards_coprocessors // SECONDS_PER_YEAR
+    
+    return rate_kms, rate_coprocessors
+```
+
+### Calculating the APR
+
+The native APR for delegating to an operator depends on several factors:
+
+1. [**Reward Rate:**](#calculating-the-rewards-rate) The rate of tokens per second, retrieved from `ProtocolStaking.rewardRate()`.
+2. **Tokens per Pool:** The number of deposited tokens in each eligible `OperatorStaking` pool, retrieved from `ProtocolStaking.balanceOf(address(OperatorStaking))`.
+3. **Fees per Pool:** The commission fee for each corresponding `OperatorRewarder` in basis points (where 10000 is 100%), retrieved from `OperatorRewarder.feeBasisPoints()`.
+
+To calculate the APR for each operator pool, we can use the following formula:
+
+```python
+import math
+
+SECONDS_PER_YEAR = 365 * 24 * 60 * 60
+
+def compute_native_apr(
+    reward_rate: int, 
+    num_tokens_per_pool: list[int], 
+    fees_per_pool: list[int]
+) -> list[float]:
+    """
+    Compute the native APR for each eligible OperatorStaking pool.
+    
+    :return: List of percentage APRs for each pool
+    """
+    assert len(num_tokens_per_pool) == len(fees_per_pool), "Pool/Fee length mismatch"
+    assert all(0 <= fee <= 10000 for fee in fees_per_pool), "Fees must be within 0 and 10000"
+    assert all(0 <= tokens for tokens in num_tokens_per_pool), "Tokens must be non-negative"
+    assert reward_rate >= 0, "Reward rate must be non-negative"
+
+    weights = [int(math.sqrt(tokens)) for tokens in num_tokens_per_pool]
+    total_weight = sum(weights)
+    
+    fee_factors = [1 - (fee / 10000) for fee in fees_per_pool]
+    rate_per_sec_per_pool = [reward_rate * (weight / total_weight) for weight in weights]
+    
+    pool_aprs = []
+    for i in range(len(fee_factors)):
+        net_reward_per_sec = rate_per_sec_per_pool[i] * fee_factors[i]
+        pool_apr = (net_reward_per_sec / num_tokens_per_pool[i]) * SECONDS_PER_YEAR * 100
+        pool_aprs.append(pool_apr)
+    
+    return pool_aprs
+```
+
 ### Eligible
 
 It is important to note that only _eligible_ operator staking contracts generate rewards. For now, becoming eligible is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol. Checking whether an operator is currently eligible can be done onchain.
