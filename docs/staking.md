@@ -57,7 +57,15 @@ flowchart TB
 
 The operator staking shares are liquid and unique for each operator staking contract, while the protocol staking shares are not liquid. Both types of shares are unique for each role, i.e. shares from the KMS hierarchy are different than shares from the coprocessor hierarchy.
 
+{% hint style="info" %}
+For more information on the underlying mechanics of shares and their decimals, please see the [Virtual shares](#virtual-shares) section.
+{% endhint %}
+
 ## Fees and rewards
+
+To clarify the terminology used:
+- **Operator Rewards**: The total staking yields accumulated from the protocol by an operator's pool. These are distributed to the delegators based on their proportional stake.
+- **Operator Fees**: The percentage commission taken from the Operator Rewards. This is paid out directly to the operator.
 
 The protocol staking contracts are continuously distributing staking rewards to the operator staking contracts, who take a cut for the operators as a commission fee, and distribute the rest to their delegators. All fees and rewards are paid in $ZAMA.
 
@@ -235,11 +243,11 @@ To find the beneficiary of an `OperatorRewarder` contract, you can use the `bene
 
 An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by protocol governance.
 
-The beneficiary also has the right to claim the accumulated fees from the `OperatorRewarder` contract through the `claimFee()` function. This will transfer and unpaid fees to the beneficiary address.
+The beneficiary also has the right to claim the accumulated fees from the `OperatorRewarder` contract through the `claimFee()` function. This will transfer any unpaid fees to the beneficiary address.
 
 ### Claiming fees
 
-Continuing from the above examples, operators can claim their accumulated fees from the `OperatorRewarder` contract.
+Continuing from the above [examples](#claiming-programmatically), operators can claim their accumulated fees from the `OperatorRewarder` contract.
 
 Claimed fees are sent to the beneficiary of the `OperatorRewarder` contract.
 
@@ -258,6 +266,16 @@ await tx.wait();
 It is important to note that only _eligible_ operator staking contracts generate rewards. For now, becoming eligible is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol. Checking whether an operator is currently eligible can be done onchain.
 
 Any operator who’s operator staking contract has staked sufficiently on the protocol, can ask to be considered eligible at the next operator election. 13 KMS node operators and 5 coprocessor operators are chosen at each election, based on staking amount and stability reputation.
+
+### Virtual shares
+
+The operator staking contracts are built on top of the ERC4626 standard for tokenized vaults. To mitigate the well-known ERC4626 inflation attack, the `OperatorStaking` contract implements a decimal offset of 2. This means that 1 unit of the underlying asset is represented as 100 units of shares. 
+
+Because the underlying staked asset ($ZAMA) has 18 decimals, the resulting operator staking shares (e.g., $stZAMA-OP-A) will always possess 20 decimals. When interacting with the contracts or calculating balances, it is important to remember this distinction. 
+
+For example, when looking at the total stake of a pool or calculating historical rewards across different contracts:
+* Calling `totalSupply()` on an `OperatorStaking` contract returns the total pool shares in the form of virtual shares. If the value returned is **100 * 10^20**, this equates to 100 $stZAMA-OP-A shares because the shares use 20 decimals.
+* Alternatively, calling `historicalReward()` on an `OperatorRewarder` contract returns the total historical rewards accumulated by all delegators in the pool (ignoring commission fees). If the value returned is **10 * 10^18**, this equates to 10 $ZAMA because the rewarder contract operates directly in $ZAMA and uses the standard 18 decimals.
 
 ## Redeeming
 
