@@ -280,3 +280,23 @@ For example, when looking at the total stake of a pool or calculating historical
 ## Redeeming
 
 Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days and is updatable via protocol governance. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+
+## Operator functions
+
+Operators have access to specific functions across the staking contracts to manage their pools and commissions.
+
+### OperatorRewarder
+
+* **`setFee(uint16 basisPoints)`**: Adjusts the commission percentage taken from the pool's generated rewards. The fee is expressed in basis points (e.g., `1000` = 10%). This value is capped by a maximum fee set by protocol governance (currently 20%). Calling this function automatically claims any unpaid fees at the old rate before applying the new rate. This must be called by the `OperatorRewarder` beneficiary.
+
+* **`claimFee()`**: Claims all accumulated commission fees from the rewarder contract and transfers $ZAMA to the `OperatorRewarder` beneficiary address. This must be called by the `OperatorRewarder` beneficiary.
+
+* **`transferBeneficiary(address newBeneficiary)`**: Transfers the right to manage and claim the operator's commission fees to a new address. This function can only be called by the protocol's owner, meaning it must go through a DAO proposal. The `OperatorRewarder` intentionally does *not* claim unpaid fees during this transfer, making it a reliable way to recover stuck fees in the case of loss of access to the initial beneficiary account.
+
+* **`claimRewards(address receiver)`**: If identifying as a delegator and staking $ZAMA into your own pool, your accumulated rewards are manually claimed via `claimRewards(address receiver)`.
+
+* **`setClaimer(address claimer_)`**: Authorizes another account to claim the pool rewards from `claimRewards()` on your behalf.
+
+### OperatorStaking
+
+* **`stakeExcess()`**: Restakes any excess liquid $ZAMA held by the `OperatorStaking` contract back into the `ProtocolStaking` contract. Excess tokens can accumulate from direct $ZAMA donations or transfers to the contract, or from unredeemed slashed positions. While *anyone* can invoke this function, operators may want to call it to maximize their pool's total staking weight and the resulting rewards.
