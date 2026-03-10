@@ -29,22 +29,13 @@ contract FHEVMMultiSigHelper {
     /// @notice Helper method to allow a list of handles to the owners of a Safe multisig contract and to the Safe itself
     /// @param safeMultisig The Safe account address
     /// @param inputHandles The list of initialized handles that we want to allow to the Safe and its owners, must be non-empty
-    /// @param inputProof The input proof corresponding to the list of inputHandles
+    /// @param inputProof The input proof corresponding to the list of inputHandles, must be non-empty
     /// @dev It is possible to use this method with any (initialized, non-null) handle type
     function allowForSafeMultiSig(address safeMultisig, bytes32[] memory inputHandles, bytes memory inputProof) external {
-        if (safeMultisig==address(0)) revert NullMultisig();
-        uint256 inputHandlesLength = inputHandles.length;
-        if (inputHandlesLength==0) revert EmptyInputHandles();
         address[] memory owners = ISafe(safeMultisig).getOwners();
         uint256 numOwners = owners.length;
-        for(uint256 idxHandle = 0; idxHandle < inputHandlesLength; idxHandle++){
-            bytes32 inputHandle = inputHandles[idxHandle];
-            if(inputHandle==bytes32(0)) revert UninitializedHandle();
-            Impl.allow(inputHandle, safeMultisig);
-            for (uint256 idxOwner; idxOwner < numOwners; idxOwner++) {
-                Impl.allow(inputHandle, owners[idxOwner]);
-            }
-        }
+        _allowHandlesForMultiSigAndOwners(safeMultisig, inputHandles, inputProof, owners, numOwners);
+
     }
 
     /// @notice More general helper method to allow a list of handles  to a custom list of owners and a multisig, 
@@ -53,21 +44,33 @@ contract FHEVMMultiSigHelper {
     /// @notice Can also be used with non-Safe multisigs (eg Aragon, CoinbaseSmartWallet, etc)
     /// @param multisig The multisig account address (could be a non-Safe account)
     /// @param owners The list of owners, must be non-empty
-    /// @param inputHandles The list of initialized handles that we want to allow to the owners, should be non-empty
-    /// @param inputProof The input proof corresponding to the list of inputHandles
+    /// @param inputHandles The list of initialized handles that we want to allow to the owners, must be non-empty
+    /// @param inputProof The input proof corresponding to the list of inputHandles, must be non-empty
     /// @dev It is possible to use this same function with any (initialized, non-null) handle type
-    function allowForCustomMultiSigOwners(address multisig, address[] owners, bytes32[] memory inputHandles, bytes memory inputProof) external {
+    function allowForCustomMultiSigOwners(address multisig, address[] memory owners, bytes32[] memory inputHandles, bytes memory inputProof) external { 
+        uint256 numOwners = owners.length;
+        if (numOwners==0) revert EmptyOwners();
+        _allowHandlesForMultiSigAndOwners(multisig, inputHandles, inputProof, owners, numOwners);
+    }
+
+    /// @notice Internal function to allow list of input handles to the multisig account and its owners
+    /// @param multisig The multisig account address (could be a non-Safe account)
+    /// @param inputHandles The list of initialized handles that we want to allow to the owners, must be non-empty
+    /// @param inputProof The input proof corresponding to the list of inputHandles, must be non-empty
+    /// @param owners The list of owners, must be non-empty
+    /// @param numOwners The number of owners
+    function _allowHandlesForMultiSigAndOwners(address multisig,  bytes32[] memory inputHandles, bytes memory inputProof, address[] memory owners, uint256 numOwners) internal {
         if (multisig==address(0)) revert NullMultisig();
         uint256 inputHandlesLength = inputHandles.length;
         if (inputHandlesLength==0) revert EmptyInputHandles();
-        uint256 numOwners = owners.length;
-        if (numOwners==0) revert EmptyOwners();
-        for(uint256 idxHandle = 0; idxHandle < inputHandlesLength; idxHandle++){
+                for(uint256 idxHandle = 0; idxHandle < inputHandlesLength; idxHandle++){
             bytes32 inputHandle = inputHandles[idxHandle];
             if(inputHandle==bytes32(0)) revert UninitializedHandle();
+            Impl.verify(inputHandle, inputProof, FheType(uint8(inputHandle[30])));
             Impl.allow(inputHandle, multisig);
             for (uint256 idxOwner; idxOwner < numOwners; idxOwner++) {
                 Impl.allow(inputHandle, owners[idxOwner]);
             }
         }
+    }
 }
