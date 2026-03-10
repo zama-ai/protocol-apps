@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Test, console} from "forge-std/Test.sol";
-import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
+/* solhint-disable func-name-mixedcase */ // Foundry discovers invariant tests by invariant_* prefix
+
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
-import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Test, console} from "forge-std/Test.sol";
+import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
+import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
+import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 
 // Invariant fuzz test for ProtocolStaking
 contract ProtocolStakingInvariantTest is Test {
@@ -32,9 +34,10 @@ contract ProtocolStakingInvariantTest is Test {
     uint256 internal constant MAX_REWARD_RATE = 1e24;
 
     function setUp() public {
-
         uint256 initialDistribution = uint256(vm.randomUint(MIN_INITIAL_DISTRIBUTION, MAX_INITIAL_DISTRIBUTION));
-        uint48 initialUnstakeCooldownPeriod = uint48(vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD));
+        uint48 initialUnstakeCooldownPeriod = uint48(
+            vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD)
+        );
         uint256 initialRewardRate = uint256(vm.randomUint(MIN_REWARD_RATE, MAX_REWARD_RATE));
         uint256 actorCount = uint256(vm.randomUint(MIN_ACTOR_COUNT, MAX_ACTOR_COUNT));
 
@@ -85,7 +88,7 @@ contract ProtocolStakingInvariantTest is Test {
         // Deploy handler with actors list
         handler = new ProtocolStakingHandler(protocolStaking, zama, manager, actorsList);
         targetContract(address(handler));
-        
+
         for (uint256 i = 0; i < actorCount; i++) {
             targetSender(actorsList[i]);
         }
@@ -147,10 +150,10 @@ contract ProtocolStakingInvariantTest is Test {
     // ---------- Phantom Wei & Rounding Tests ----------
 
     /// @dev Helper to quickly spin up an isolated protocol instance with specific token distributions
-    function _setupIsolatedStaking(address[] memory users, uint256[] memory amounts)
-        internal
-        returns (ZamaERC20 token, ProtocolStakingHarness staking)
-    {
+    function _setupIsolatedStaking(
+        address[] memory users,
+        uint256[] memory amounts
+    ) internal returns (ZamaERC20 token, ProtocolStakingHarness staking) {
         token = new ZamaERC20("Zama", "ZAMA", users, amounts, address(this));
 
         ProtocolStakingHarness impl = new ProtocolStakingHarness();
@@ -168,7 +171,7 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    /// @dev Demonstrates the "phantom wei" lock-in: claiming rewards, suffering ratio dilution, 
+    /// @dev Demonstrates the "phantom wei" lock-in: claiming rewards, suffering ratio dilution,
     /// and unstaking leaves an unbacked 1 wei in the user's _paid tracker.
     function test_DilutionTrap() public {
         address alice = makeAddr("alice");
@@ -176,10 +179,14 @@ contract ProtocolStakingInvariantTest is Test {
         address charlie = makeAddr("charlie");
 
         address[] memory users = new address[](3);
-        users[0] = alice; users[1] = bob; users[2] = charlie;
-        
+        users[0] = alice;
+        users[1] = bob;
+        users[2] = charlie;
+
         uint256[] memory amounts = new uint256[](3);
-        amounts[0] = 1; amounts[1] = 81; amounts[2] = 1;
+        amounts[0] = 1;
+        amounts[1] = 81;
+        amounts[2] = 1;
 
         ZamaERC20 token;
         ProtocolStakingHarness staking;
@@ -192,24 +199,31 @@ contract ProtocolStakingInvariantTest is Test {
         vm.stopPrank();
 
         // Setup initial pool
-        vm.prank(alice); staking.stake(1);
-        vm.prank(bob); staking.stake(81);
+        vm.prank(alice);
+        staking.stake(1);
+        vm.prank(bob);
+        staking.stake(81);
 
         // Accrue rewards
-        vm.prank(manager); staking.setRewardRate(29);
+        vm.prank(manager);
+        staking.setRewardRate(29);
         vm.warp(block.timestamp + 1);
-        vm.prank(manager); staking.setRewardRate(0);
+        vm.prank(manager);
+        staking.setRewardRate(0);
 
         // 1. Claim: Locks Bob's _paid at 26 (29 pool * 9 weight / 10 total = 26.1 -> 26).
-        vm.prank(bob); staking.claimRewards(bob);
-        
+        vm.prank(bob);
+        staking.claimRewards(bob);
+
         // 2. Dilute: Charlie adds 1 weight. Total pool becomes 31. Total weight becomes 11.
         //    Bob's new theoretical allocation drops to 25 (31 * 9 / 11 = 25.36 -> 25).
-        vm.prank(charlie); staking.stake(1);
-        
-        // 3. Unstake: Subtracts Bob's current allocation (25) from his _paid (26). 
+        vm.prank(charlie);
+        staking.stake(1);
+
+        // 3. Unstake: Subtracts Bob's current allocation (25) from his _paid (26).
         //    Bob's weight becomes 0, but 1 wei remains permanently locked in his _paid.
-        vm.prank(bob); staking.unstake(81);
+        vm.prank(bob);
+        staking.unstake(81);
 
         // Evaluate invariant
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
@@ -217,7 +231,7 @@ contract ProtocolStakingInvariantTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
         }
-        
+
         assertEq(lhs - rhs, 1, "Invariant broken: Phantom wei locked in LHS");
     }
 
@@ -228,10 +242,14 @@ contract ProtocolStakingInvariantTest is Test {
         address charlie = makeAddr("charlie");
 
         address[] memory users = new address[](3);
-        users[0] = alice; users[1] = bob; users[2] = charlie;
-        
+        users[0] = alice;
+        users[1] = bob;
+        users[2] = charlie;
+
         uint256[] memory amounts = new uint256[](3);
-        amounts[0] = 9; amounts[1] = 9; amounts[2] = 16;
+        amounts[0] = 9;
+        amounts[1] = 9;
+        amounts[2] = 16;
 
         ZamaERC20 token;
         ProtocolStakingHarness staking;
@@ -244,14 +262,19 @@ contract ProtocolStakingInvariantTest is Test {
         vm.stopPrank();
 
         // 1. Setup weights: Alice=3, Bob=3, Charlie=4. (Total Weight = 10)
-        vm.prank(alice); staking.stake(9);
-        vm.prank(bob); staking.stake(9);
-        vm.prank(charlie); staking.stake(16);
+        vm.prank(alice);
+        staking.stake(9);
+        vm.prank(bob);
+        staking.stake(9);
+        vm.prank(charlie);
+        staking.stake(16);
 
         // 2. Generate exactly 29 wei of reward capacity.
-        vm.prank(manager); staking.setRewardRate(29);
+        vm.prank(manager);
+        staking.setRewardRate(29);
         vm.warp(block.timestamp + 1);
-        vm.prank(manager); staking.setRewardRate(0);
+        vm.prank(manager);
+        staking.setRewardRate(0);
 
         // 3. Mathematical result:
         //    Alice:   29 * 3 / 10 = 8.7 -> floors to 8 (loses 0.7)
@@ -265,56 +288,67 @@ contract ProtocolStakingInvariantTest is Test {
         for (uint256 i = 0; i < users.length; i++) {
             lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
         }
-        
+
         assertEq(rhs - lhs, 2, "Truncation dust exceeds N - 1 expectation");
     }
 
-    /// @dev Dust Printing PoC: Demonstrates that downward rounding on exit abandons fractional dust 
+    /// @dev Dust Printing PoC: Demonstrates that downward rounding on exit abandons fractional dust
     ///      in the virtual pool, allowing remaining users to mint unauthorized tokens.
     function test_FractionalDustPrinter() public {
         address alice = makeAddr("alice"); // Target Weight: 2
-        address bob = makeAddr("bob");     // Target Weight: 3
+        address bob = makeAddr("bob"); // Target Weight: 3
 
         address[] memory users = new address[](2);
-        users[0] = alice; users[1] = bob;
-        
+        users[0] = alice;
+        users[1] = bob;
+
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 4; amounts[1] = 9;
+        amounts[0] = 4;
+        amounts[1] = 9;
 
         ZamaERC20 token;
         ProtocolStakingHarness staking;
         (token, staking) = _setupIsolatedStaking(users, amounts);
 
         // Initial state: Bob eligible, Alice ineligible
-        vm.prank(manager); staking.addEligibleAccount(bob);
-        vm.prank(alice); staking.stake(4);
-        vm.prank(bob); staking.stake(9);
+        vm.prank(manager);
+        staking.addEligibleAccount(bob);
+        vm.prank(alice);
+        staking.stake(4);
+        vm.prank(bob);
+        staking.stake(9);
 
         // Generate exactly 10 wei of capacity
-        vm.prank(manager); staking.setRewardRate(10);
+        vm.prank(manager);
+        staking.setRewardRate(10);
         vm.warp(block.timestamp + 1);
-        vm.prank(manager); staking.setRewardRate(0);
-        
+        vm.prank(manager);
+        staking.setRewardRate(0);
+
         uint256 authorizedRewards = staking._harness_getHistoricalReward();
 
         assertEq(authorizedRewards, 10, "Authorized rewards should be 10");
 
         // Bob extracts maximum theoretical value (10 wei)
-        vm.prank(bob); staking.claimRewards(bob);
+        vm.prank(bob);
+        staking.claimRewards(bob);
 
         // Alice enters, Bob exits (abandoning fractional dust)
-        vm.prank(manager); staking.addEligibleAccount(alice);
-        vm.prank(manager); staking.removeEligibleAccount(bob);
+        vm.prank(manager);
+        staking.addEligibleAccount(alice);
+        vm.prank(manager);
+        staking.removeEligibleAccount(bob);
 
         assertEq(token.balanceOf(alice), 0, "Alice should have no tokens");
 
         // Alice claims the abandoned dust
-        vm.prank(alice); staking.claimRewards(alice);
+        vm.prank(alice);
+        staking.claimRewards(alice);
 
         assertEq(token.balanceOf(alice), 1, "Alice should have 1 token after claiming abandoned dust");
 
         uint256 totalMinted = token.balanceOf(alice) + token.balanceOf(bob);
-        
+
         assertGt(totalMinted, authorizedRewards, "Protocol minted unbacked tokens");
         assertEq(totalMinted, 11, "Printer failed to extract exactly 1 wei over cap");
     }

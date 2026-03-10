@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Test} from "forge-std/Test.sol";
+/* solhint-disable var-name-mixedcase */ // ghost_variables prefix
+
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {ProtocolStakingHarness} from "../harness/ProtocolStakingHarness.sol";
+import {Test} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
+import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 
 /**
  * @title ProtocolStakingHandler
@@ -26,13 +28,13 @@ contract ProtocolStakingHandler is Test {
     // @dev Maximum reward rate.
     uint256 public constant MAX_REWARD_RATE = 1e24;
 
-    // The 2-step path (Path B) incurs up to 2 wei of compounding truncation drift 
+    // The 2-step path (Path B) incurs up to 2 wei of compounding truncation drift
     // compared to a 1-step action (Path A) due to intermediate virtual pool updates.
     // See: test_MaxNormalTruncationDust in ProtocolStakingInvariantTest.t.sol for more details.
     uint256 internal constant EQUIVALENCE_EARNED_TOLERANCE = 2;
 
     // A single protocol action can update the virtual pool using truncated math.
-    // The continuous loss is strictly < 1 wei, meaning a user's floored `earned()` 
+    // The continuous loss is strictly < 1 wei, meaning a user's floored `earned()`
     // balance can drop by a maximum of exactly 1 wei across a single state transition.
     uint256 internal constant TRANSITION_EARNED_TOLERANCE = 1;
 
@@ -58,7 +60,7 @@ contract ProtocolStakingHandler is Test {
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
 
-        uint256 outgroupCount = _actors.length / 5; 
+        uint256 outgroupCount = _actors.length / 5;
         uint256 outgroupStartIndex = _actors.length - outgroupCount;
         for (uint256 i = outgroupStartIndex; i < _actors.length; i++) {
             isOutgroup[_actors[i]] = true;
@@ -224,11 +226,11 @@ contract ProtocolStakingHandler is Test {
      * @notice Calculates the maximum acceptable wei deviation for the reward debt invariant.
      * @dev Calculates the theoretical upper bound for rounding errors in the protocol.
      * There are two opposing forces of rounding error:
-     * 1. Truncation Dust: Integer division causes active users to lose fractions of a wei, 
+     * 1. Truncation Dust: Integer division causes active users to lose fractions of a wei,
      * pulling the user sum (LHS) DOWN by a maximum of (N - 1) wei.
      * 2. Phantom Wei: The `max(0)` clause in `earned()` allows inactive users to lock in +1 wei
      * after ratio dilution, pulling the user sum (LHS) UP by a maximum of N wei.
-     * Because these forces pull in opposite directions, they cancel each other out rather 
+     * Because these forces pull in opposite directions, they cancel each other out rather
      * than stacking. The absolute maximum divergence in either direction is N wei.
      * See: test_DilutionTrap and test_MaxNormalTruncationDust in ProtocolStakingInvariantTest.t.sol for more details.
      * @return The maximum allowable rounding error in wei based on the maximum number of eligible accounts.
@@ -373,11 +375,7 @@ contract ProtocolStakingHandler is Test {
     }
 
     // Compare partial unstake (to targetStake) vs unstake all then stake(targetStake).
-    function unstakeEquivalenceScenario(
-        uint256 initialStake,
-        uint256 targetStake,
-        uint256 duration
-    ) external {
+    function unstakeEquivalenceScenario(uint256 initialStake, uint256 targetStake, uint256 duration) external {
         address account = msg.sender;
 
         addEligibleAccount();

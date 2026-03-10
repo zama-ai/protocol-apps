@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {ProtocolStaking} from "../../../contracts/ProtocolStaking.sol";
+/* solhint-disable func-name-mixedcase */ // _harness_ prefix
+
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
+import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
 
 /**
  * @title ProtocolStakingHarness
