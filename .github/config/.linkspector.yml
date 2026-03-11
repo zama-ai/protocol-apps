@@ -8,6 +8,7 @@ ignorePatterns:
   - pattern: "https://unshield.zama.org/"
   - pattern: "https://staking.zama.org/"
   - pattern: "https://portfolio.zama.org/"
+  - pattern: "https://bridge.mainnet.zama.org/"
   - pattern: "https://etherscan.io/"
   - pattern: "https://sepolia.etherscan.io/"
   - pattern: "https://app.squads.so/"
