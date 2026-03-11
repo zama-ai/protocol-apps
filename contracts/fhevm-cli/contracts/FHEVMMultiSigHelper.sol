@@ -63,13 +63,13 @@ contract FHEVMMultiSigHelper {
         if (multisig==address(0)) revert NullMultisig();
         uint256 inputHandlesLength = inputHandles.length;
         if (inputHandlesLength==0) revert EmptyInputHandles();
-                for(uint256 idxHandle = 0; idxHandle < inputHandlesLength; idxHandle++){
-            bytes32 inputHandle = inputHandles[idxHandle];
-            if(inputHandle==bytes32(0)) revert UninitializedHandle();
-            Impl.verify(inputHandle, inputProof, FheType(uint8(inputHandle[30])));
-            Impl.allow(inputHandle, multisig);
-            for (uint256 idxOwner; idxOwner < numOwners; idxOwner++) {
-                Impl.allow(inputHandle, owners[idxOwner]);
+            for(uint256 idxHandle = 0; idxHandle < inputHandlesLength; idxHandle++){
+                bytes32 inputHandle = inputHandles[idxHandle];
+                if(inputHandle==bytes32(0)) revert UninitializedHandle();
+                Impl.verify(inputHandle, inputProof, FheType(uint8(inputHandle[30])));
+                Impl.allow(inputHandle, multisig);
+                for (uint256 idxOwner; idxOwner < numOwners; idxOwner++) {
+                    Impl.allow(inputHandle, owners[idxOwner]);
             }
         }
     }
