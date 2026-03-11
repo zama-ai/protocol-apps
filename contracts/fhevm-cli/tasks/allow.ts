@@ -85,7 +85,6 @@ task("task:allowForCustomMultiSigOwners")
     }
     const multiSigHelper = await ethers.getContractAt("FHEVMMultiSigHelper", helper, proposer);
     const owners = taskArguments.owners.split(",");
-    console.log("owners: ", owners);
     const tx = await multiSigHelper.allowForCustomMultiSigOwners(
       taskArguments.multisig,
       owners,

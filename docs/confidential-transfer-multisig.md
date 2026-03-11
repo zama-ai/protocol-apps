@@ -17,7 +17,7 @@ This guide explains how to perform confidential token operations using a multisi
 |-----------|---------|-------------|
 | Owner address `i` | `<OWNER_ADDRESS_i>` | The EOA address of the multisig's owner `i` |
 | Multisig Wallet | `<MULTISIG_ADDRESS>` | Your Gnosis Safe or similar multisig |
-| Confidential Wrapper | `<WRAPPER_ADDRESS>` | The cWrapper (or any confidential token) contract holding balances |
+| Confidential Token | `<CONFIDENTIAL_TOKEN_ADDRESS>` | The confidential token (e.g a confidential wrapper) contract holding balances |
 
 ---
 
@@ -27,7 +27,7 @@ To read the encrypted balance of a multisig wallet, the multisig owners must fir
 
 ### Step 1: Get the balance handle
 
-Retrieve the encrypted balance handle `<BALANCE_HANDLE>` of the multisig from the confidential wrapper contract using `confidentialBalanceOf(<MULTISIG_ADDRESS>)` function.
+Retrieve the encrypted balance handle `<BALANCE_HANDLE>` of the multisig from the confidential token contract using `confidentialBalanceOf(<MULTISIG_ADDRESS>)` function.
 
 ### Step 2: Grant ACL permissions to owners
 
@@ -44,7 +44,7 @@ Once permissions are granted, any owner can decrypt the balance using the `fhevm
 ```bash
 npx hardhat task:userDecrypt \
   --handle <BALANCE_HANDLE> \
-  --contract-address <WRAPPER_ADDRESS> \
+  --contract-address <CONFIDENTIAL_TOKEN_ADDRESS> \
   --encrypted-type euint64 \
   --network mainnet
 ```
@@ -94,7 +94,7 @@ npx hardhat task:encryptInput \
 {% hint style="warning" %}
 **Input amount decimal precision** 
 
-The input amount must be a value using the decimal precision as the confidential wrapper. For example, if the confidential wrapper has 6 decimals, the `--input-value` must be a value using 6 decimals.
+The input amount must be a value using the decimal precision as the confidential token. For example, if the confidential token has 6 decimals, the `--input-value` must be a value using 6 decimals.
 {% endhint %}
 
 This outputs:
@@ -170,7 +170,7 @@ Any multisig owner can decrypt the handle to verify the transfer amount from the
 ```bash
 npx hardhat task:userDecrypt \
   --handle <ENCRYPTED_HANDLE> \
-  --contract-address <WRAPPER_ADDRESS> \
+  --contract-address <CONFIDENTIAL_TOKEN_ADDRESS> \
   --encrypted-type euint64 \
   --network mainnet
 ```
@@ -185,7 +185,7 @@ This method is straightforward:
 
 #### Step 1: Retrieve the encrypted balance of the multisig
 
-Retrieve the encrypted balance handle `<BALANCE_HANDLE>` of the multisig from the confidential wrapper contract using `confidentialBalanceOf(<MULTISIG_ADDRESS>)` function.
+Retrieve the encrypted balance handle `<BALANCE_HANDLE>` of the multisig from the confidential token contract using `confidentialBalanceOf(<MULTISIG_ADDRESS>)` function.
 
 #### Step 2: Retrieve the encrypted balance of the multisig
 
