@@ -13,6 +13,20 @@ All staking happens on Ethereum. Only non-confidential $ZAMA is supported for no
 
 All contracts are owned and maintained by [protocol governance](governance.md).
 
+## Terminology
+
+* **Protocol Staking Contract**: The root contract in the hierarchy where operators stake $ZAMA on the protocol.
+* **Operator Staking Contract**: A contract deployed per operator that pools $ZAMA from the operator and their delegators to stake in the Protocol Staking contract.
+* **Operator Rewarder Contract**: A contract associated with each Operator Staking contract, responsible for distributing staking rewards and commission fees to delegators and operators, respectively.
+* **Operator**: An entity that manages an Operator Staking contract, participates in protocol staking, and receives commission fees.
+* **Delegator**: A token holder who delegates their $ZAMA into an Operator Staking contract to earn staking rewards.
+* **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim accumulated fees).
+* **Protocol Staking Token (`$stZAMA`)**: The illiquid share token received by the Operator Staking contract when it stakes $ZAMA into the protocol.
+* **Operator Staking Token (e.g., `$stZAMA-OP-A`)**: The liquid, 20-decimal share token received by a delegator when staking $ZAMA into a specific operator's pool.
+* **Staking Rewards**: Yields accumulated in the Protocol Staking contract that are distributed to delegators through the Operator Rewarder contract.
+* **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services.
+* **Owner**: The owner role for a given contract. For the mainnet `ProtocolStaking`, `OperatorStaking`, and `OperatorRewarder`, the `owner()` function returns the address of the DAO governance contract handled by Zama, which has administrative rights (like replacing the rewarder or beneficiary through a proposal).
+
 ## Contract addresses
 
 All deployed staking contract addresses (protocol and operator) can be found in the [addresses directory](addresses/README.md).
@@ -63,11 +77,7 @@ For more information on the underlying mechanics of shares and their decimals, p
 
 ## Fees and rewards
 
-To clarify the terminology used:
-- **Operator Rewards**: The total staking yields accumulated from the protocol by an operator's pool. These are distributed to the delegators based on their proportional stake.
-- **Operator Fees**: The percentage commission taken from the Operator Rewards. This is paid out directly to the operator.
-
-The protocol staking contracts are continuously distributing staking rewards to the operator staking contracts, who take a cut for the operators as a commission fee, and distribute the rest to their delegators. All fees and rewards are paid in $ZAMA.
+The protocol staking contracts are continuously distributing staking rewards to the operator staking contracts, who take a cut for the operators as a commission fee, and distribute the rest to their delegators. All commission fees and staking rewards are paid in $ZAMA.
 
 ```mermaid
 
