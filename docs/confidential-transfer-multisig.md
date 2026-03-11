@@ -5,6 +5,8 @@ This guide explains how to perform confidential token operations using a multisi
 1. **Reading the balance** of a multisig account
 2. **Executing a confidential transfer** from a multisig account
 
+**Note:** Most of the following steps can be easily extended and reused with any smart account interacting with any fhevm-enabled contract (e.g unshielding in confidential wrapper, bidding in blind auction, etc).
+
 ## Prerequisites
 
 - A deployed multisig wallet (e.g., Gnosis Safe): for simplicity, we assume all owners are EOAs (Externally Owned Accounts)
@@ -53,7 +55,7 @@ npx hardhat task:userDecrypt \
 
 ## Executing a confidential transfer from a multisig
 
-Currently there are two ways to do a confidential transfer. Better and more practical methods will become available in the future, once fhEVM will support new features (such as delegation, simple ACL and EIP-1271, etc).
+Currently there are two ways to do a confidential transfer. Better and more practical methods will become available in the future, once fhEVM will support new features (such as user delegated decryption, ACL simplifications, EIP-1271 support, etc).
 
 1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](../contracts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
 
@@ -78,7 +80,7 @@ Currently there are two ways to do a confidential transfer. Better and more prac
 
 The proposer (can be any of the `<OWNER_ADDRESS_i>`) encrypts the amount `<AMOUNT>` to transfer. The encryption is tied to:
 - **User address**: The proposer's EOA (must be a multisig owner)
-- **Contract address**: The `FHEVMMultiSigHelper` contract, which has already been deployed: at address [`0x26C5BBC241577b9a5D5A51AA961CC68103939836`](https://etherscan.io/address/0x26C5BBC241577b9a5D5A51AA961CC68103939836) on **Ethereum mainnet** and at address [`0x3048Fb62cBeD3335e7B4E26461EB2fB63c5F320E`](https://sepolia.etherscan.io/address/0x3048Fb62cBeD3335e7B4E26461EB2fB63c5F320E) on **Ethereum Sepolia testnet**.
+- **Contract address**: The `FHEVMMultiSigHelper` contract, which has already been deployed: at address [`0xd430F46fE522a32b12ce92C719f437fFce35e127`](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127) on **Ethereum mainnet** and at address [`0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61`](https://sepolia.etherscan.io/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61) on **Ethereum Sepolia testnet**.
 
 ```bash
 npx hardhat task:encryptInput \
@@ -88,8 +90,9 @@ npx hardhat task:encryptInput \
   --encrypted-type euint64 \
   --network mainnet
 ```
-
-**Note:** Make sure that the `<AMOUNT>` value is less or equal tha the current balance of the multisig (otherwise the confidential transfer transaction would succeed but the sent amount will be `0`), and for `<FHEVM_MULTISIG_HELPER_ADDRESS>` value you should use `0x26C5BBC241577b9a5D5A51AA961CC68103939836` on Ethereum mainnet, or `0x3048Fb62cBeD3335e7B4E26461EB2fB63c5F320E` on Ethereum Sepolia testnet.
+**Note:** Make sure that the `<AMOUNT>` value is less or equal tha the current balance of the multisig (otherwise the confidential transfer transaction would succeed but the sent amount will be `0`), and for `<FHEVM_MULTISIG_HELPER_ADDRESS>` value you should use: 
+- Etehreum mainnet: [0xd430F46fE522a32b12ce92C719f437fFce35e127](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127)
+- Ethereum Sepolia testnet: [0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61](https://sepolia.etherscan.io/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61)
 
 {% hint style="warning" %}
 **Input amount decimal precision** 
