@@ -5,11 +5,11 @@ aliveStatusCodes:
 # Ignore the following apps as umbrelladocs gets a 429 error on them and we could not easily allowlist
 # github runner on these apps
 ignorePatterns:
-  - pattern: "https://unshield.zama.org/"
-  - pattern: "https://staking.zama.org/"
-  - pattern: "https://portfolio.zama.org/"
-  - pattern: "https://bridge.mainnet.zama.org/"
-  - pattern: "https://etherscan.io/"
-  - pattern: "https://sepolia.etherscan.io/"
-  - pattern: "https://app.squads.so/"
+  - pattern: "^https://unshield.zama.org.*$"
+  - pattern: "^https://staking.zama.org.*$"
+  - pattern: "^https://portfolio.zama.org.*$"
+  - pattern: "^https://bridge.mainnet.zama.org.*$"
+  - pattern: "^https://etherscan.io.*$"
+  - pattern: "^https://sepolia.etherscan.io.*$"
+  - pattern: "^https://app.squads.so.*$"
 useGitIgnore: true
