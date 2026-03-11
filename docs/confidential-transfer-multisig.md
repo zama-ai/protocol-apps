@@ -1,6 +1,6 @@
 # Confidential transfers with multisig accounts
 
-This guide explains how to perform confidential token operations using a multisig wallet (e.g., Gnosis Safe). It covers two main use cases:
+This guide explains how to perform confidential token operations using a multisig wallet (e.g., Gnosis Safe, Aragon Multisig plugin, etc). It covers two main use cases:
 
 1. **Reading the balance** of a multisig account
 2. **Executing a confidential transfer** from a multisig account
