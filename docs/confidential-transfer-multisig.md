@@ -59,7 +59,7 @@ Currently there are two ways to do a confidential transfer. Better and more prac
 
 1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](../contracts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
 
-2/ **Leaky transfer of whole balance**: this is a quick and dirty workaround, where the owners would transfer the current confidential balance handle of the multisig in a single transaction. This method would leak the fact that the multisig is sending its whole balance to the receiver. It could even be done blindly to save time and gas (not recommended), if the owners skip the steps from [previous section](#reading-the-balance-of-a-multisig-account).
+2/ **Not recommended: Leaky transfer of whole balance**: this is a quick and dirty workaround, where the owners would transfer the current confidential balance handle of the multisig in a single transaction. This method would leak the fact that the multisig is sending its whole balance to the receiver. It could even be done blindly to save time and gas (not recommended), if the owners skip the steps from [previous section](#reading-the-balance-of-a-multisig-account).
 
 ### Method 1: Confidential transfer with helper contract (recommended)
 
