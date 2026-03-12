@@ -132,7 +132,7 @@ Rewards can be claimed manually using the Zama staking dashboard.
 
 #### Claim rewards programmatically
 
-Alternatively, rewards can be claimed programmatically by interacting with the smart contracts directly. 
+Rewards can be claimed programmatically by interacting with the smart contracts directly.
 
 First, fetch the `OperatorRewarder` contract from the `OperatorStaking` address:
 
@@ -140,17 +140,15 @@ First, fetch the `OperatorRewarder` contract from the `OperatorStaking` address:
 address rewarderAddress = operatorStaking.rewarder();
 ```
 
-Once you have the `OperatorRewarder` address, you can call `claimRewards(receiver)` to claim your pending rewards.
+Once you have the `OperatorRewarder` address, you can call `claimRewards(receiver)` to claim your pending rewards. All rewards are paid out in $ZAMA tokens directly to the receiver.
 
 ```solidity
-// receiver: the address that will receive the rewards.
-
 IOperatorRewarder(rewarderAddress).claimRewards(receiver);
 ```
 
 ### Set rewards claimer
 
-A **claimer** is an address authorized to invoke the `claimRewards` function on behalf of a delegator. This role is useful for delegators who wish to transfer the responsibility of claiming rewards to another address, without compromising the security of the primary address holding the staking shares. For example, a delegator may set a smart contract as the claimer that automatically claims rewards as part of a broader yield strategy.
+A **claimer** is an address authorized to invoke the `claimRewards` function on behalf of a delegator. This role is useful for delegators who wish to transfer the responsibility of claiming rewards to another address without compromising security. For example, a delegator may set a smart contract as the claimer that automatically claims rewards as part of a broader yield strategy.
 
 A delegator can have only one authorized claimer at any given time. If no claimer is explicitly set, the delegator address is considered its own authorized claimer by default.
 
@@ -164,7 +162,7 @@ IOperatorRewarder(rewarderAddress).setClaimer(claimerAddress);
 
 #### Claim commission fees programmatically
 
-Operators can claim their accumulated commission fees from their `OperatorRewarder` contract. Claimed fees are sent directly to the beneficiary.
+Operators can claim their accumulated commission fees from their `OperatorRewarder` contract. Only the [beneficiary](#operatorrewarder-beneficiary) set in the contract can claim the fees, and the fees are sent directly to the beneficiary.
 
 ```solidity
 IOperatorRewarder(rewarderAddress).claimFee();
@@ -172,7 +170,7 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 ### Redeem shares
 
-Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the contract owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
 
 #### Redeeming shares through the dashboard
 
@@ -353,11 +351,11 @@ The `OperatorRewarder` handles the distribution of rewards and the claiming of o
 
 ### OperatorRewarder beneficiary
 
-The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the contract owner through the `transferBeneficiary(address newBeneficiary)` function.
+The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the owner through the `transferBeneficiary(address newBeneficiary)` function.
 
 To find the beneficiary of an `OperatorRewarder` contract, you can use the `beneficiary()` view function.
 
-An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by the contract owner.
+An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by the owner.
 
 If an operator wants to receive "regular" staking rewards in addition to their commission fee, they can simply act as a delegator by staking assets into their own `OperatorStaking` contract. They would then receive both:
 * The **Commission Fee** on the pool's total generated rewards.
@@ -415,7 +413,7 @@ operatorRewarder.setFee(1000);
 | `ClaimerAuthorized(receiver, claimer)` | Emitted when a delegator authorizes another address to claim their rewards. |
 | `FeeClaimed(beneficiary, amount)` | Emitted when commission fees are claimed. |
 | `FeeUpdated(oldFee, newFee)` | Emitted when the commission fee is changed. |
-| `MaxFeeUpdated(oldFee, newFee)` | Emitted when the maximum allowed fee is changed by the contract owner. |
+| `MaxFeeUpdated(oldFee, newFee)` | Emitted when the maximum allowed fee is changed by the owner. |
 | `RewardsClaimed(receiver, amount)` | Emitted when a delegator claims their rewards. |
 | `Shutdown()` | Emitted when the `OperatorRewarder` is shut down by the owner, preventing future rewards distribution. |
 
@@ -435,7 +433,7 @@ operatorRewarder.setFee(1000);
 | `InvalidBasisPoints(basisPoints)` | The basis points input is out of bounds (e.g., above 10000). |
 | `InvalidBeneficiary(beneficiary)` | The provided beneficiary address is zero. |
 | `InvalidClaimer(claimer)` | The provided claimer address is zero. |
-| `MaxBasisPointsExceeded(basisPoints, maxBasisPoints)` | The new fee exceeds the maximum set by the contract owner. |
+| `MaxBasisPointsExceeded(basisPoints, maxBasisPoints)` | The new fee exceeds the maximum set by the owner. |
 | `MaxFeeAlreadySet(maxFeeBasisPoints)` | The new maximum fee is identical to the current one. |
 | `NotStarted()` | Attempted an action, but the rewarder hasn't been started yet. |
 
@@ -448,7 +446,7 @@ operatorRewarder.setFee(1000);
 
 The rewards rate is defined as tokens-per-second and is determined as follows:
 
-1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This percentage (`TOTAL_YEARLY_INFLATION_PROPORTION`) is **a variable controlled by DAO governance** and is currently set to **5%**.
+1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This percentage (`TOTAL_YEARLY_INFLATION_PROPORTION`) is **a variable controlled by the Protocol DAO governance** and is currently set to **5%**.
 2. This total amount is divided between the roles, with 40% going to coprocessor operators and 60% to KMS operators.
 3. Each per role amount is converted into a per role tokens-per-second reward rate for the year.
 
