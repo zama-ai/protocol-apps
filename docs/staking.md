@@ -266,7 +266,7 @@ protocolStaking.setRewardsRecipient(recipientAddress);
 
 ### Manager functions
 
-The following functions require the caller to have the `MANAGER_ROLE` set on the contract.
+The following functions require the caller to have the `MANAGER_ROLE` set on the contract:
 
 #### Manage eligible accounts
 
