@@ -217,6 +217,10 @@ The `ProtocolStaking` contract owner acts as the owner of the entire staking hie
 
 The owner is not the same as the `MANAGER_ROLE` on the `ProtocolStaking` contract. The `MANAGER_ROLE` is a separate role that can be granted to other addresses to perform specific [management functions](#manager-functions), such as updating the unstake cooldown period and reward rate.
 
+### Operator eligibility
+
+It is important to note that only _eligible_ `OperatorStaking` contracts generate rewards when staking into the `ProtocolStaking` contract. Requesting eligibility is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run to run at least one Zama Protocol node (KMS or Coprocessor).
+
 ### User functions
 
 #### Stake tokens
@@ -268,6 +272,8 @@ The following functions require the caller to have the `MANAGER_ROLE` set on the
 
 Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., Operator Staking contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
 
+When an account's eligibility is added or removed, the contract automatically snapshots that account's reward state. This ensures that rewards are only accrued for the exact duration the account was eligible.
+
 ```solidity
 // Add an eligible account
 protocolStaking.addEligibleAccount(operatorAddress);
@@ -280,13 +286,15 @@ protocolStaking.removeEligibleAccount(operatorAddress);
 
 Adjusts the global tokens-per-second reward rate distributed among all eligible pools.
 
+This function snapshots the current global reward state, ensuring that the old rate is accurately applied to all rewards earned up to the calling point, and the new rate only applies to rewards generated from this point forward.
+
 ```solidity
 protocolStaking.setRewardRate(newRewardRate);
 ```
 
 #### Set unstake cooldown period
 
-Updates the mandatory waiting period between unstaking and releasing tokens.
+Updates the mandatory waiting period between unstaking and releasing tokens. Note that changes to this period do not affect unstake requests that are already in progress.
 
 ```solidity
 protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
@@ -405,19 +413,20 @@ Because the underlying staked asset ($ZAMA) has 18 decimals, the resulting opera
 For example, when looking at the total stake of a pool or calculating historical rewards across different contracts:
 * Calling `totalSupply()` on an `OperatorStaking` contract returns the total pool shares in the form of virtual shares. If the value returned is **100 * 10^20**, this equates to 100 `$stZAMA-Zama-KMS` shares because the shares use 20 decimals.
 
-### Operator eligibility
-
-It is important to note that only _eligible_ Operator Staking contracts generate rewards. Requesting eligibility is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol.
-
-Any operator who’s Operator Staking contract has staked sufficiently on the protocol can ask to be considered eligible at the next operator election.
-
 ### The controller
 
 `OperatorStaking` decouples share ownership from withdrawal management. This is handled via the **controller** role.
 
 Every redemption request is tracked against a controller address rather than the share owner. This allows a user to delegate the administrative task of "watching the cooldown" to a separate address (like a hot wallet or a bot) without giving that address full control over their shares.
 
+#### Authorize redemption operator
+
 A controller can further delegate their power by calling `setOperator()`. An authorized operator can call the `redeem()` function on behalf of the controller.
+
+```solidity
+// msg.sender (the controller) authorizes operatorAddress
+operatorStaking.setOperator(operatorAddress, true);
+```
 
 ### User functions
 
@@ -451,24 +460,23 @@ See [Redeem shares](#redeem-shares) in the Quick Start guide.
 
 Restakes any excess liquid $ZAMA held by the `OperatorStaking` contract back into the `ProtocolStaking` contract. Excess tokens can accumulate from direct $ZAMA donations or transfers to the contract, or from unredeemed slashed positions.
 
+{% hint style="info" %}
+Note that slashing has not been implemented yet on the protocol.
+{% endhint %}
+
 ```solidity
 operatorStaking.stakeExcess();
-```
-
-#### Authorize redemption operator
-
-Allows a controller to authorize (or revoke authorization for) an address to call `redeem()` on their behalf.
-
-```solidity
-// msg.sender (the controller) authorizes operatorAddress
-operatorStaking.setOperator(operatorAddress, true);
 ```
 
 ### Owner functions
 
 #### Set rewarder
 
-Replaces the linked `OperatorRewarder` contract. The old Operator Rewarder contract is shut down to ensure pending rewards are claimed before the new rewarder goes live.
+Replaces the linked `OperatorRewarder` contract. This is a multi-step process handled internally by the `OperatorStaking` contract:
+
+1. **Shutdown old rewarder**: The current `OperatorRewarder` is shut down, preventing future reward distributions from the old contract and allowing for final state snapshots.
+2. **Update recipient**: The `ProtocolStaking` contract's `setRewardsRecipient` function is called to redirect all future $ZAMA rewards to the new rewarder contract.
+3. **Start new rewarder**: Finally, the new `OperatorRewarder` is initialized via its `start()` function to begin tracking and distributing rewards.
 
 ```solidity
 operatorStaking.setRewarder(newRewarderAddress);
@@ -593,15 +601,15 @@ uint8 shareDecimals = operatorStaking.decimals();
 
 ## Contract: OperatorRewarder
 
-The `OperatorRewarder` handles the distribution of rewards and the claiming of operator commission fees. Every `OperatorStaking` pool has one corresponding `OperatorRewarder` contract.
+The `OperatorRewarder` handles the distribution of rewards and the claiming of operator commission fees. Every `OperatorStaking` pool has one corresponding `OperatorRewarder` contract, and the owner has the authority to set the rewarder contract for any `OperatorStaking` contract.
 
 ### OperatorRewarder beneficiary
 
-The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the owner through the `transferBeneficiary(address newBeneficiary)` function.
+The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the owner through the [transferBeneficiary()](#transfer-beneficiary) function.
 
-To find the beneficiary of an `OperatorRewarder` contract, you can use the `beneficiary()` view function.
+To find the beneficiary of an `OperatorRewarder` contract, you can use the [beneficiary()](#get-beneficiary) view function.
 
-An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by the owner.
+An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the [setFee()](#set-commission-fee) function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by the owner.
 
 If an operator wants to receive "regular" staking rewards in addition to their commission fee, they can simply act as a delegator by staking assets into their own `OperatorStaking` contract. They would then receive both:
 * The **Commission Fee** on the pool's total generated rewards.
@@ -627,7 +635,9 @@ See [Claim commission fee](#claim-commission-fee) in the Quick Start guide for f
 
 #### Set commission fee
 
-Updates the commission fee taken from delegator rewards. The new fee cannot exceed the `maxFeeBasisPoints` set by the owner. Calling this also claims any currently unpaid fees.
+Updates the commission fee taken from delegator rewards. The new fee cannot exceed the `maxFeeBasisPoints` set by the owner. 
+
+Before updating the fee, the contract internally claims all currently accrued fees held by the contract to the beneficiary address.
 
 ```solidity
 // Sets the fee to 10% (1000 basis points)
@@ -640,7 +650,7 @@ The following functions are callable only by the owner of the `OperatorRewarder`
 
 #### Set maximum fee
 
-Updates the maximum commission fee the beneficiary is allowed to set. If the new maximum is lower than the current fee, the fee is automatically adjusted down.
+Updates the maximum commission fee the beneficiary is allowed to set. If the new maximum is lower than the current fee, then the current fee is automatically adjusted down and unpaid fees are claimed to the beneficiary.
 
 ```solidity
 // Sets the max fee to 20% (2000 basis points)
@@ -659,7 +669,7 @@ operatorRewarder.transferBeneficiary(newBeneficiaryAddress);
 
 #### Get fee basis points
 
-Returns the current commission fee percentage.
+Returns the current commission fee percentage applied to delegator rewards.
 
 ```solidity
 // Returns the current fee in basis points (e.g., 1000 = 10%)
