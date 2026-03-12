@@ -2,10 +2,6 @@
 
 The Zama Protocol utilizes a **Delegated Proof of Stake (DPoS)** system to secure the network and provide an incentive layer for operators. $ZAMA token holders secure the network by delegating their tokens to eligible operators who manage critical infrastructure: Key Management Service (KMS) nodes and Fully Homomorphic Encryption (FHE) coprocessors.
 
-The protocol uses two distinct yet structurally identical staking ecosystems for the KMS and coprocessor operators. Tokens delegated to a KMS operator only earn from the KMS reward pool and are governed by the specific KMS staking contracts, while tokens delegated to a coprocessor operator earn from the coprocessor reward pool and are governed by the coprocessor staking contracts.
-
-Staking rewards are funded by protocol inflation at a rate set by the Protocol DAO governance (see [protocol governance](governance.md)). A single rate is set by governance which is then applied proportionally to the KMS and coprocessor staking contracts, with the KMS operators receiving 60% of the rewards and the coprocessor operators receiving the remaining 40%. For each operator staking contract, the rewards are then distributed to the delegators based on the weight of their shares, and the operator receives a commission fee on these rewards as their payment for running a node. A slashing mechanism is in place to penalize operators for misbehavior.
-
 ## Terminology
 
 * **Protocol Staking Contract**: The root contract in the hierarchy where operators stake $ZAMA on the protocol.
