@@ -87,23 +87,13 @@ The commission fee percentage is independently set (within the maximum allowed b
 
 ## Quick Start
 
-### Delegate $ZAMA
+{% hint style="info" %}
 
-#### Delegate $ZAMA through the dashboard
+Many staking operations can be performed through the Zama staking dashboard. The dashboard can be found on the [Zama apps](./apps.md) page.
 
-Rewards can be claimed manually using the Zama staking dashboard. 
-
-1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
-2. Navigate to the operator pool that you want to delegate to.
-3. Click on **Stake** button for the pool and then navigate to the **Stake** tab in the drop down menu.
-4. Enter the amount of $ZAMA that you want to delegate and click on **Approve & Stake**.
-5. Confirm the transactions in your wallet.
-
-{% hint style="important" %}
-Delegation of tokens through the dashboard will require two signatures: one for the approval of the tokens and one for the delegation.
 {% endhint %}
 
-#### Delegate $ZAMA programmatically
+### Delegate $ZAMA
 
 ```solidity
 // 1. Approve the OperatorStaking contract to spend your $ZAMA
@@ -121,17 +111,6 @@ uint256 shares = operatorStaking.deposit(amountToDelegate, receiver);
 
 ### Claim staking rewards
 
-#### Claim rewards through the dashboard
-
-Rewards can be claimed manually using the Zama staking dashboard. 
-
-1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
-2. Navigate to the pool you have delegated to.
-3. Click on **Stake/Manage** for the pool and then on the **Claim Rewards** tab in the drop down menu.
-4. Click on **Claim Rewards** and confirm the transaction in your wallet.
-
-#### Claim rewards programmatically
-
 Rewards can be claimed programmatically by interacting with the smart contracts directly.
 
 First, fetch the `OperatorRewarder` contract from the `OperatorStaking` address:
@@ -146,7 +125,7 @@ Once you have the `OperatorRewarder` address, you can call `claimRewards(receive
 IOperatorRewarder(rewarderAddress).claimRewards(receiver);
 ```
 
-### Set rewards claimer
+#### Set rewards claimer
 
 A **claimer** is an address authorized to invoke the `claimRewards` function on behalf of a delegator. This role is useful for delegators who wish to transfer the responsibility of claiming rewards to another address without compromising security. For example, a delegator may set a smart contract as the claimer that automatically claims rewards as part of a broader yield strategy.
 
@@ -160,8 +139,6 @@ IOperatorRewarder(rewarderAddress).setClaimer(claimerAddress);
 
 ### Claim commission fees
 
-#### Claim commission fees programmatically
-
 Operators can claim their accumulated commission fees from their `OperatorRewarder` contract. Only the [beneficiary](#operatorrewarder-beneficiary) set in the contract can claim the fees, and the fees are sent directly to the beneficiary.
 
 ```solidity
@@ -171,24 +148,6 @@ IOperatorRewarder(rewarderAddress).claimFee();
 ### Redeem shares
 
 Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
-
-#### Redeeming shares through the dashboard
-
-1. Request:
-
-    1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
-    2. Navigate to the pool you have delegated to.
-    3. Click on **Stake/Manage** for the pool and then on the **Unstake** tab in the drop down menu.
-    4. Enter the amount of shares you want to redeem and click on **Unstake**.
-    5. Confirm the transaction in your wallet.
-
-2. Redeem:
-
-    A successful redemption request can be confirmed by the success message after confirming the transaction. Additionally, the pending request should be seen in the **Pending for Unstake** field of the **Unstake** tab.
-
-    Once the cooldown period has passed, the shares can be redeemed by clicking on **Redeem Tokens** in the **Unstake** tab.
-
-#### Redeeming shares programmatically
 
 ```solidity
 // 1. Request redeem
