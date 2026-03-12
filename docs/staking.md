@@ -25,11 +25,349 @@ All contracts are owned and maintained by [protocol governance](governance.md).
 * **Operator Staking Token (e.g., `$stZAMA-OP-A`)**: The liquid, 20-decimal share token received by a delegator when staking $ZAMA into a specific operator's pool.
 * **Staking Rewards**: Yields accumulated in the Protocol Staking contract that are distributed to delegators through the Operator Rewarder contract.
 * **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services.
-* **Owner**: The owner role for a given contract. For the mainnet `ProtocolStaking`, `OperatorStaking`, and `OperatorRewarder`, the `owner()` function returns the address of the DAO governance contract handled by Zama, which has administrative rights (like replacing the rewarder or beneficiary through a proposal).
+* **Owner**: The owner role for a given contract. For the mainnet `ProtocolStaking`, `OperatorStaking`, and `OperatorRewarder`, the `owner()` function returns the address of the DAO governance contract handled by Zama, which has the administrative rights (like replacing the rewarder or beneficiary through a proposal).
 
 ## Contract addresses
 
-All deployed staking contract addresses (protocol and operator) can be found in the [addresses directory](addresses/README.md).
+All deployed staking contract addresses can be found in the [ethereum addresses directory](addresses/mainnet/ethereum.md) for mainnet and the [sepolia addresses directory](addresses/testnet/sepolia.md) for testnet.
+
+## Quick Start
+
+### Delegate $ZAMA
+
+#### Delegate $ZAMA through the dashboard
+
+Rewards can be claimed manually using the Zama staking dashboard. 
+
+1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
+2. Navigate to the operator pool that you want to delegate to.
+3. Click on **Stake** button for the pool and then navigate to the **Stake** tab in the drop down menu.
+4. Enter the amount of $ZAMA that you want to delegate and click on **Approve & Stake**.
+5. Confirm the transactions in your wallet.
+
+{% hint style="important" %}
+Delegation of tokens through the dashboard will require two signatures: one for the approval of the tokens and one for the delegation.
+{% endhint %}
+
+#### Delegate $ZAMA programmatically
+
+```solidity
+// 1. Approve the OperatorStaking contract to spend your $ZAMA
+
+bool approvalSuccess = zamaToken.approve(operatorStakingAddress, amountToDelegate);
+
+// 2. Deposit (Delegate) the $ZAMA
+
+// amountToDelegate: amount of assets to deposit.
+// receiver: address to receive the minted shares.
+// shares: amount of shares minted.
+
+uint256 shares = operatorStaking.deposit(amountToDelegate, receiver);
+```
+
+### Claim staking rewards
+
+#### Claim rewards through the dashboard
+
+Rewards can be claimed manually using the Zama staking dashboard. 
+
+1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
+2. Navigate to the pool you have delegated to.
+3. Click on **Stake/Manage** for the pool and then on the **Claim Rewards** tab in the drop down menu.
+4. Click on **Claim Rewards** and confirm the transaction in your wallet.
+
+#### Claim rewards programmatically
+
+Alternatively, rewards can be claimed programmatically by interacting with the smart contracts directly. 
+
+First, fetch the `OperatorRewarder` contract from the `OperatorStaking` address:
+
+```solidity
+address rewarderAddress = operatorStaking.rewarder();
+```
+
+Once you have the `OperatorRewarder` address, you can call `claimRewards(receiver)` to claim your pending rewards.
+
+```solidity
+// receiver: the address that will receive the rewards.
+
+IOperatorRewarder(rewarderAddress).claimRewards(receiver);
+```
+
+{% hint style="info" %}
+The caller of `claimRewards(address)` must be authorized to claim rewards on behalf of the delegator. By default, the caller is authorized to claim rewards on behalf of themselves. This authorization can be changed by calling `setClaimer(address, bool)` on the `OperatorRewarder` contract.
+{% endhint %}
+
+### Claim commission fees
+
+#### Claim commission fees programmatically
+
+Operators can claim their accumulated commission fees from their `OperatorRewarder` contract. Claimed fees are sent directly to the beneficiary.
+
+```solidity
+IOperatorRewarder(rewarderAddress).claimFee();
+```
+
+### Redeem shares
+
+Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable via protocol governance. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+
+#### Redeeming shares through the dashboard
+
+1. Request:
+
+    1. Navigate to the [Staking Dashboard](https://staking.zama.org/) and connect your wallet.
+    2. Navigate to the pool you have delegated to.
+    3. Click on **Stake/Manage** for the pool and then on the **Unstake** tab in the drop down menu.
+    4. Enter the amount of shares you want to redeem and click on **Unstake**.
+    5. Confirm the transaction in your wallet.
+
+2. Redeem:
+
+    A successful redemption request can be confirmed by the success message after confirming the transaction. Additionally, the pending request should be seen in the **Pending for Unstake** field of the **Unstake** tab.
+
+    Once the cooldown period has passed, the shares can be redeemed by clicking on **Redeem Tokens** in the **Unstake** tab.
+
+#### Redeeming shares programmatically
+
+```solidity
+// 1. Request redeem
+
+// shares: amount of shares to redeem.
+// controllerAddress: the controller address for the redeem request.
+// ownerAddress: the owner of the shares.
+// releaseTime: the timestamp when the assets will be available for withdrawal.
+
+uint48 releaseTime = operatorStaking.requestRedeem(shares, controllerAddress, ownerAddress);
+
+// Wait for the cooldown period to pass
+
+// 2. Redeem
+
+// shares: amount of shares to redeem (use max uint256 for all claimable).
+// receiverAddress: the address to receive the assets.
+
+uint256 assetsReceived = operatorStaking.redeem(shares, receiverAddress, controllerAddress);
+```
+
+## Contract: ProtocolStaking
+
+The `ProtocolStaking` contract acts as the root of the hierarchy where operators stake their pooled $ZAMA.
+
+### Protocol Staking functions
+
+#### Manage eligible accounts
+
+Manages which operator pools are currently eligible to earn global rewards from the protocol.
+
+```solidity
+protocolStaking.addEligibleAccount(operatorAddress);
+protocolStaking.removeEligibleAccount(operatorAddress);
+```
+
+#### Set reward rate
+
+Adjusts the global tokens-per-second reward rate distributed among all eligible pools.
+
+```solidity
+protocolStaking.setRewardRate(newRewardRate);
+```
+
+#### Set unstake cooldown period
+
+Updates the mandatory waiting period between unstaking and releasing tokens.
+
+```solidity
+protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
+```
+
+### Events
+
+| Event | Description |
+| ----- | ----------- |
+| `RewardRateSet(rewardRate)` | Emitted when the global token rewards rate is updated. |
+| `RewardsClaimed(account, recipient, amount)` | Emitted when an operator pool claims rewards. |
+| `RewardsRecipientSet(account, recipient)` | Emitted when a staker's reward recipient is updated. |
+| `TokensReleased(recipient, amount)` | Emitted when tokens are released to a recipient after the unstaking cooldown period. |
+| `TokensStaked(account, amount)` | Emitted when $ZAMA is staked into the protocol. |
+| `TokensUnstaked(account, amount, releaseTime)` | Emitted when an unstake is requested, initiating the cooldown. |
+| `UnstakeCooldownPeriodSet(unstakeCooldownPeriod)` | Emitted when the owner adjusts the unstaking waiting period. |
+
+### Errors
+
+| Error | Cause |
+| ----- | ----- |
+| `InvalidEligibleAccount(account)` | The zero address was attempted to be added to the eligible accounts list. |
+| `InvalidUnstakeCooldownPeriod()` | The requested cooldown period is invalid. |
+| `TransferDisabled()` | An attempt was made to transfer to or from the zero address. |
+
+## Contract: OperatorStaking
+
+The `OperatorStaking` contract serves as a dedicated staking pool for a specific network operator. It enables delegators to pool their $ZAMA tokens, which are then collectively staked into the `ProtocolStaking` contract to earn rewards.
+
+Each operator has their own `OperatorStaking` instance, acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares (e.g., `$stZAMA-OP-A`) representing their proportional ownership of the pool's assets and future rewards.
+
+### Operator Staking decimals
+
+To mitigate the well-known ERC4626 inflation attack, the `OperatorStaking` contract implements a decimal offset of 2. This means that 1 unit of the underlying asset is represented as 100 units of shares. 
+
+Because the underlying staked asset ($ZAMA) has 18 decimals, the resulting operator staking shares (e.g., $stZAMA-OP-A) will always possess 20 decimals. When interacting with the contracts or calculating balances, it is important to remember this distinction. 
+
+For example, when looking at the total stake of a pool or calculating historical rewards across different contracts:
+* Calling `totalSupply()` on an `OperatorStaking` contract returns the total pool shares in the form of virtual shares. If the value returned is **100 * 10^20**, this equates to 100 $stZAMA-OP-A shares because the shares use 20 decimals.
+
+### Operator Staking functions
+
+#### Stake excess
+
+Restakes any excess liquid $ZAMA held by the `OperatorStaking` contract back into the `ProtocolStaking` contract. Excess tokens can accumulate from direct $ZAMA donations or transfers to the contract, or from unredeemed slashed positions.
+
+```solidity
+operatorStaking.stakeExcess();
+```
+
+#### Delegate with permit
+
+Allows a user to approve and deposit $ZAMA in a single transaction using an [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) permit signature.
+
+```solidity
+operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
+```
+
+#### Authorize redemption operator
+
+Allows a controller to authorize an address to request or release redemptions on their behalf.
+
+```solidity
+operatorStaking.setOperator(operatorAddress, true);
+```
+
+#### Check claimable redemption
+
+Returns the amount of assets that are currently eligible for redemption after the cooldown period has passed.
+
+```solidity
+uint256 claimable = operatorStaking.claimableRedeemRequest(controllerAddress);
+```
+
+### Events
+
+| Event | Description |
+| ----- | ----------- |
+| `OperatorSet(controller, operator, approved)` | Emitted when an operator approval is set for a controller. |
+| `RedeemRequest(controller, owner, sender, shares, assets, releaseTime)` | Emitted when a user requests to redeem shares. |
+| `RewarderSet(oldRewarder, newRewarder)` | Emitted when the rewarder contract is changed. |
+
+### Errors
+
+| Error | Cause |
+| ----- | ----- |
+| `CallerNotProtocolStakingOwner(caller)` | The caller is not the owner of the contract. |
+| `InvalidController()` | The controller address is zero. |
+| `InvalidRewarder(rewarder)` | The new rewarder address is invalid. |
+| `InvalidShares()` | The number of shares to redeem or request redemption is zero. |
+| `NoExcessBalance(liquidBalance, assetsPendingRedemption)` | The liquid asset balance is insufficient to cover pending redemptions in `stakeExcess()`. |
+| `Unauthorized()` | The caller to the redeem function is not the controller or an operator set by the controller. |
+
+## Contract: OperatorRewarder
+
+The `OperatorRewarder` handles the distribution of rewards and the claiming of operator commission fees. Every `OperatorStaking` pool has one corresponding `OperatorRewarder` contract.
+
+### OperatorRewarder beneficiary
+
+The beneficiary of an `OperatorRewarder` contract is the address that can set and claim fees. The beneficiary is set on the deployment of the `OperatorRewarder` contract and can be changed by the contract owner through the `transferBeneficiary(address newBeneficiary)` function.
+
+To find the beneficiary of an `OperatorRewarder` contract, you can use the `beneficiary()` view function.
+
+An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by protocol governance.
+
+If an operator wants to receive "regular" staking rewards in addition to their commission fee, they can simply act as a delegator by staking assets into their own `OperatorStaking` contract. They would then receive both:
+* The **Commission Fee** on the pool's total generated rewards.
+* The **Proportional Reward** for the assets they personally staked.
+
+### Operator Rewarder functions
+
+#### Get fee basis points
+
+Returns the current commission fee percentage.
+
+```solidity
+// Returns the current fee in basis points (e.g., 1000 = 10%)
+uint16 currentFee = operatorRewarder.feeBasisPoints();
+```
+
+#### Get maximum fee basis points
+
+Returns the maximum fee percentage allowed by the protocol in basis points.
+
+```solidity
+uint16 maxFee = operatorRewarder.maxFeeBasisPoints();
+```
+
+#### Get unpaid fee
+
+Returns the total amount of unclaimed $ZAMA commission fees accumulated for the operator.
+
+```solidity
+uint256 unpaid = operatorRewarder.unpaidFee();
+```
+
+#### Check earned rewards
+
+Returns the amount of $ZAMA rewards accrued by a delegator that are available to be claimed.
+
+```solidity
+uint256 pending = operatorRewarder.earned(delegatorAddress);
+```
+
+#### Set rewards claimer
+
+Allows a delegator to authorize another address (a "claimer") to claim rewards on their behalf.
+
+```solidity
+operatorRewarder.setClaimer(claimerAddress);
+```
+
+#### Set commission fee
+
+Allows the beneficiary of the rewarder contract to update the commission fee.
+
+```solidity
+// Sets the fee to 10% (1000 basis points)
+operatorRewarder.setFee(1000);
+```
+
+### Events
+
+| Event | Description |
+| ----- | ----------- |
+| `BeneficiaryTransferred(oldBeneficiary, newBeneficiary)` | Emitted when the beneficiary is updated. |
+| `ClaimerAuthorized(receiver, claimer)` | Emitted when a delegator authorizes another address to claim their rewards. |
+| `FeeClaimed(beneficiary, amount)` | Emitted when commission fees are claimed. |
+| `FeeUpdated(oldFee, newFee)` | Emitted when the commission fee is changed. |
+| `MaxFeeUpdated(oldFee, newFee)` | Emitted when the maximum allowed fee is changed by the contract owner. |
+| `RewardsClaimed(receiver, amount)` | Emitted when a delegator claims their rewards. |
+| `Shutdown()` | Emitted when the `OperatorRewarder` is shut down by the owner, preventing future rewards distribution. |
+
+### Errors
+
+| Error | Cause |
+| ----- | ----- |
+| `AlreadyShutdown()` | Attempted an action, but the rewarder is already shut down. |
+| `AlreadyStarted()` | Attempted to start a rewarder that has already been started. |
+| `BeneficiaryAlreadySet(beneficiary)` | The new beneficiary is identical to the current one. |
+| `CallerNotBeneficiary(caller)` | The caller is not the authorized beneficiary. |
+| `CallerNotOperatorStaking(caller)` | The caller is not the linked `OperatorStaking` contract. |
+| `CallerNotProtocolStakingOwner(caller)` | The caller is not the owner of the `ProtocolStaking` contract. |
+| `ClaimerAlreadySet(receiver, claimer)` | The new claimer is identical to the current one. |
+| `ClaimerNotAuthorized(receiver, claimer)` | The caller does not have permission to claim on behalf of the delegator. |
+| `FeeAlreadySet(feeBasisPoints)` | The new fee is identical to the current one. |
+| `InvalidBasisPoints(basisPoints)` | The basis points input is out of bounds (e.g., above 10000). |
+| `InvalidBeneficiary(beneficiary)` | The provided beneficiary address is zero. |
+| `InvalidClaimer(claimer)` | The provided claimer address is zero. |
+| `MaxBasisPointsExceeded(basisPoints, maxBasisPoints)` | The new fee exceeds the maximum set by the contract owner. |
+| `MaxFeeAlreadySet(maxFeeBasisPoints)` | The new maximum fee is identical to the current one. |
+| `NotStarted()` | Attempted an action, but the rewarder hasn't been started yet. |
 
 ## Structure
 
