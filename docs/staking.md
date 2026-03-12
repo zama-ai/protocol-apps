@@ -7,7 +7,7 @@ The Zama Protocol utilizes a **Delegated Proof of Stake (DPoS)** system to secur
 * **Protocol Staking Contract**: The root contract in the hierarchy where operators stake $ZAMA on the protocol.
 * **Operator Staking Contract**: A contract deployed per operator that pools $ZAMA from the operator and their delegators to stake in the Protocol Staking contract.
 * **Operator Rewarder Contract**: A contract associated with each Operator Staking contract, responsible for distributing staking rewards and commission fees to delegators and operators, respectively.
-* **Operator**: An entity that runs at least one Zama Protocol node (KMS or Coprocessor) and receives staking commission fees in compensation. More info about operators in the [litepaper](https://docs.zama.org/protocol/zama-protocol-litepaper#components).
+* **Operator**: An entity that runs at least one Zama Protocol node (KMS or Coprocessor) and receives staking commission fees in compensation. More info about operators in the [litepaper documentation](https://docs.zama.org/protocol/zama-protocol-litepaper#components).
 * **Delegator**: A token holder who delegates their $ZAMA into an Operator Staking contract to earn staking rewards.
 * **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim and receive accumulated fees).
 * **Staking Rewards**: Yields accumulated in the Protocol Staking contract that are distributed to delegators through the Operator Rewarder contract.
@@ -33,7 +33,7 @@ All staking happens on Ethereum. Only non-confidential $ZAMA is supported for no
 
 ### Structure
 
-The hierarchy is implemented by a [protocol staking contract](#contract-protocolstaking) and an [operator staking contract](#contract-operatorstaking). The protocol staking contract is at the root, and one operator staking contract is deployed per operator. An accompying [operator rewarder contract](#contract-operatorrewarder) is deployed for each operator staking contract, and this rewarder contract is responsible for paying out commission fees and staking rewards.
+The hierarchy is implemented by a [Protocol Staking contract](#contract-protocolstaking) and an [Operator Staking contract](#contract-operatorstaking). The Protocol Staking contract is at the root, and one Operator Staking contract is deployed per operator. An accompying [Operator Rewarder contract](#contract-operatorrewarder) is deployed for each Operator Staking contract, and this Operator Rewarder contract is responsible for paying out commission fees and staking rewards.
 
 ```mermaid
 flowchart TB
@@ -60,7 +60,7 @@ The global protocol inflation rate is distributed between these domains accordin
 
 ### Staking and delegating
 
-The operator staking contracts are used by token holders to delegate $ZAMA on the protocol, and token holders may delegate to multiple operator staking contracts at the same time.
+The Operator Staking contracts are used by token holders to delegate $ZAMA on the protocol, and token holders may delegate to multiple Operator Staking contracts at the same time.
 
 ```mermaid
 
@@ -71,7 +71,7 @@ flowchart BT
     Delegator-2 -- delegate $ZAMA --> OperatorStaking-A
 ```
 
-In return, the operator staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Domain` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
+In return, the Operator Staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Domain` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
 
 ```mermaid
 flowchart TB
@@ -80,11 +80,11 @@ flowchart TB
     OperatorStaking-A -. $stZAMA-Zama-KMS .-> Delegator-2
 ```
 
-The operator staking shares are liquid and unique for each operator staking contract, while the protocol staking shares are not liquid, meaning they can only be redeemed for $ZAMA by the operator staking contract.
+The operator staking shares are liquid and unique for each Operator Staking contract, while the protocol staking shares are not liquid, meaning they can only be redeemed for $ZAMA by the Operator Staking contract.
 
 ### Fees and rewards
 
-The protocol staking contracts are continuously distributing staking rewards to the operator staking contracts. Operators are entitled to a commission fee on the rewards, and the rest is distributed to the delegators. All commission fees and staking rewards are paid in $ZAMA.
+The Protocol Staking contracts are continuously distributing staking rewards to the Operator Staking contracts. Operators are entitled to a commission fee on the rewards, and the rest is distributed to the delegators. All commission fees and staking rewards are paid in $ZAMA.
 
 ```mermaid
 
@@ -96,7 +96,7 @@ flowchart TB
     OperatorStaking-A -. rewards minus fees .-> Delegator-2
 ```
 
-The commission fee percentage is independently set (within the maximum allowed by [Protocol DAO governance](governance.md)) for each operator staking contract by the assigned operator.
+The commission fee percentage is independently set (within the maximum allowed by [Protocol DAO governance](governance.md)) for each Operator Staking contract by the assigned operator.
 
 ## Quick Start
 
@@ -108,7 +108,7 @@ Many common staking operations can be performed through the Zama staking dashboa
 
 ### Delegate $ZAMA
 
-Delegating $ZAMA to an operator is a two-step process. First, you must approve the operator's staking contract to spend your tokens, and then you call the `deposit` function to mint shares.
+Delegating $ZAMA to an operator is a two-step process. First, you must approve the Operator Staking contract to spend your tokens, and then you call the `deposit` function to mint shares.
 
 ```solidity
 // 1. Approve the OperatorStaking contract to spend your $ZAMA
@@ -160,7 +160,7 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 ### Redeem shares
 
-Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
+Redeeming from Operator Staking contracts is a two-step process subject to a cooldown period (determined by the Protocol Staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that Operator Staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
 
 All redemption requests are managed by a controller. See [The controller](#the-controller) for more information.
 
@@ -260,7 +260,7 @@ The following functions require the caller to have the `MANAGER_ROLE` set on the
 
 #### Manage eligible accounts
 
-Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., operator staking contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
+Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., Operator Staking contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
 
 ```solidity
 // Add an eligible account
@@ -401,9 +401,9 @@ For example, when looking at the total stake of a pool or calculating historical
 
 ### Operator eligibility
 
-It is important to note that only _eligible_ operator staking contracts generate rewards. Requesting eligibility is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol.
+It is important to note that only _eligible_ Operator Staking contracts generate rewards. Requesting eligibility is a manual process ending with a protocol governance proposal. As part of the process, operators are asked to run certain off-chain services to participate in the execution of the protocol.
 
-Any operator who’s operator staking contract has staked sufficiently on the protocol can ask to be considered eligible at the next operator election.
+Any operator who’s Operator Staking contract has staked sufficiently on the protocol can ask to be considered eligible at the next operator election.
 
 ### The controller
 
@@ -462,7 +462,7 @@ operatorStaking.setOperator(operatorAddress, true);
 
 #### Set rewarder
 
-Replaces the linked `OperatorRewarder` contract. The old rewarder contract is shut down to ensure pending rewards are claimed before the new rewarder goes live.
+Replaces the linked `OperatorRewarder` contract. The old Operator Rewarder contract is shut down to ensure pending rewards are claimed before the new rewarder goes live.
 
 ```solidity
 operatorStaking.setRewarder(newRewarderAddress);
@@ -572,7 +572,7 @@ uint8 shareDecimals = operatorStaking.decimals();
 | ----- | ----------- |
 | `OperatorSet(controller, operator, approved)` | Emitted when an operator approval is set for a controller. |
 | `RedeemRequest(controller, owner, sender, shares, assets, releaseTime)` | Emitted when a user requests to redeem shares. |
-| `RewarderSet(oldRewarder, newRewarder)` | Emitted when the rewarder contract is changed. |
+| `RewarderSet(oldRewarder, newRewarder)` | Emitted when the Operator Rewarder contract is changed. |
 
 ### Errors
 
