@@ -11,8 +11,8 @@ The Zama Protocol utilizes a **Delegated Proof of Stake (DPoS)** system to secur
 * **Delegator**: A token holder who delegates their $ZAMA into an Operator Staking contract to earn staking rewards.
 * **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim and receive accumulated fees).
 * **Staking Rewards**: Yields accumulated in the Protocol Staking contract that are distributed to delegators through the Operator Rewarder contract.
-* **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services. The commission fee is set by the operator and can be set to a maximum of 20%.
-* **Owner**: The owner of all staking contracts, holding several administrative rights. For mainnet, the owner is the Protocol DAO governance (see [protocol governance](governance.md)).
+* **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services. The commission fee is set by the operator with a maximum of 20%.
+* **Owner**: The owner of all staking contracts, holding several administrative rights. For mainnet, the owner is the [Protocol DAO governance](governance.md).
 
 ## Contract addresses
 
@@ -52,8 +52,8 @@ flowchart TD
     KPS --- KOP_B[OperatorStaking-B]
     
     %% Coprocessor Branch
-    CPS([Coprocessor ProtocolStaking]) --- COP_A[OperatorStaking-A]
-    CPS --- COP_B[OperatorStaking-B]
+    CPS([Coprocessor ProtocolStaking]) --- COP_A[OperatorStaking-C]
+    CPS --- COP_B[OperatorStaking-D]
 ```
 
 The global protocol inflation rate is distributed between these domains according to a fixed ratio set by Protocol DAO governance. See [Calculating the rewards rate](#calculating-the-rewards-rate) for more information.
@@ -162,13 +162,15 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
 
-Note that all operator staking shares use 20 decimals. See [Operator Staking decimals](#operator-staking-decimals) for more information.
+All redemption requests are managed by a controller. See [The controller](#the-controller) for more information.
+
+Also note that all operator staking shares use 20 decimals. See [Operator Staking decimals](#operator-staking-decimals) for more information.
 
 ```solidity
 // 1. Request redeem
 
 // shares: amount of shares to redeem.
-// controllerAddress: the address that will manage this withdrawal (usually msg.sender)
+// controllerAddress: the address that will manage this withdrawal (can be msg.sender)
 // ownerAddress: the owner of the shares.
 // releaseTime: the timestamp when the assets will be available for withdrawal.
 
@@ -198,14 +200,73 @@ The `ProtocolStaking` contract issues a share token to acknowledge the amount of
 
 These tokens use 18 decimals and are non-transferable.
 
-### Protocol Staking functions
+#### Staked token weight
+
+The `ProtocolStaking` contract implements a non-linear weight system to determine reward distribution. Unlike linear staking models where rewards scale 1:1 with staked assets, `ProtocolStaking` utilizes a concave weighting function to prioritize protocol decentralization. The weight assigned to an operator is calculated as the square root of its staked balance:
+
+```solidity
+stakedAmount = ProtocolStaking.balanceOf(operator)
+weight = Math.sqrt(stakedAmount)
+```
+
+This weighting system incentivizes broader participation and reduces the impact of large token holders on the reward distribution.
+
+### User functions
+
+#### Stake tokens
+
+Stakes $ZAMA tokens directly into the `ProtocolStaking` contract, minting protocol staking shares. Note: this is called automatically by `OperatorStaking` during delegation. Direct calls are typically only needed by the `OperatorStaking` contract itself.
+
+```solidity
+protocolStaking.stake(amount);
+```
+
+#### Unstake tokens
+
+Initiates the unstaking cooldown for `amount` tokens. Tokens are not immediately returned; they must be released via `release()` after the cooldown period elapses.
+
+```solidity
+// Returns the timestamp when the tokens will be available for release.
+uint48 releaseTime = protocolStaking.unstake(amount);
+```
+
+#### Release tokens
+
+Releases tokens requested to be unstaked after the cooldown period elapses. Can be called by anyone on behalf of any account.
+
+```solidity
+protocolStaking.release(accountAddress);
+```
+
+#### Claim rewards
+
+Claims all pending staking rewards for an account. Rewards are minted and sent to the configured rewards recipient. Can be called by anyone.
+
+```solidity
+protocolStaking.claimRewards(accountAddress);
+```
+
+#### Set rewards recipient
+
+Redirects all future reward payouts for the caller (`msg.sender`) to the given recipient address (`recipientAddress`). Setting a value of `address(0)` sends rewards to the caller directly, which is the default behavior.
+
+```solidity
+protocolStaking.setRewardsRecipient(recipientAddress);
+```
+
+### Manager functions
+
+The following functions require the caller to have the `MANAGER_ROLE` set on the contract.
 
 #### Manage eligible accounts
 
-Manages which operator pools are currently eligible to earn global rewards from the protocol.
+Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., operator staking contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
 
 ```solidity
+// Add an eligible account
 protocolStaking.addEligibleAccount(operatorAddress);
+
+// Remove an eligible account
 protocolStaking.removeEligibleAccount(operatorAddress);
 ```
 
@@ -223,6 +284,82 @@ Updates the mandatory waiting period between unstaking and releasing tokens.
 
 ```solidity
 protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
+```
+
+### View functions
+
+#### Get earned rewards
+
+Returns the amount of $ZAMA rewards currently accrued for an account that are available to be claimed.
+
+```solidity
+uint256 rewards = protocolStaking.earned(accountAddress);
+```
+
+#### Get staking token
+
+Returns the address of the $ZAMA token used for staking and rewards.
+
+```solidity
+address token = protocolStaking.stakingToken();
+```
+
+#### Get staking weight
+
+Returns the square-root weight for a given token amount. Used in the reward distribution calculation.
+
+See [Staked token weight](#staked-token-weight) for more information.
+
+```solidity
+uint256 w = protocolStaking.weight(amount);
+```
+
+#### Get total staked weight
+
+Returns the total eligible staked weight across all active operator pools.
+
+```solidity
+uint256 totalWeight = protocolStaking.totalStakedWeight();
+```
+
+#### Get unstake cooldown period
+
+Returns the current cooldown period in seconds.
+
+```solidity
+uint256 cooldown = protocolStaking.unstakeCooldownPeriod();
+```
+
+#### Get awaiting release
+
+Returns the amount of tokens that will be released to an account after the unstaking cooldown period elapses.
+
+```solidity
+uint256 pending = protocolStaking.awaitingRelease(accountAddress);
+```
+
+#### Get reward rate
+
+Returns the current reward rate in $ZAMA tokens distributed per second across all eligible pools.
+
+```solidity
+uint256 rate = protocolStaking.rewardRate();
+```
+
+#### Get rewards recipient
+
+Returns the configured recipient address for an account's rewards. If not set, returns the account address itself. A rewards recipient can be set via [setRewardsRecipient()](#set-rewards-recipient).
+
+```solidity
+address recipient = protocolStaking.rewardsRecipient(accountAddress);
+```
+
+#### Check account eligibility
+
+Returns `true` if an account has the `ELIGIBLE_ACCOUNT_ROLE` and will earn rewards.
+
+```solidity
+bool eligible = protocolStaking.isEligibleAccount(accountAddress);
 ```
 
 ### Events
@@ -251,7 +388,7 @@ The `OperatorStaking` contract serves as a dedicated staking pool for a specific
 
 ### Operator Staking token
 
-Each operator has their own `OperatorStaking` instance, acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. These token shares are fully transferable and use 20 decimals. 
+Each operator has their own `OperatorStaking` instance acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. These token shares are fully transferable and use 20 decimals. 
 
 #### Operator Staking decimals
 
@@ -276,7 +413,33 @@ Every redemption request is tracked against a controller address rather than the
 
 A controller can further delegate their power by calling `setOperator()`. An authorized operator can call the `redeem()` function on behalf of the controller.
 
-### Operator Staking functions
+### User functions
+
+#### Delegate (deposit)
+
+Delegates $ZAMA tokens to the operator pool, minting staking shares proportional to the deposit. 
+
+See [Delegate $ZAMA](#delegate-zama) in the Quick Start guide.
+
+#### Delegate with permit
+
+Combines an [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) approval with delegation into a single transaction.
+
+```solidity
+uint256 shares = operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
+```
+
+#### Request redeem
+
+Initiates the first step of the two-step unstaking process. Burns the specified shares and starts the cooldown timer. Returns the timestamp when the assets will be claimable. 
+
+See [Redeem shares](#redeem-shares) in the Quick Start guide.
+
+#### Redeem
+
+Completes a redemption after the cooldown has passed. Must be called by the [controller](#the-controller) (or an authorized operator). Pass `type(uint256).max` to redeem all claimable shares.
+
+See [Redeem shares](#redeem-shares) in the Quick Start guide.
 
 #### Stake excess
 
@@ -286,29 +449,121 @@ Restakes any excess liquid $ZAMA held by the `OperatorStaking` contract back int
 operatorStaking.stakeExcess();
 ```
 
-#### Delegate with permit
-
-Allows a user to approve and deposit $ZAMA in a single transaction using an [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) permit signature.
-
-```solidity
-operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
-```
-
 #### Authorize redemption operator
 
-Allows a controller to authorize an address to request or release redemptions on their behalf.
+Allows a controller to authorize (or revoke authorization for) an address to call `redeem()` on their behalf.
 
 ```solidity
 // msg.sender (the controller) authorizes operatorAddress
 operatorStaking.setOperator(operatorAddress, true);
 ```
 
-#### Check claimable redemption
+### Owner functions
 
-Returns the amount of assets that are currently eligible for redemption after the cooldown period has passed.
+#### Set rewarder
+
+Replaces the linked `OperatorRewarder` contract. The old rewarder contract is shut down to ensure pending rewards are claimed before the new rewarder goes live.
+
+```solidity
+operatorStaking.setRewarder(newRewarderAddress);
+```
+
+### View functions
+
+#### Get asset
+
+Returns the address of the underlying staking asset ($ZAMA).
+
+```solidity
+address stakingAsset = operatorStaking.asset();
+```
+
+#### Get ProtocolStaking
+
+Returns the address of the linked `ProtocolStaking` contract.
+
+```solidity
+address protocolStakingAddr = address(operatorStaking.protocolStaking());
+```
+
+#### Get rewarder
+
+Returns the address of the currently linked `OperatorRewarder` contract.
+
+```solidity
+address rewarderAddr = operatorStaking.rewarder();
+```
+
+#### Get owner
+
+Returns the owner address (inherited from the `ProtocolStaking` contract owner).
+
+```solidity
+address protocolOwner = operatorStaking.owner();
+```
+
+#### Get total assets
+
+Returns the total $ZAMA managed by this pool, including staked, liquid, and awaiting-release balances.
+
+```solidity
+uint256 total = operatorStaking.totalAssets();
+```
+
+#### Get pending redeem request
+
+Returns the number of shares still not yet eligible for redemption in the cooldown queue for a given controller.
+
+```solidity
+uint256 pending = operatorStaking.pendingRedeemRequest(controllerAddress);
+```
+
+#### Get claimable redeem request
+
+Returns the number of shares whose cooldown has elapsed and are now redeemable for a given controller.
 
 ```solidity
 uint256 claimable = operatorStaking.claimableRedeemRequest(controllerAddress);
+```
+
+#### Get total shares in redemption
+
+Returns the total number of shares across all in-flight redemption requests.
+
+```solidity
+uint256 inFlight = operatorStaking.totalSharesInRedemption();
+```
+
+#### Preview deposit
+
+Returns the number of shares that would be minted for a given deposit amount.
+
+```solidity
+uint256 shares = operatorStaking.previewDeposit(assets);
+```
+
+#### Preview redeem
+
+Returns the amount of $ZAMA that would be received when redeeming a given number of shares.
+
+```solidity
+uint256 assets = operatorStaking.previewRedeem(shares);
+```
+
+#### Check operator approval
+
+Returns `true` if `operator` is authorized to manage redemptions for `controller`.
+
+```solidity
+bool approved = operatorStaking.isOperator(controller, operator);
+```
+
+#### Get decimals
+
+Returns the number of decimals for the share token. Always returns `20` due to the ERC4626 decimal offset.
+
+```solidity
+uint8 shareDecimals = operatorStaking.decimals();
 ```
 
 ### Events
@@ -346,7 +601,55 @@ If an operator wants to receive "regular" staking rewards in addition to their c
 * The **Commission Fee** on the pool's total generated rewards.
 * The **Proportional Reward** for the assets they personally staked.
 
-### Operator Rewarder functions
+### User functions
+
+#### Claim rewards
+
+See [Claim staking rewards](#claim-staking-rewards) in the Quick Start guide for full details.
+
+#### Set rewards claimer
+
+See [Set rewards claimer](#set-rewards-claimer) in the Quick Start guide for full details.
+
+### Beneficiary functions
+
+The following functions are callable only by the [beneficiary](#operatorrewarder-beneficiary) of the `OperatorRewarder` contract:
+
+#### Claim commission fee
+
+See [Claim commission fee](#claim-commission-fee) in the Quick Start guide for full details.
+
+#### Set commission fee
+
+Updates the commission fee taken from delegator rewards. The new fee cannot exceed the `maxFeeBasisPoints` set by the owner. Calling this also claims any currently unpaid fees.
+
+```solidity
+// Sets the fee to 10% (1000 basis points)
+operatorRewarder.setFee(1000);
+```
+
+### Owner functions
+
+The following functions are callable only by the owner of the `OperatorRewarder` contract:
+
+#### Set maximum fee
+
+Updates the maximum commission fee the beneficiary is allowed to set. If the new maximum is lower than the current fee, the fee is automatically adjusted down.
+
+```solidity
+// Sets the max fee to 20% (2000 basis points)
+operatorRewarder.setMaxFee(2000);
+```
+
+#### Transfer beneficiary
+
+Transfers the beneficiary role to a new address. Does not automatically claim unpaid fees for the outgoing beneficiary, allowing for the recovery of any unpaid fees in the event that a beneficiary account is compromised or lost.
+
+```solidity
+operatorRewarder.transferBeneficiary(newBeneficiaryAddress);
+```
+
+### View functions
 
 #### Get fee basis points
 
@@ -359,7 +662,7 @@ uint16 currentFee = operatorRewarder.feeBasisPoints();
 
 #### Get maximum fee basis points
 
-Returns the maximum fee percentage allowed by the protocol in basis points.
+Returns the maximum fee percentage the beneficiary is allowed to set.
 
 ```solidity
 uint16 maxFee = operatorRewarder.maxFeeBasisPoints();
@@ -367,13 +670,13 @@ uint16 maxFee = operatorRewarder.maxFeeBasisPoints();
 
 #### Get unpaid fee
 
-Returns the total amount of unclaimed $ZAMA commission fees accumulated for the operator.
+Returns the total amount of unclaimed $ZAMA commission fees accumulated for the beneficiary.
 
 ```solidity
 uint256 unpaid = operatorRewarder.unpaidFee();
 ```
 
-#### Check earned rewards
+#### Get earned rewards
 
 Returns the amount of $ZAMA rewards accrued by a delegator that are available to be claimed.
 
@@ -381,13 +684,76 @@ Returns the amount of $ZAMA rewards accrued by a delegator that are available to
 uint256 pending = operatorRewarder.earned(delegatorAddress);
 ```
 
-#### Set commission fee
+#### Get historical reward
 
-Allows the beneficiary of the rewarder contract to update the commission fee.
+Returns the total historical rewards distributed (net of fees) since the rewarder was started.
 
 ```solidity
-// Sets the fee to 10% (1000 basis points)
-operatorRewarder.setFee(1000);
+uint256 historical = operatorRewarder.historicalReward();
+```
+
+#### Get owner
+
+Returns the owner address (inherited from the `ProtocolStaking` contract owner).
+
+```solidity
+address protocolOwner = operatorRewarder.owner();
+```
+
+#### Get beneficiary
+
+Returns the current beneficiary address.
+
+```solidity
+address beneficiaryAddr = operatorRewarder.beneficiary();
+```
+
+#### Get claimer
+
+Returns the authorized claimer for a given receiver address. If no claimer is set, the receiver address itself is returned.
+
+```solidity
+address authorizedClaimer = operatorRewarder.claimer(receiverAddress);
+```
+
+#### Get token
+
+Returns the staking token ($ZAMA) address.
+
+```solidity
+IERC20 stakingToken = operatorRewarder.token();
+```
+
+#### Get ProtocolStaking
+
+Returns the address of the linked `ProtocolStaking` contract.
+
+```solidity
+address protocolStakingAddr = address(operatorRewarder.protocolStaking());
+```
+
+#### Get OperatorStaking
+
+Returns the address of the linked `OperatorStaking` contract.
+
+```solidity
+address operatorStakingAddr = address(operatorRewarder.operatorStaking());
+```
+
+#### Check started
+
+Returns `true` if the rewarder has been started and is accepting reward claims.
+
+```solidity
+bool started = operatorRewarder.isStarted();
+```
+
+#### Check shutdown
+
+Returns `true` if the rewarder has been shut down, meaning it no longer computes new rewards from the `ProtocolStaking` contract.
+
+```solidity
+bool shutdown = operatorRewarder.isShutdown();
 ```
 
 ### Events
