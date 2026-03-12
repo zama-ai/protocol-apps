@@ -148,9 +148,17 @@ Once you have the `OperatorRewarder` address, you can call `claimRewards(receive
 IOperatorRewarder(rewarderAddress).claimRewards(receiver);
 ```
 
-{% hint style="info" %}
-The caller of `claimRewards(address)` must be authorized to claim rewards on behalf of the delegator. By default, the caller is authorized to claim rewards on behalf of themselves. This authorization can be changed by calling `setClaimer(address, bool)` on the `OperatorRewarder` contract.
-{% endhint %}
+### Set rewards claimer
+
+A **claimer** is an address authorized to invoke the `claimRewards` function on behalf of a delegator. This role is useful for delegators who wish to transfer the responsibility of claiming rewards to another address, without compromising the security of the primary address holding the staking shares. For example, a delegator may set a smart contract as the claimer that automatically claims rewards as part of a broader yield strategy.
+
+A delegator can have only one authorized claimer at any given time. If no claimer is explicitly set, the delegator address is considered its own authorized claimer by default.
+
+To authorize an address to claim rewards on your behalf, call `setClaimer` on the `OperatorRewarder` contract with the address you wish to authorize to claim your rewards:
+
+```solidity
+IOperatorRewarder(rewarderAddress).setClaimer(claimerAddress);
+```
 
 ### Claim commission fees
 
@@ -388,14 +396,6 @@ Returns the amount of $ZAMA rewards accrued by a delegator that are available to
 
 ```solidity
 uint256 pending = operatorRewarder.earned(delegatorAddress);
-```
-
-#### Set rewards claimer
-
-Allows a delegator to authorize another address (a "claimer") to claim rewards on their behalf.
-
-```solidity
-operatorRewarder.setClaimer(claimerAddress);
 ```
 
 #### Set commission fee
