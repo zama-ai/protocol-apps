@@ -1,6 +1,6 @@
 # Staking
 
-The Zama Protocol uses a Delegated Proof of Stake (DPoS) system to help secure the network and provide an incentive layer for operators. $ZAMA token holders can delegate their tokens to eligible operators who manage the network's critical infrastructure, including Key Management Service (KMS) nodes and Fully Homomorphic Encryption (FHE) coprocessors.
+The Zama Protocol utilizes a **Delegated Proof of Stake (DPoS)** system to secure the network and provide an incentive layer for operators. $ZAMA token holders secure the network by delegating their tokens to eligible operators who manage critical infrastructure: Key Management Service (KMS) nodes and Fully Homomorphic Encryption (FHE) coprocessors.
 
 The protocol uses two distinct yet structurally identical staking ecosystems for the KMS and coprocessor operators. Tokens delegated to a KMS operator only earn from the KMS reward pool and are governed by the specific KMS staking contracts, while tokens delegated to a coprocessor operator earn from the coprocessor reward pool and are governed by the coprocessor staking contracts.
 
@@ -45,6 +45,23 @@ flowchart TB
     ProtocolStaking --- OperatorStaking-B --- OperatorRewarder-B
 ```
 
+#### Staking domains
+
+The protocol uses two distinct yet structurally identical staking ecosystems for the KMS and coprocessor operators. Tokens delegated to a KMS operator only earn from the KMS reward pool and are governed by the specific KMS staking contracts, while tokens delegated to a coprocessor operator earn from the coprocessor reward pool and are governed by the coprocessor staking contracts.
+
+```mermaid
+flowchart TD
+    %% KMS Branch
+    KPS([Key Management Service ProtocolStaking]) --- KOP_A[OperatorStaking-A]
+    KPS --- KOP_B[OperatorStaking-B]
+    
+    %% Coprocessor Branch
+    CPS([Coprocessor ProtocolStaking]) --- COP_A[OperatorStaking-A]
+    CPS --- COP_B[OperatorStaking-B]
+```
+
+The global protocol inflation rate is distributed between these domains according to a fixed ratio set by Protocol DAO governance. See [Calculating the rewards rate](#calculating-the-rewards-rate) for more information.
+
 ### Staking and delegating
 
 The operator staking contracts are used by token holders to delegate $ZAMA on the protocol, and token holders may delegate to multiple operator staking contracts at the same time.
@@ -58,7 +75,7 @@ flowchart BT
     Delegator-2 -- delegate $ZAMA --> OperatorStaking-A
 ```
 
-In return, the operator staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Network` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
+In return, the operator staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Domain` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
 
 ```mermaid
 flowchart TB
