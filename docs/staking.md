@@ -7,6 +7,7 @@
 * **Operator Rewarder Contract**: A contract associated with each Operator Staking contract, responsible for distributing staking rewards and commission fees to delegators and operators, respectively.
 * **Operator**: An entity that manages an Operator Staking contract, participates in protocol staking, and receives commission fees.
 * **Delegator**: A token holder who delegates their $ZAMA into an Operator Staking contract to earn staking rewards.
+* **Controller**: An address that manages the lifecycle of a redemption request. It is the authority that initiates an unstake and claims the underlying tokens.
 * **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim accumulated fees).
 * **Protocol Staking Token (`$stZAMA`)**: The illiquid share token received by the Operator Staking contract when it stakes $ZAMA into the protocol.
 * **Operator Staking Token (e.g., `$stZAMA-OP-A`)**: The liquid, 20-decimal share token received by a delegator when staking $ZAMA into a specific operator's pool.
@@ -186,7 +187,7 @@ Redeeming from operator staking contracts is a two-step process subject to a coo
 // 1. Request redeem
 
 // shares: amount of shares to redeem.
-// controllerAddress: the controller address for the redeem request.
+// controllerAddress: the address that will manage this withdrawal (usually msg.sender)
 // ownerAddress: the owner of the shares.
 // releaseTime: the timestamp when the assets will be available for withdrawal.
 
@@ -198,6 +199,7 @@ uint48 releaseTime = operatorStaking.requestRedeem(shares, controllerAddress, ow
 
 // shares: amount of shares to redeem (use max uint256 for all claimable).
 // receiverAddress: the address to receive the assets.
+// controllerAddress: the same address used in step 1.
 
 uint256 assetsReceived = operatorStaking.redeem(shares, receiverAddress, controllerAddress);
 ```
@@ -274,6 +276,14 @@ It is important to note that only _eligible_ operator staking contracts generate
 
 Any operator who’s operator staking contract has staked sufficiently on the protocol can ask to be considered eligible at the next operator election.
 
+### The controller
+
+`OperatorStaking` decouples share ownership from withdrawal management. This is handled via the **controller** role.
+
+Every redemption request is tracked against a controller address rather than the share owner. This allows a user to delegate the administrative task of "watching the cooldown" to a separate address (like a hot wallet or a bot) without giving that address full control over their shares.
+
+A controller can further delegate their power by calling `setOperator()`. An authorized operator can call the `redeem()` function on behalf of the controller.
+
 ### Operator Staking functions
 
 #### Stake excess
@@ -297,6 +307,7 @@ operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
 Allows a controller to authorize an address to request or release redemptions on their behalf.
 
 ```solidity
+// msg.sender (the controller) authorizes operatorAddress
 operatorStaking.setOperator(operatorAddress, true);
 ```
 
