@@ -1,19 +1,22 @@
 # Staking
 
+The Zama Protocol uses a Delegated Proof of Stake (DPoS) system to help secure the network and provide an incentive layer for operators. $ZAMA token holders can delegate their tokens to eligible operators who manage the network's critical infrastructure, including Key Management Service (KMS) nodes and Fully Homomorphic Encryption (FHE) coprocessors.
+
+The protocol uses two distinct yet structurally identical staking ecosystems for the KMS and coprocessor operators. Tokens delegated to a KMS operator only earn from the KMS reward pool and are governed by the specific KMS staking contracts, while tokens delegated to a coprocessor operator earn from the coprocessor reward pool and are governed by the coprocessor staking contracts.
+
+Staking rewards are funded by protocol inflation at a rate set by the Protocol DAO governance (see [protocol governance](governance.md)). A single rate is set by governance which is then applied proportionally to the KMS and coprocessor staking contracts, with the KMS operators receiving 60% of the rewards and the coprocessor operators receiving the remaining 40%. For each operator staking contract, the rewards are then distributed to the delegators based on the weight of their shares, and the operator receives a commission fee on these rewards as their payment for running a node. A slashing mechanism is in place to penalize operators for misbehavior.
+
 ## Terminology
 
 * **Protocol Staking Contract**: The root contract in the hierarchy where operators stake $ZAMA on the protocol.
 * **Operator Staking Contract**: A contract deployed per operator that pools $ZAMA from the operator and their delegators to stake in the Protocol Staking contract.
 * **Operator Rewarder Contract**: A contract associated with each Operator Staking contract, responsible for distributing staking rewards and commission fees to delegators and operators, respectively.
-* **Operator**: An entity that manages an Operator Staking contract, participates in protocol staking, and receives commission fees.
+* **Operator**: An entity that runs at least one Zama Protocol node (KMS or Coprocessor) and receives staking commission fees in compensation. More info about operators in the [litepaper](https://docs.zama.org/protocol/zama-protocol-litepaper#components).
 * **Delegator**: A token holder who delegates their $ZAMA into an Operator Staking contract to earn staking rewards.
-* **Controller**: An address that manages the lifecycle of a redemption request. It is the authority that initiates an unstake and claims the underlying tokens.
-* **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim accumulated fees).
-* **Protocol Staking Token (`$stZAMA`)**: The illiquid share token received by the Operator Staking contract when it stakes $ZAMA into the protocol.
-* **Operator Staking Token (e.g., `$stZAMA-OP-A`)**: The liquid, 20-decimal share token received by a delegator when staking $ZAMA into a specific operator's pool.
+* **Beneficiary**: The address authorized by an operator to manage their Operator Rewarder contract (e.g., set commission rates, claim and receive accumulated fees).
 * **Staking Rewards**: Yields accumulated in the Protocol Staking contract that are distributed to delegators through the Operator Rewarder contract.
-* **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services.
-* **Owner**: The owner role for a given contract. For the mainnet `ProtocolStaking`, `OperatorStaking`, and `OperatorRewarder`, the `owner()` function returns the address of the DAO governance contract handled by Zama, which has the administrative rights (like replacing the rewarder or beneficiary through a proposal).
+* **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services. The commission fee is set by the operator and can be set to a maximum of 20%.
+* **Owner**: The owner of all staking contracts, holding several administrative rights. For mainnet, the owner is the Protocol DAO governance (see [protocol governance](governance.md)).
 
 ## Contract addresses
 
@@ -31,8 +34,6 @@ Anyone can stake on the protocol, but only the elected operators receive commiss
 {% hint style="success" %}
 All staking happens on Ethereum. Only non-confidential $ZAMA is supported for now.
 {% endhint %}
-
-All contracts are owned and maintained by [protocol governance](governance.md).
 
 ### Structure
 
