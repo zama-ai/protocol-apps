@@ -162,7 +162,7 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 ### Redeem shares
 
-Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable via protocol governance. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the contract owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
 
 #### Redeeming shares through the dashboard
 
@@ -337,7 +337,7 @@ The beneficiary of an `OperatorRewarder` contract is the address that can set an
 
 To find the beneficiary of an `OperatorRewarder` contract, you can use the `beneficiary()` view function.
 
-An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by protocol governance.
+An `OperatorRewarder` beneficiary has the authority to change the fee percentage for the associated contract through the `setFee(uint16 basisPoints)` function. The fee percentage is set in basis points, where 10000 is 100%. Note that fees are subject to a maximum of 20% (2000 basis points) set by the contract owner.
 
 If an operator wants to receive "regular" staking rewards in addition to their commission fee, they can simply act as a delegator by staking assets into their own `OperatorStaking` contract. They would then receive both:
 * The **Commission Fee** on the pool's total generated rewards.
@@ -429,38 +429,36 @@ operatorRewarder.setFee(1000);
 
 ## Staking rewards calculation
 
+> [!TIP]
+> For a full interactive walkthrough with example outputs, see the [APY notebook](../contracts/staking/APY.ipynb).
+
 ### Calculating the rewards rate
 
 The rewards rate is defined as tokens-per-second and is determined as follows:
 
-1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This is currently set to 5% but may be changed through a governance proposal.
+1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This percentage (`TOTAL_YEARLY_INFLATION_PROPORTION`) is **a variable controlled by DAO governance** and is currently set to **5%**.
 2. This total amount is divided between the roles, with 40% going to coprocessor operators and 60% to KMS operators.
 3. Each per role amount is converted into a per role tokens-per-second reward rate for the year.
 
-To calculate the rewards rate for each role, we can use the following formula:
-
 ```python
 SECONDS_PER_YEAR = 365 * 24 * 60 * 60
-TOTAL_YEARLY_INFLATION_PROPORTION = 0.05
 TOTAL_SUPPLY = 11_000_000_000 * 10**18
 
-def get_reward_rate() -> tuple[int, int]:
+def get_reward_rate(total_yearly_inflation_proportion: float) -> tuple[int, int]:
     """
     Compute the reward rates for KMS and Coprocessors based on total supply.
-    
-    :return: A tuple (rate_kms, rate_coprocessors) in tokens per second
+
+    :param total_yearly_inflation_proportion: Decimal value of the total yearly inflation (e.g. 0.05)
+    :return: A tuple (rate_kms, rate_coprocessors) in tokens per second (with 18 decimals)
     """
-    # Calculate the total yearly fees and rewards
-    total_fees_rewards = int(TOTAL_SUPPLY * TOTAL_YEARLY_INFLATION_PROPORTION)
-    
-    # Divide into KMS (60%) and Coprocessors (40%)
+    total_fees_rewards = int(TOTAL_SUPPLY * total_yearly_inflation_proportion)
+
     total_fees_rewards_kms = int(total_fees_rewards * 0.60)
     total_fees_rewards_coprocessors = int(total_fees_rewards * 0.40)
-    
-    # Calculate the per-second rates
+
     rate_kms = total_fees_rewards_kms // SECONDS_PER_YEAR
     rate_coprocessors = total_fees_rewards_coprocessors // SECONDS_PER_YEAR
-    
+
     return rate_kms, rate_coprocessors
 ```
 
@@ -470,9 +468,7 @@ The native APR for delegating to an operator depends on several factors:
 
 1. [**Reward Rate:**](#calculating-the-rewards-rate) The rate of tokens per second, retrieved from `ProtocolStaking.rewardRate()`.
 2. **Tokens per Pool:** The number of deposited tokens in each eligible `OperatorStaking` pool, retrieved from `ProtocolStaking.balanceOf(address(OperatorStaking))`.
-3. **Fees per Pool:** The commission fee for each corresponding `OperatorRewarder` in basis points (where 10000 is 100%), retrieved from `OperatorRewarder.feeBasisPoints()`.
-
-To calculate the APR for each operator pool, we can use the following formula:
+3. **Fees per Pool:** The commission fee for each corresponding `OperatorRewarder` in basis points, retrieved from `OperatorRewarder.feeBasisPoints()`.
 
 ```python
 import math
