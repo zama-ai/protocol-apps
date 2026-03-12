@@ -37,7 +37,7 @@ All staking happens on Ethereum. Only non-confidential $ZAMA is supported for no
 
 ### Structure
 
-The hierarchy is implemented by a protocol staking contract and an operator staking contract. The protocol staking contract is at the root, and one operator staking contract is deployed per operator. An accompying operator rewarder contract is deployed for each operator staking contract, and this rewarder contract is responsible for paying out commission fees and staking rewards.
+The hierarchy is implemented by a [protocol staking contract](#contract-protocolstaking) and an [operator staking contract](#contract-operatorstaking). The protocol staking contract is at the root, and one operator staking contract is deployed per operator. An accompying [operator rewarder contract](#contract-operatorrewarder) is deployed for each operator staking contract, and this rewarder contract is responsible for paying out commission fees and staking rewards.
 
 ```mermaid
 flowchart TB
@@ -58,13 +58,13 @@ flowchart BT
     Delegator-2 -- delegate $ZAMA --> OperatorStaking-A
 ```
 
-In return, the operator staking contract obtains protocol staking shares, and the delegator obtains operator staking shares. In the diagram below these are `$stZAMA` and `$stZAMA-OP-A`, respectively.
+In return, the operator staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Network` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
 
 ```mermaid
 flowchart TB
     ProtocolStaking -. $stZAMA .-> OperatorStaking-A
-    OperatorStaking-A -. $stZAMA-OP-A .-> Delegator-1
-    OperatorStaking-A -. $stZAMA-OP-A .-> Delegator-2
+    OperatorStaking-A -. $stZAMA-Zama-KMS .-> Delegator-1
+    OperatorStaking-A -. $stZAMA-Zama-KMS .-> Delegator-2
 ```
 
 The operator staking shares are liquid and unique for each operator staking contract, while the protocol staking shares are not liquid, meaning they can only be redeemed for $ZAMA by the operator staking contract.
@@ -83,17 +83,19 @@ flowchart TB
     OperatorStaking-A -. rewards minus fees .-> Delegator-2
 ```
 
-The commission fee percentage is independently set (within the maximum allowed by governance) for each operator staking contract by the assigned operator.
+The commission fee percentage is independently set (within the maximum allowed by [Protocol DAO governance](governance.md)) for each operator staking contract by the assigned operator.
 
 ## Quick Start
 
 {% hint style="info" %}
 
-Many staking operations can be performed through the Zama staking dashboard. The dashboard can be found on the [Zama apps](./apps.md) page.
+Many common staking operations can be performed through the Zama staking dashboard. See the [Zama apps](./apps.md) page.
 
 {% endhint %}
 
 ### Delegate $ZAMA
+
+Delegating $ZAMA to an operator is a two-step process. First, you must approve the operator's staking contract to spend your tokens, and then you call the `deposit` function to mint shares.
 
 ```solidity
 // 1. Approve the OperatorStaking contract to spend your $ZAMA
@@ -110,8 +112,6 @@ uint256 shares = operatorStaking.deposit(amountToDelegate, receiver);
 ```
 
 ### Claim staking rewards
-
-Rewards can be claimed programmatically by interacting with the smart contracts directly.
 
 First, fetch the `OperatorRewarder` contract from the `OperatorStaking` address:
 
@@ -147,7 +147,9 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 ### Redeem shares
 
-Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period. Shares from the protocol staking contracts are *not* transferable.
+Redeeming from operator staking contracts is a two-step process subject to a cooldown period (determined by the protocol staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that operator staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
+
+Note that all operator staking shares use 20 decimals. See [Operator Staking decimals](#operator-staking-decimals) for more information.
 
 ```solidity
 // 1. Request redeem
@@ -173,6 +175,15 @@ uint256 assetsReceived = operatorStaking.redeem(shares, receiverAddress, control
 ## Contract: ProtocolStaking
 
 The `ProtocolStaking` contract acts as the root of the hierarchy where operators stake their pooled $ZAMA.
+
+### Protocol Staking token
+
+The `ProtocolStaking` contract issues a share token to acknowledge the amount of $ZAMA staked by an operator. There are two separate protocol staking tokens, one for each of the deployed KMS and coprocessor `ProtocolStaking` contracts:
+
+* `$stZAMA-KMS`
+* `$stZAMA-Coprocessor`
+
+These tokens use 18 decimals and are non-transferable.
 
 ### Protocol Staking functions
 
@@ -225,16 +236,18 @@ protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
 
 The `OperatorStaking` contract serves as a dedicated staking pool for a specific network operator. It enables delegators to pool their $ZAMA tokens, which are then collectively staked into the `ProtocolStaking` contract to earn rewards.
 
-Each operator has their own `OperatorStaking` instance, acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares (e.g., `$stZAMA-OP-A`) representing their proportional ownership of the pool's assets and future rewards.
+### Operator Staking token
 
-### Operator Staking decimals
+Each operator has their own `OperatorStaking` instance, acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. These token shares are fully transferable and use 20 decimals. 
+
+#### Operator Staking decimals
 
 To mitigate the well-known ERC4626 inflation attack, the `OperatorStaking` contract implements a decimal offset of 2. This means that 1 unit of the underlying asset is represented as 100 units of shares. 
 
-Because the underlying staked asset ($ZAMA) has 18 decimals, the resulting operator staking shares (e.g., $stZAMA-OP-A) will always possess 20 decimals. When interacting with the contracts or calculating balances, it is important to remember this distinction. 
+Because the underlying staked asset ($ZAMA) has 18 decimals, the resulting operator staking shares will always possess 20 decimals. When interacting with the contracts or calculating balances, it is important to remember this distinction. 
 
 For example, when looking at the total stake of a pool or calculating historical rewards across different contracts:
-* Calling `totalSupply()` on an `OperatorStaking` contract returns the total pool shares in the form of virtual shares. If the value returned is **100 * 10^20**, this equates to 100 $stZAMA-OP-A shares because the shares use 20 decimals.
+* Calling `totalSupply()` on an `OperatorStaking` contract returns the total pool shares in the form of virtual shares. If the value returned is **100 * 10^20**, this equates to 100 `$stZAMA-Zama-KMS` shares because the shares use 20 decimals.
 
 ### Operator eligibility
 
