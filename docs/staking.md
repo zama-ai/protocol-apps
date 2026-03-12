@@ -108,7 +108,7 @@ Many common staking operations can be performed through the Zama staking dashboa
 
 ### Delegate $ZAMA
 
-Delegating $ZAMA to an operator is a two-step process. First, you must approve the Operator Staking contract to spend your tokens, and then you call the `deposit` function to mint shares.
+Delegating $ZAMA to an operator is a two-step process. First, you must approve the `OperatorStaking` contract to spend your tokens, and then you call the `deposit` function to mint operator staking shares.
 
 ```solidity
 // 1. Approve the OperatorStaking contract to spend your $ZAMA
@@ -118,8 +118,8 @@ bool approvalSuccess = zamaToken.approve(operatorStakingAddress, amountToDelegat
 // 2. Deposit (Delegate) the $ZAMA
 
 // amountToDelegate: amount of assets to deposit.
-// receiver: address to receive the minted shares.
-// shares: amount of shares minted.
+// receiver: address to receive the minted operator staking shares.
+// shares: amount of operator staking shares minted.
 
 uint256 shares = operatorStaking.deposit(amountToDelegate, receiver);
 ```
@@ -160,7 +160,7 @@ IOperatorRewarder(rewarderAddress).claimFee();
 
 ### Redeem shares
 
-Redeeming from Operator Staking contracts is a two-step process subject to a cooldown period (determined by the Protocol Staking contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that Operator Staking contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
+Redeeming from `OperatorStaking` contracts is a two-step process subject to a cooldown period (determined by the `ProtocolStaking` contract). The period is currently set to 7 days on mainnet (3 minutes on testnet) and is updatable by the owner. Note that `OperatorStaking` contract shares are transferable (as ordinary ERC20), and hence offer an alternative “withdrawal" process without being subject to the cooldown period.
 
 All redemption requests are managed by a controller. See [The controller](#the-controller) for more information.
 
@@ -270,7 +270,7 @@ The following functions require the caller to have the `MANAGER_ROLE` set on the
 
 #### Manage eligible accounts
 
-Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., Operator Staking contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
+Manages which addresses are currently eligible to earn global rewards from the protocol (e.g., `OperatorStaking` contracts). Anyone can call `stake()` on the `ProtocolStaking` contract, but only eligible accounts will actually earn rewards on their staked tokens.
 
 When an account's eligibility is added or removed, the contract automatically snapshots that account's reward state. This ensures that rewards are only accrued for the exact duration the account was eligible.
 
