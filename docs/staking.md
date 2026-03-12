@@ -211,6 +211,12 @@ weight = Math.sqrt(stakedAmount)
 
 This weighting system incentivizes broader participation and reduces the impact of large token holders on the reward distribution.
 
+### Protocol Staking owner
+
+The `ProtocolStaking` contract owner acts as the owner of the entire staking hierarchy. This owner is set on contract deployment, and the ownership authority is propagated to `OperatorStaking` contracts and `OperatorRewarder` contracts.
+
+The owner is not the same as the `MANAGER_ROLE` on the `ProtocolStaking` contract. The `MANAGER_ROLE` is a separate role that can be granted to other addresses to perform specific [management functions](#manager-functions), such as updating the unstake cooldown period and reward rate.
+
 ### User functions
 
 #### Stake tokens
@@ -496,7 +502,7 @@ address rewarderAddr = operatorStaking.rewarder();
 
 #### Get owner
 
-Returns the owner address (inherited from the `ProtocolStaking` contract owner).
+Returns the owner address (inherited from `ProtocolStaking`).
 
 ```solidity
 address protocolOwner = operatorStaking.owner();
@@ -700,7 +706,7 @@ uint256 historical = operatorRewarder.historicalReward();
 
 #### Get owner
 
-Returns the owner address (inherited from the `ProtocolStaking` contract owner).
+Returns the owner address (inherited from `ProtocolStaking`).
 
 ```solidity
 address protocolOwner = operatorRewarder.owner();
