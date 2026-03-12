@@ -294,7 +294,7 @@ protocolStaking.setRewardRate(newRewardRate);
 
 #### Set unstake cooldown period
 
-Updates the mandatory waiting period between unstaking and releasing tokens. Note that changes to this period do not affect unstake requests that are already in progress.
+Updates the mandatory waiting period between unstaking and releasing tokens. Existing unstake requests are unaffected. Note that since release times are strictly increasing per account, reducing the cooldown period only takes full effect once an account's previous, longer cooldowns have elapsed.
 
 ```solidity
 protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
