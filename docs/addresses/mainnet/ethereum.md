@@ -18,15 +18,15 @@
 
 ### Confidential wrappers
 
-| Name                | Symbol  | Address |
-| ------------------- | ------- | ------- |
-| Confidential USDC | `cUSDC` | [`0xe978F22157048E5DB8E5d07971376e86671672B2`](https://etherscan.io/address/0xe978F22157048E5DB8E5d07971376e86671672B2) |
-| Confidential USDT | `cUSDT` | [`0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50`](https://etherscan.io/address/0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50) |
-| Confidential WETH | `cWETH` | [`0xda9396b82634Ea99243cE51258B6A5Ae512D4893`](https://etherscan.io/address/0xda9396b82634Ea99243cE51258B6A5Ae512D4893) |
-| Confidential BRON | `cBRON` | [`0x85dE671c3bec1aDeD752c3Cea943521181C826bc`](https://etherscan.io/address/0x85dE671c3bec1aDeD752c3Cea943521181C826bc) |
-| Confidential ZAMA | `cZAMA` | [`0x80CB147Fd86dC6dEe3Eee7e4Cee33d1397d98071`](https://etherscan.io/address/0x80CB147Fd86dC6dEe3Eee7e4Cee33d1397d98071) |
-| Confidential tGBP | `ctGBP` | [`0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9`](https://etherscan.io/address/0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9) |
-| Confidential XAUt | `cXAUt` | [`0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1`](https://etherscan.io/address/0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1) |
+| Name                | Symbol  | Address | Underlying token |
+| ------------------- | ------- | ------- | ---------------- |
+| Confidential USDC | `cUSDC` | [`0xe978F22157048E5DB8E5d07971376e86671672B2`](https://etherscan.io/address/0xe978F22157048E5DB8E5d07971376e86671672B2) | [`0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48`](https://etherscan.io/token/0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) |
+| Confidential USDT | `cUSDT` | [`0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50`](https://etherscan.io/address/0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50) | [`0xdAC17F958D2ee523a2206206994597C13D831ec7`](https://etherscan.io/token/0xdAC17F958D2ee523a2206206994597C13D831ec7) |
+| Confidential WETH | `cWETH` | [`0xda9396b82634Ea99243cE51258B6A5Ae512D4893`](https://etherscan.io/address/0xda9396b82634Ea99243cE51258B6A5Ae512D4893) | [`0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) |
+| Confidential BRON | `cBRON` | [`0x85dE671c3bec1aDeD752c3Cea943521181C826bc`](https://etherscan.io/address/0x85dE671c3bec1aDeD752c3Cea943521181C826bc) | [`0xBA2C598E11eD093079cC324FCa5BbbA99F616E83`](https://etherscan.io/token/0xBA2C598E11eD093079cC324FCa5BbbA99F616E83) |
+| Confidential ZAMA | `cZAMA` | [`0x80CB147Fd86dC6dEe3Eee7e4Cee33d1397d98071`](https://etherscan.io/address/0x80CB147Fd86dC6dEe3Eee7e4Cee33d1397d98071) | [`0xA12CC123ba206d4031D1c7f6223D1C2Ec249f4f3`](https://etherscan.io/token/0xA12CC123ba206d4031D1c7f6223D1C2Ec249f4f3) |
+| Confidential tGBP | `ctGBP` | [`0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9`](https://etherscan.io/address/0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9) | [`0x27f6c8289550fce67f6b50bed1f519966afe5287`](https://etherscan.io/token/0x27f6c8289550fce67f6b50bed1f519966afe5287) |
+| Confidential XAUt | `cXAUt` | [`0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1`](https://etherscan.io/address/0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1) | [`0x68749665FF8D2d112Fa859AA293F07A622782F38`](https://etherscan.io/token/0x68749665FF8D2d112Fa859AA293F07A622782F38)  |
 
 
 ## Staking
