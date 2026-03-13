@@ -1,6 +1,6 @@
 # Staking
 
-The Zama Protocol utilizes a **Delegated Proof of Stake (DPoS)** system to secure the network and provide an incentive layer for operators. $ZAMA token holders secure the network by delegating their tokens to eligible operators who manage critical infrastructure: Key Management Service (KMS) nodes and Fully Homomorphic Encryption (FHE) coprocessors.
+The Zama Protocol secures itself by allowing $ZAMA token holders to delegate on operators, incentivising them to run its core components: KMS nodes and Coprocessors. More information in the [FHEVM litepaper documentation](https://docs.zama.org/protocol/zama-protocol-litepaper).
 
 ## Terminology
 
@@ -22,8 +22,8 @@ All deployed staking contract addresses can be found in the [ethereum addresses 
 
 Staking in the Zama protocol happens in a two level hierarchy:
 
-* Operators stake $ZAMA on the protocol
-* Token holders delegate $ZAMA to operators to stake on their behalf
+* Operator pools stake $ZAMA on the protocol
+* Token holders delegate $ZAMA to operator pools to stake on their behalf
 
 Anyone can stake on the protocol, but only the elected operators receive commission fees, and only the delegators on elected operators receive staking rewards. Operators are chosen multiple times per year via governance and have a responsibility to participate in the daily execution of the protocol.
 
@@ -191,9 +191,9 @@ uint256 assetsReceived = operatorStaking.redeem(shares, receiverAddress, control
 
 The `ProtocolStaking` contract acts as the root of the hierarchy where operators stake their pooled $ZAMA.
 
-### Protocol Staking token
+### Protocol Staking shares
 
-The `ProtocolStaking` contract issues a share token to acknowledge the amount of $ZAMA staked by an operator. There are two separate protocol staking tokens, one for each of the deployed KMS and coprocessor `ProtocolStaking` contracts:
+The `ProtocolStaking` contract issues a share token to acknowledge the amount of $ZAMA staked by an operator. There are two separate protocol staking share tokens, one for each of the deployed KMS and coprocessor `ProtocolStaking` contracts:
 
 * `$stZAMA-KMS`
 * `$stZAMA-Coprocessor`
@@ -223,50 +223,11 @@ It is important to note that only _eligible_ `OperatorStaking` contracts generat
 
 ### User functions
 
-#### Stake tokens
-
-Stakes $ZAMA tokens directly into the `ProtocolStaking` contract, minting protocol staking shares. Note: this is called automatically by `OperatorStaking` during delegation. Direct calls are typically only needed by the `OperatorStaking` contract itself.
-
-```solidity
-protocolStaking.stake(amount);
-```
-
-#### Unstake tokens
-
-Initiates the unstaking cooldown for `amount` tokens. Tokens are not immediately returned; they must be released via `release()` after the cooldown period elapses.
-
-```solidity
-// Returns the timestamp when the tokens will be available for release.
-uint48 releaseTime = protocolStaking.unstake(amount);
-```
-
-#### Release tokens
-
-Releases tokens requested to be unstaked after the cooldown period elapses. Can be called by anyone on behalf of any account.
-
-```solidity
-protocolStaking.release(accountAddress);
-```
-
-#### Claim rewards
-
-Claims all pending staking rewards for an account. Rewards are minted and sent to the configured rewards recipient. Can be called by anyone.
-
-```solidity
-protocolStaking.claimRewards(accountAddress);
-```
-
-#### Set rewards recipient
-
-Redirects all future reward payouts for the caller (`msg.sender`) to the given recipient address (`recipientAddress`). Setting a value of `address(0)` sends rewards to the caller directly, which is the default behavior.
-
-```solidity
-protocolStaking.setRewardsRecipient(recipientAddress);
-```
+Non-role-restricted public functions on `ProtocolStaking` are not intended for direct use. They should only be called by `OperatorStaking` contracts.
 
 ### Manager functions
 
-The following functions require the caller to have the `MANAGER_ROLE` set on the contract:
+The `MANAGER_ROLE` is granted to the [Protocol DAO governance](governance.md) on mainnet. The following functions require the caller to have the `MANAGER_ROLE` set on the contract:
 
 #### Manage eligible accounts
 
@@ -304,7 +265,7 @@ protocolStaking.setUnstakeCooldownPeriod(newCooldownPeriod);
 
 #### Get earned rewards
 
-Returns the amount of $ZAMA rewards currently accrued for an account that are available to be claimed.
+Returns the amount of $ZAMA rewards currently accrued for an account that are available to be claimed. The `accountAddress` must be an [eligible](#operator-eligibility) account, otherwise, this function will always return 0.
 
 ```solidity
 uint256 rewards = protocolStaking.earned(accountAddress);
@@ -376,6 +337,14 @@ Returns `true` if an account has the `ELIGIBLE_ACCOUNT_ROLE` and will earn rewar
 bool eligible = protocolStaking.isEligibleAccount(accountAddress);
 ```
 
+#### Get owner
+
+Returns the owner address. See [Protocol Staking owner](#protocol-staking-owner) for more information.
+
+```solidity
+address protocolOwner = protocolStaking.owner();
+```
+
 ### Events
 
 | Event | Description |
@@ -400,7 +369,7 @@ bool eligible = protocolStaking.isEligibleAccount(accountAddress);
 
 The `OperatorStaking` contract serves as a dedicated staking pool for a specific network operator. It enables delegators to pool their $ZAMA tokens, which are then collectively staked into the `ProtocolStaking` contract to earn rewards.
 
-### Operator Staking token
+### Operator Staking shares
 
 Each operator has their own `OperatorStaking` instance acting as an [ERC4626](https://eips.ethereum.org/EIPS/eip-4626)-compliant vault. When users delegate $ZAMA, they receive operator-specific staking shares representing their proportional ownership of the pool's assets and future rewards. These token shares are fully transferable and use 20 decimals. 
 
@@ -887,3 +856,9 @@ def compute_native_apr(
     
     return pool_aprs
 ```
+
+## Upgradability
+
+The `ProtocolStaking` and `OperatorStaking` contracts are upgradeable using the **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade these contracts.
+
+The `OperatorRewarder` contract is not upgradeable.
