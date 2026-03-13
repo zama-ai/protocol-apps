@@ -20,7 +20,7 @@ npx hardhat vars set ZAMA_FHEVM_API_KEY <your-api-key>
 
 # Request a user decryption
 
-Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e `PRIVATE_KEY` for the user's private key requesting the user decryption, as well as `MAINNET_RPC_URL` (for mainnet) or `TESTNET_RPC_URL` (for testnet).
+Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e `PRIVATE_KEY` for the user's private key (or alternatively, `MNEMONIC`) requesting the user decryption, as well as `MAINNET_ETHEREUM_RPC_URL` (for mainnet) or `TESTNET_ETHEREUM_RPC_URL` (for testnet).
 
 To request a user decryption, use a command similar to this example:
 
@@ -32,7 +32,7 @@ Replace the `handle` flag value from previous command by a handle you are allowe
 
 # Request an encryption
 
-Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e just `MAINNET_RPC_URL` (for mainnet) or `TESTNET_RPC_URL` (for testnet).
+Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e just `MAINNET_ETHEREUM_RPC_URL` (for mainnet) or `TESTNET_ETHEREUM_RPC_URL` (for testnet).
 
 To request an input encryption, use a command similar to this example:
 
@@ -44,7 +44,7 @@ Replace the `input-value` flag value from previous command by the custom value y
 
 # Request a public decryption
 
-Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e just `MAINNET_RPC_URL` (for mainnet) or `TESTNET_RPC_URL` (for testnet).
+Before running this command, ensure you have filled needed environement variables values inside your `.env` file: i.e just `MAINNET_ETHEREUM_RPC_URL` (for mainnet) or `TESTNET_ETHEREUM_RPC_URL` (for testnet).
 
 To request a public decryption, use a command similar to this example:
 
