@@ -47,12 +47,13 @@ The protocol uses two distinct yet structurally identical staking ecosystems for
 
 ```mermaid
 flowchart TD
+    classDef protocolNode width:220px
     %% KMS Branch
-    KPS([Key Management Service ProtocolStaking]) --- KOP_A[OperatorStaking-A]
+    KPS([KMS ProtocolStaking]):::protocolNode --- KOP_A[OperatorStaking-A]
     KPS --- KOP_B[OperatorStaking-B]
     
     %% Coprocessor Branch
-    CPS([Coprocessor ProtocolStaking]) --- COP_A[OperatorStaking-C]
+    CPS([Coprocessor ProtocolStaking]):::protocolNode --- COP_A[OperatorStaking-C]
     CPS --- COP_B[OperatorStaking-D]
 ```
 
