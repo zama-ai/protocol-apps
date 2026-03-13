@@ -72,7 +72,7 @@ flowchart BT
     Delegator-2 -- delegate $ZAMA --> OperatorStaking-A
 ```
 
-In return, the Operator Staking contract obtains [protocol staking shares](#protocol-staking-token), and the delegator obtains [operator staking shares](#operator-staking-token). The operator staking shares use the `$stZAMA-OperatorName-Domain` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
+In return, the Operator Staking contract obtains [protocol staking shares](#protocol-staking-shares), and the delegator obtains [operator staking shares](#operator-staking-shares). The operator staking shares use the `$stZAMA-OperatorName-Domain` naming convention. In the diagram below these are `$stZAMA` and `$stZAMA-Zama-KMS`, respectively.
 
 ```mermaid
 flowchart TB
@@ -324,7 +324,7 @@ uint256 rate = protocolStaking.rewardRate();
 
 #### Get rewards recipient
 
-Returns the configured recipient address for an account's rewards. If not set, returns the account address itself. A rewards recipient can be set via [setRewardsRecipient()](#set-rewards-recipient).
+Returns the configured recipient address for an account's rewards. If not set, returns the account address itself.
 
 ```solidity
 address recipient = protocolStaking.rewardsRecipient(accountAddress);
