@@ -1,5 +1,22 @@
 [profile.default]
 src = 'contracts'
-libs = ['node_modules']
+out = 'out'
+test = 'test/foundry'
+cache_path = 'cache_forge'
+libs = ['lib', 'node_modules'] 
 solc = '0.8.27'
-optimizer_runs = 200
+optimizer = true
+optimizer_runs = 800
+evm_version = 'cancun'
+
+remappings = [
+    'forge-std/=lib/forge-std/src/',
+    '@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/',
+    '@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/',
+    'token/=../token/',
+]
+
+[invariant]
+runs = 296
+depth = 100
+fail_on_revert = true
