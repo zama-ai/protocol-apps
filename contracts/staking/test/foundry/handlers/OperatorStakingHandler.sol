@@ -78,33 +78,21 @@ contract OperatorStakingHandler is Test {
         return actors[index];
     }
 
+    function getPendingRedeemsCount() external view returns (uint256) {
+        return ghost_pendingRedeems.length;
+    }
+
+    function getPendingRedeem(uint256 index) external view returns (address controller, uint48 releaseTime) {
+        PendingRedeem memory pending = ghost_pendingRedeems[index];
+        return (pending.controller, pending.releaseTime);
+    }
+
     function _repairAllowanceWhenPermit() internal {
         if (ghost_lastPermitActor != address(0)) {
             vm.prank(ghost_lastPermitActor);
             assetToken.approve(address(operatorStaking), type(uint256).max);
             ghost_lastPermitActor = address(0);
         }
-    }
-
-    /// @dev Iterates through pending redeems using a random seed to find one strictly in the future.
-    /// @param seed A random number from the fuzzer to use as a starting point.
-    /// @return found True if a future redeem request exists.
-    /// @return targetIndex The array index of the found request.
-    function _findFuturePendingRedeem(uint256 seed) internal view returns (bool found, uint256 targetIndex) {
-        uint256 length = ghost_pendingRedeems.length;
-        if (length == 0) return (false, 0);
-
-        uint256 startIndex = seed % length;
-
-        for (uint256 i = 0; i < length; i++) {
-            uint256 currentIndex = (startIndex + i) % length;
-
-            if (ghost_pendingRedeems[currentIndex].releaseTime > block.timestamp) {
-                return (true, currentIndex);
-            }
-        }
-
-        return (false, 0);
     }
 
     /// @dev O(1) removal of a pending redeem from the ghost array
@@ -146,24 +134,6 @@ contract OperatorStakingHandler is Test {
     function warp(uint256 duration) public assertTransitionInvariants {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         vm.warp(block.timestamp + duration);
-    }
-
-    /// @dev Redeems shares at the exact cooldown time
-    function redeemAtExactCooldown(uint256 seed) external assertTransitionInvariants {
-        // Find a valid future request
-        (bool found, uint256 targetIndex) = _findFuturePendingRedeem(seed);
-        if (!found) return;
-
-        PendingRedeem memory pending = ghost_pendingRedeems[targetIndex];
-
-        // Warp to the exact release time
-        vm.warp(pending.releaseTime);
-
-        uint256 claimableShares = operatorStaking.claimableRedeemRequest(pending.controller);
-        uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
-        uint256 assetsReturned = _executeRedeem(pending.controller, claimableShares);
-
-        assertEq(assetsReturned, expectedAssets, "Redeem succeeded but returned wrong amount");
     }
 
     // function setOperator(uint256 operatorIndex, bool approved) external assertTransitionInvariants {

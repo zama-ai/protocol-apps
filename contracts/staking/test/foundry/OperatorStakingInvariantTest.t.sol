@@ -109,6 +109,33 @@ contract OperatorStakingInvariantTest is Test {
         }
     }
 
+    /// @notice Proves that every pending redemption can be successfully claimed the exact second its cooldown elapses.
+    function invariant_redeemAtExactCooldown() public {
+        uint256 count = handler.getPendingRedeemsCount();
+        if (count == 0) return;
+
+        // Save the current timestamp so we can return to it
+        uint256 originalTimestamp = block.timestamp;
+
+        for (uint256 i = 0; i < count; i++) {
+            (address controller, uint48 releaseTime) = handler.getPendingRedeem(i);
+
+            // Only test requests that are strictly in the future
+            if (releaseTime > originalTimestamp) {
+                vm.warp(releaseTime);
+
+                uint256 claimableShares = operatorStaking.claimableRedeemRequest(controller);
+                uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
+
+                vm.prank(controller);
+                uint256 assetsReturned = operatorStaking.redeem(claimableShares, controller, controller);
+
+                assertEq(assetsReturned, expectedAssets, "Invariant: Exact cooldown redeem returned wrong amount");
+                vm.warp(originalTimestamp);
+            }
+        }
+    }
+
     // Placeholder invariant while scaffold is being built out.
     function invariant_ScaffoldConfigured() public view {
         assertTrue(address(handler) != address(0), "handler should be configured");
