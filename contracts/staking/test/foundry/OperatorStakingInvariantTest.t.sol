@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
 import {OperatorStakingHarness} from "./harness/OperatorStakingHarness.sol";
@@ -16,31 +15,52 @@ contract OperatorStakingInvariantTest is Test {
     ZamaERC20 internal zama;
     OperatorStakingHandler internal handler;
 
-    address internal governor = address(1);
-    address internal manager = address(2);
-    address internal admin = address(3);
-    address internal beneficiary = address(4);
+    address internal governor = makeAddr("governor");
+    address internal manager = makeAddr("manager");
+    address internal admin = makeAddr("admin");
+    address internal beneficiary = makeAddr("beneficiary");
 
-    uint256 internal constant ACTOR_COUNT = 5;
-    uint256 internal constant INITIAL_TOTAL_SUPPLY = 1_000_000 ether;
-    uint256 internal constant INITIAL_REWARD_RATE = 1e18; // 1 token/second
-    uint48 internal constant INITIAL_UNSTAKE_COOLDOWN_PERIOD = 60 seconds;
+    uint256 internal constant MIN_ACTOR_COUNT = 5;
+    uint256 internal constant MAX_ACTOR_COUNT = 20;
+
+    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1 ether;
+    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1_000_000_000 ether;
+
+    uint48 internal constant MIN_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
+    uint48 internal constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
+
+    uint256 internal constant MIN_REWARD_RATE = 0;
+    uint256 internal constant MAX_REWARD_RATE = 1e24;
+
     uint16 internal constant INITIAL_MAX_FEE_BPS = 10_000;
     uint16 internal constant INITIAL_FEE_BPS = 0;
 
     function setUp() public {
-        address[] memory actorsList = new address[](ACTOR_COUNT);
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
-            actorsList[i] = address(uint160(10 + i));
+        uint256 initialDistribution = uint256(vm.randomUint(MIN_INITIAL_DISTRIBUTION, MAX_INITIAL_DISTRIBUTION));
+        uint48 initialUnstakeCooldownPeriod = uint48(
+            vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD)
+        );
+        uint256 initialRewardRate = uint256(vm.randomUint(MIN_REWARD_RATE, MAX_REWARD_RATE));
+        uint256 actorCount = uint256(vm.randomUint(MIN_ACTOR_COUNT, MAX_ACTOR_COUNT));
+
+        address[] memory actorsList = new address[](actorCount);
+        uint256[] memory actorPrivateKeys = new uint256[](actorCount);
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            // Generate a deterministic wallet for each actor
+            (address addr, uint256 pk) = makeAddrAndKey(string(abi.encodePacked("Actor", vm.toString(i))));
+            actorsList[i] = addr;
+            actorPrivateKeys[i] = pk;
         }
 
-        uint256 initialActorBalance = INITIAL_TOTAL_SUPPLY / ACTOR_COUNT;
-        address[] memory receivers = new address[](ACTOR_COUNT);
-        uint256[] memory amounts = new uint256[](ACTOR_COUNT);
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
+        // Deploy ZamaERC20, mint to all actors, admin is DEFAULT_ADMIN
+        address[] memory receivers = new address[](actorCount);
+        uint256[] memory amounts = new uint256[](actorCount);
+        for (uint256 i = 0; i < actorCount; i++) {
             receivers[i] = actorsList[i];
-            amounts[i] = initialActorBalance;
+            amounts[i] = initialDistribution;
         }
+
         zama = new ZamaERC20("Zama", "ZAMA", receivers, amounts, admin);
 
         ProtocolStaking protocolImpl = new ProtocolStaking();
@@ -52,14 +72,14 @@ contract OperatorStakingInvariantTest is Test {
             address(zama),
             governor,
             manager,
-            INITIAL_UNSTAKE_COOLDOWN_PERIOD,
-            INITIAL_REWARD_RATE
+            initialUnstakeCooldownPeriod,
+            initialRewardRate
         );
         protocolStaking = ProtocolStaking(address(new ERC1967Proxy(address(protocolImpl), protocolInitData)));
 
         OperatorStakingHarness operatorImpl = new OperatorStakingHarness();
         bytes memory operatorInitData = abi.encodeWithSelector(
-            bytes4(keccak256("initialize(string,string,address,address,uint16,uint16)")),
+            operatorImpl.initialize.selector,
             "Operator Staked ZAMA",
             "opstZAMA",
             address(protocolStaking),
@@ -76,23 +96,17 @@ contract OperatorStakingInvariantTest is Test {
         vm.prank(manager);
         protocolStaking.addEligibleAccount(address(operatorStaking));
 
-        for (uint256 i = 0; i < ACTOR_COUNT; i++) {
+        for (uint256 i = 0; i < actorCount; i++) {
             vm.prank(actorsList[i]);
             zama.approve(address(operatorStaking), type(uint256).max);
         }
 
-        handler = new OperatorStakingHandler(operatorStaking, IERC20(address(zama)), protocolStaking, actorsList);
-
+        handler = new OperatorStakingHandler(operatorStaking, zama, protocolStaking, actorsList, actorPrivateKeys);
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](6);
-        selectors[0] = OperatorStakingHandler.warp.selector;
-        selectors[1] = OperatorStakingHandler.setOperator.selector;
-        selectors[2] = OperatorStakingHandler.deposit.selector;
-        selectors[3] = OperatorStakingHandler.requestRedeem.selector;
-        selectors[4] = OperatorStakingHandler.redeem.selector;
-        selectors[5] = OperatorStakingHandler.stakeExcess.selector;
-        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+        for (uint256 i = 0; i < actorCount; i++) {
+            targetSender(actorsList[i]);
+        }
     }
 
     // Placeholder invariant while scaffold is being built out.
