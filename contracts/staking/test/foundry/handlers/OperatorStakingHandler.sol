@@ -171,6 +171,18 @@ contract OperatorStakingHandler is Test {
         ghost_lastRedeemActor = actor;
     }
 
+    /// @notice passes uint256.max as share amount to redeem
+    function redeemMax() external assertTransitionInvariants {
+        address actor = msg.sender;
+        uint256 shares = type(uint256).max;
+
+        vm.prank(actor);
+        uint256 assetsOut = operatorStaking.redeem(shares, actor, actor);
+
+        ghost_redeemed[actor] += assetsOut;
+        ghost_lastRedeemActor = actor;
+    }
+
     function stakeExcess() external assertTransitionInvariants {
         uint256 liquidBalance = assetToken.balanceOf(address(operatorStaking));
         uint256 assetsPendingRedemption = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
