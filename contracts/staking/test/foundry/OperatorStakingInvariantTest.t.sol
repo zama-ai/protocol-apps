@@ -175,6 +175,31 @@ contract OperatorStakingInvariantTest is Test {
         }
     }
 
+    /// @notice Ensures that any account with a balance can always successfully request a redemption,
+    /// and their share balance decreases by exactly the requested amount.
+    function invariant_canAlwaysRequestRedeem() public {
+        uint256 actorCount = handler.actorsLength();
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+            uint256 initialBalance = operatorStaking.balanceOf(actor);
+
+            if (initialBalance > 0) {
+                uint208 amountToRedeem = uint208(initialBalance);
+                vm.prank(actor);
+                operatorStaking.requestRedeem(amountToRedeem, actor, actor);
+
+                uint256 finalBalance = operatorStaking.balanceOf(actor);
+
+                assertEq(
+                    initialBalance - finalBalance,
+                    amountToRedeem,
+                    "Invariant: requestRedeem did not decrease balance by exactly the requested amount"
+                );
+            }
+        }
+    }
+
     // Placeholder invariant while scaffold is being built out.
     function invariant_ScaffoldConfigured() public view {
         assertTrue(address(handler) != address(0), "handler should be configured");
