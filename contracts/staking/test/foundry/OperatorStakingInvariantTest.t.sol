@@ -136,6 +136,39 @@ contract OperatorStakingInvariantTest is Test {
         }
     }
 
+    /// @notice Ensures no user ever loses funds without slashing (Total Recoverable >= Deposited)
+    function invariant_totalRecoverableValue() public view {
+        uint256 actorCount = handler.actorsLength();
+
+        uint256 roundingTolerance = handler.getStakedFundRecoveryRoundingTolerance();
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+
+            uint256 deposited = handler.ghost_deposited(actor);
+            uint256 redeemed = handler.ghost_redeemed(actor);
+
+            // Sum up all shares the user currently owns across all possible states
+            uint256 liquidShares = operatorStaking.balanceOf(actor);
+            uint256 pendingShares = operatorStaking.pendingRedeemRequest(actor);
+            uint256 claimableShares = operatorStaking.claimableRedeemRequest(actor);
+
+            uint256 totalShares = liquidShares + pendingShares + claimableShares;
+
+            // Calculate the current underlying asset value of all combined shares
+            uint256 currentValue = operatorStaking.previewRedeem(totalShares);
+
+            uint256 currentValueAdjusted = currentValue + roundingTolerance;
+
+            // The core invariant: Past withdrawals + Current value >= Total historical deposits
+            assertGe(
+                redeemed + currentValueAdjusted,
+                deposited,
+                "Invariant: User recoverable value is less than deposited"
+            );
+        }
+    }
+
     // Placeholder invariant while scaffold is being built out.
     function invariant_ScaffoldConfigured() public view {
         assertTrue(address(handler) != address(0), "handler should be configured");

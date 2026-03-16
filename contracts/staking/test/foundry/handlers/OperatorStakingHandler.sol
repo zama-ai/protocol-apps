@@ -24,6 +24,9 @@ contract OperatorStakingHandler is Test {
 
     uint256 public constant MAX_PERIOD_DURATION = 365 days * 3;
 
+    // TODO: will be updated once the rounding logic is analyzed.
+    uint256 public constant STAKED_FUND_RECOVERY_ROUNDING_TOLERANCE = 10;
+
     address[] public actors;
     mapping(address => uint256) public actorPrivateKeys;
 
@@ -85,6 +88,12 @@ contract OperatorStakingHandler is Test {
     function getPendingRedeem(uint256 index) external view returns (address controller, uint48 releaseTime) {
         PendingRedeem memory pending = ghost_pendingRedeems[index];
         return (pending.controller, pending.releaseTime);
+    }
+
+    /// @dev Returns the rounding tolerance used for the no loss of funds invariant. Currently set arbitrarily to 10.
+    /// will be updated once the rounding logic is analyzed.
+    function getStakedFundRecoveryRoundingTolerance() external pure returns (uint256) {
+        return STAKED_FUND_RECOVERY_ROUNDING_TOLERANCE;
     }
 
     function _repairAllowanceWhenPermit() internal {
