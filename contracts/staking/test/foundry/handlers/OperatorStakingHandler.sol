@@ -86,43 +86,84 @@ contract OperatorStakingHandler is Test {
         }
     }
 
+    /// @dev Iterates through pending redeems using a random seed to find one strictly in the future.
+    /// @param seed A random number from the fuzzer to use as a starting point.
+    /// @return found True if a future redeem request exists.
+    /// @return targetIndex The array index of the found request.
+    function _findFuturePendingRedeem(uint256 seed) internal view returns (bool found, uint256 targetIndex) {
+        uint256 length = ghost_pendingRedeems.length;
+        if (length == 0) return (false, 0);
+
+        uint256 startIndex = seed % length;
+
+        for (uint256 i = 0; i < length; i++) {
+            uint256 currentIndex = (startIndex + i) % length;
+
+            if (ghost_pendingRedeems[currentIndex].releaseTime > block.timestamp) {
+                return (true, currentIndex);
+            }
+        }
+
+        return (false, 0);
+    }
+
+    /// @dev O(1) removal of a pending redeem from the ghost array
+    function _removePendingRedeem(uint256 index) internal {
+        uint256 lastIndex = ghost_pendingRedeems.length - 1;
+        if (index != lastIndex) {
+            ghost_pendingRedeems[index] = ghost_pendingRedeems[lastIndex];
+        }
+        ghost_pendingRedeems.pop();
+    }
+
+    /// @dev Core logic for redeeming and cleaning up state
+    function _executeRedeem(address actor, uint256 shares) internal returns (uint256 assetsOut) {
+        // Execute redeem
+        vm.prank(actor);
+        assetsOut = operatorStaking.redeem(shares, actor, actor);
+
+        // Track global ghost state
+        ghost_redeemed[actor] += assetsOut;
+        ghost_lastRedeemActor = actor;
+
+        // If this actor has claimed everything currently available to them,
+        // we can safely wipe all of their past requests from the ghost array.
+        if (operatorStaking.claimableRedeemRequest(actor) == 0) {
+            for (uint256 i = ghost_pendingRedeems.length; i > 0; i--) {
+                uint256 index = i - 1;
+                PendingRedeem memory pending = ghost_pendingRedeems[index];
+
+                // If it belongs to the actor and the cooldown has passed, delete it
+                if (pending.controller == actor && pending.releaseTime <= block.timestamp) {
+                    _removePendingRedeem(index);
+                }
+            }
+        }
+    }
+
     // **************** OperatorStaking actions ****************
 
-    function warp(uint256 duration) external assertTransitionInvariants {
+    function warp(uint256 duration) public assertTransitionInvariants {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         vm.warp(block.timestamp + duration);
     }
 
-    function warpToPendingRedeem(uint256 requestIndex) external assertTransitionInvariants {
-        if (ghost_pendingRedeems.length == 0) return;
+    /// @dev Redeems shares at the exact cooldown time
+    function redeemAtExactCooldown(uint256 seed) external assertTransitionInvariants {
+        // Find a valid future request
+        (bool found, uint256 targetIndex) = _findFuturePendingRedeem(seed);
+        if (!found) return;
 
-        requestIndex = bound(requestIndex, 0, ghost_pendingRedeems.length - 1);
-        PendingRedeem memory pending = ghost_pendingRedeems[requestIndex];
+        PendingRedeem memory pending = ghost_pendingRedeems[targetIndex];
 
-        // Check if it's already claimable, previous random warp may have passed it
+        // Warp to the exact release time
+        vm.warp(pending.releaseTime);
+
         uint256 claimableShares = operatorStaking.claimableRedeemRequest(pending.controller);
-
-        // If not claimable, warp exactly to the release time
-        if (claimableShares == 0) {
-            if (block.timestamp < pending.releaseTime) {
-                vm.warp(pending.releaseTime);
-            }
-            // Recalculate claimable after the warp
-            claimableShares = operatorStaking.claimableRedeemRequest(pending.controller);
-        }
-
-        // Check if it's still redeemable and not empty
-        if (claimableShares == 0) return;
         uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
+        uint256 assetsReturned = _executeRedeem(pending.controller, claimableShares);
 
-        // Prove the execution succeeds
-        vm.prank(pending.controller);
-        uint256 assetsReturned = operatorStaking.redeem(claimableShares, pending.controller, pending.controller);
-
-        // Assert the protocol gave us the correct amount
         assertEq(assetsReturned, expectedAssets, "Redeem succeeded but returned wrong amount");
-
-        ghost_redeemed[pending.controller] += assetsReturned;
     }
 
     // function setOperator(uint256 operatorIndex, bool approved) external assertTransitionInvariants {
@@ -196,7 +237,7 @@ contract OperatorStakingHandler is Test {
         vm.prank(actor);
         uint48 releaseTime = operatorStaking.requestRedeem(SafeCast.toUint208(boundedShares), actor, actor);
 
-        // Track pending redeem requests for use in warpToPendingRedeem()
+        // Track pending redeem requests for use in redeemAtExactCooldown()
         ghost_pendingRedeems.push(PendingRedeem({controller: actor, releaseTime: releaseTime}));
     }
 
@@ -205,13 +246,8 @@ contract OperatorStakingHandler is Test {
         uint256 maxShares = operatorStaking.maxRedeem(actor);
         if (maxShares == 0) return;
 
-        shares = bound(shares, 1, maxShares);
-
-        vm.prank(actor);
-        uint256 assetsOut = operatorStaking.redeem(shares, actor, actor);
-
-        ghost_redeemed[actor] += assetsOut;
-        ghost_lastRedeemActor = actor;
+        uint256 boundedShares = bound(shares, 1, maxShares);
+        _executeRedeem(actor, boundedShares);
     }
 
     /// @notice passes uint256.max as share amount to redeem
@@ -219,11 +255,7 @@ contract OperatorStakingHandler is Test {
         address actor = msg.sender;
         uint256 shares = type(uint256).max;
 
-        vm.prank(actor);
-        uint256 assetsOut = operatorStaking.redeem(shares, actor, actor);
-
-        ghost_redeemed[actor] += assetsOut;
-        ghost_lastRedeemActor = actor;
+        _executeRedeem(actor, shares);
     }
 
     function stakeExcess() external assertTransitionInvariants {
