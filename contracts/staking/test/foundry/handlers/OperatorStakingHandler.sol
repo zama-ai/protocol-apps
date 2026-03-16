@@ -16,10 +16,16 @@ contract OperatorStakingHandler is Test {
     OperatorStakingHarness public operatorStaking;
     ZamaERC20 public assetToken;
     ProtocolStaking public protocolStaking;
-    address[] public actors;
-    mapping(address => uint256) public actorPrivateKeys;
+
+    struct PendingRedeem {
+        address controller;
+        uint48 releaseTime;
+    }
 
     uint256 public constant MAX_PERIOD_DURATION = 365 days * 3;
+
+    address[] public actors;
+    mapping(address => uint256) public actorPrivateKeys;
 
     mapping(address => uint256) public ghost_deposited;
     mapping(address => uint256) public ghost_redeemed;
@@ -27,6 +33,8 @@ contract OperatorStakingHandler is Test {
     // Flag to exempt an account from the monotonicity check
     address public ghost_lastRedeemActor;
     address public ghost_lastPermitActor;
+
+    PendingRedeem[] public ghost_pendingRedeems;
 
     constructor(
         OperatorStakingHarness _operatorStaking,
@@ -83,6 +91,38 @@ contract OperatorStakingHandler is Test {
     function warp(uint256 duration) external assertTransitionInvariants {
         duration = bound(duration, 1, MAX_PERIOD_DURATION);
         vm.warp(block.timestamp + duration);
+    }
+
+    function warpToPendingRedeem(uint256 requestIndex) external assertTransitionInvariants {
+        if (ghost_pendingRedeems.length == 0) return;
+
+        requestIndex = bound(requestIndex, 0, ghost_pendingRedeems.length - 1);
+        PendingRedeem memory pending = ghost_pendingRedeems[requestIndex];
+
+        // Check if it's already claimable, previous random warp may have passed it
+        uint256 claimableShares = operatorStaking.claimableRedeemRequest(pending.controller);
+
+        // If not claimable, warp exactly to the release time
+        if (claimableShares == 0) {
+            if (block.timestamp < pending.releaseTime) {
+                vm.warp(pending.releaseTime);
+            }
+            // Recalculate claimable after the warp
+            claimableShares = operatorStaking.claimableRedeemRequest(pending.controller);
+        }
+
+        // Check if it's still redeemable and not empty
+        if (claimableShares == 0) return;
+        uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
+
+        // Prove the execution succeeds
+        vm.prank(pending.controller);
+        uint256 assetsReturned = operatorStaking.redeem(claimableShares, pending.controller, pending.controller);
+
+        // Assert the protocol gave us the correct amount
+        assertEq(assetsReturned, expectedAssets, "Redeem succeeded but returned wrong amount");
+
+        ghost_redeemed[pending.controller] += assetsReturned;
     }
 
     // function setOperator(uint256 operatorIndex, bool approved) external assertTransitionInvariants {
@@ -154,7 +194,10 @@ contract OperatorStakingHandler is Test {
         uint256 boundedShares = bound(shares, 1, balance);
 
         vm.prank(actor);
-        operatorStaking.requestRedeem(SafeCast.toUint208(boundedShares), actor, actor);
+        uint48 releaseTime = operatorStaking.requestRedeem(SafeCast.toUint208(boundedShares), actor, actor);
+
+        // Track pending redeem requests for use in warpToPendingRedeem()
+        ghost_pendingRedeems.push(PendingRedeem({controller: actor, releaseTime: releaseTime}));
     }
 
     function redeem(uint256 shares) external assertTransitionInvariants {
