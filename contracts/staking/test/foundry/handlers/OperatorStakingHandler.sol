@@ -223,7 +223,7 @@ contract OperatorStakingHandler is Test {
         vm.prank(actor);
         operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
 
-        ghost_deposited[actor] += assets;
+        ghost_deposited[receiver] += assets;
         ghost_lastPermitActor = actor;
     }
 
@@ -232,7 +232,8 @@ contract OperatorStakingHandler is Test {
         uint256 balance = operatorStaking.balanceOf(actor);
         if (balance == 0) return;
 
-        uint256 boundedShares = bound(shares, 1, balance);
+        uint256 maxSafeShares = balance < type(uint208).max ? balance : type(uint208).max;
+        uint256 boundedShares = bound(shares, 1, maxSafeShares);
 
         vm.prank(actor);
         uint48 releaseTime = operatorStaking.requestRedeem(SafeCast.toUint208(boundedShares), actor, actor);
