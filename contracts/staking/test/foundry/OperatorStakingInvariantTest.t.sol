@@ -114,17 +114,23 @@ contract OperatorStakingInvariantTest is Test {
         uint256 count = handler.getPendingRedeemsCount();
         if (count == 0) return;
 
-        // Save the current timestamp so we can return to it
         uint256 originalTimestamp = block.timestamp;
 
         for (uint256 i = 0; i < count; i++) {
             (address controller, uint48 releaseTime) = handler.getPendingRedeem(i);
 
-            // Only test requests that are strictly in the future
             if (releaseTime > originalTimestamp) {
                 vm.warp(releaseTime);
 
                 uint256 claimableShares = operatorStaking.claimableRedeemRequest(controller);
+
+                // If a previous loop iteration already redeemed this user's pooled shares,
+                // skip it to prevent InvalidShares() revert on 0.
+                if (claimableShares == 0) {
+                    vm.warp(originalTimestamp);
+                    continue;
+                }
+
                 uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
 
                 vm.prank(controller);
