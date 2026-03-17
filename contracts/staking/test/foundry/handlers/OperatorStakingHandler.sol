@@ -43,9 +43,18 @@ contract OperatorStakingHandler is Test {
     // Temporary state used exclusively inside the transition modifier
     mapping(address => uint256) private _preTotalRewards;
 
-    // Flag to exempt an account from the monotonicity check
-    address public ghost_lastRedeemActor;
+    // Flag to track transition invariant checks
+    bool public ghost_stakeExcessCalled;
+    bool public ghost_redeemCalled;
+    // Stores the pre-redeem previewRedeem(effectiveShares) snapshot so the modifier can
+    // verify the actual transfer matched the preview without re-calling after state changes.
+    uint256 public ghost_lastRedeemExpected;
+    uint256 public ghost_lastRedeemAssets;
     address public ghost_lastPermitActor;
+
+    // Total number of direct donations. Each donation+deposit interaction can produce exactly
+    // 1 wei of truncation shortfall in the liquidity buffer; this count is used as the tolerance.
+    uint256 public ghost_donationCount;
 
     PendingRedeem[] public ghost_pendingRedeems;
 
@@ -71,15 +80,15 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Master modifier to check all transition invariants (State A -> State B)
     modifier assertTransitionInvariants() {
-        ghost_lastRedeemActor = address(0);
-
         _snapshotActorTotalRewards();
 
         _; // Execute the handler action
 
         _assertActorTotalRewardsMonotonicity();
+        _assertStakeExcessExactBufferInvariant();
+        _assertRedeemExactBufferInvariant();
 
-        // hack to repair allowance when permit is used (overrides max allowance from setUp)
+        // hack to repair allowance when permit is used (permit overrides max allowance from setUp)
         _repairAllowanceWhenPermit();
     }
 
@@ -111,6 +120,29 @@ contract OperatorStakingHandler is Test {
                 "Invariant: Claimed + claimable rewards decreased for an actor!"
             );
         }
+    }
+
+    /// @dev Invariant: stakeExcess must leave exactly previewRedeem(totalSharesInRedemption()) assets.
+    function _assertStakeExcessExactBufferInvariant() internal {
+        if (!ghost_stakeExcessCalled) return;
+        assertEq(
+            assetToken.balanceOf(address(operatorStaking)),
+            operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption()),
+            "Invariant: stakeExcess did not leave exact redemption buffer"
+        );
+        ghost_stakeExcessCalled = false;
+    }
+
+    /// @dev Invariant: redeem must transfer exactly previewRedeem(effectiveShares) assets.
+    /// We compare against the pre-call previewRedeem snapshot (ghost_lastRedeemExpected)
+    function _assertRedeemExactBufferInvariant() internal {
+        if (!ghost_redeemCalled) return;
+        assertEq(
+            ghost_lastRedeemAssets,
+            ghost_lastRedeemExpected,
+            "Invariant: redeem did not return exactly previewRedeem(shares) assets"
+        );
+        ghost_redeemCalled = false;
     }
 
     // **************** Invariant Helper functions ****************
@@ -152,16 +184,20 @@ contract OperatorStakingHandler is Test {
         ghost_pendingRedeems.pop();
     }
 
+    /// @dev Returns the available assets in the vault and expected assets redeemable for a given number of shares
+    function getExpectedAssets(uint256 shares) public view returns (uint256 expectedAssets, uint256 availableAssets) {
+        expectedAssets = operatorStaking.previewRedeem(shares);
+        uint256 pendingRelease = protocolStaking._harness_amountToRelease(address(operatorStaking));
+        availableAssets = assetToken.balanceOf(address(operatorStaking)) + pendingRelease;
+    }
+
     /// @dev Core logic for redeeming and cleaning up state
     function _executeRedeem(address actor, uint256 shares) internal returns (uint256 assetsOut) {
         // Resolve type(uint256).max to the actual claimable shares
         uint256 effectiveShares = shares == type(uint256).max ? operatorStaking.maxRedeem(actor) : shares;
         if (effectiveShares == 0) return 0;
 
-        uint256 expectedAssets = operatorStaking.previewRedeem(effectiveShares);
-
-        uint256 pendingRelease = protocolStaking._harness_amountToRelease(address(operatorStaking));
-        uint256 availableAssets = assetToken.balanceOf(address(operatorStaking)) + pendingRelease;
+        (uint256 expectedAssets, uint256 availableAssets) = getExpectedAssets(effectiveShares);
 
         // Skip if the vault is insolvent due to the known truncation/donation inflation bug
         if (expectedAssets > availableAssets) {
@@ -174,20 +210,21 @@ contract OperatorStakingHandler is Test {
 
         // Track global ghost state
         ghost_redeemed[actor] += assetsOut;
-        ghost_lastRedeemActor = actor;
-
-        // allow 1 wei of rounding tolerance per redeem
+        ghost_lastRedeemAssets = assetsOut;
+        ghost_lastRedeemExpected = expectedAssets;
+        ghost_redeemCalled = true;
+        // allow 1 wei of rounding tolerance per redeem (due to floor division)
         ghost_actorFloorRedemptionTolerance[actor]++;
 
-        // If this actor has claimed everything currently available to them,
-        // we can safely wipe all of their past requests from the ghost array.
-        if (operatorStaking.claimableRedeemRequest(actor) == 0) {
+        // Clean up ghost_pendingRedeems entries for this actor.
+        // If the actor has no pending or claimable requests, we can safely wipe all their ghost entries.
+        bool hasPending = operatorStaking.pendingRedeemRequest(actor) > 0;
+        bool hasClaimable = operatorStaking.claimableRedeemRequest(actor) > 0;
+        if (!hasPending && !hasClaimable) {
             for (uint256 i = ghost_pendingRedeems.length; i > 0; i--) {
                 uint256 index = i - 1;
                 PendingRedeem memory pending = ghost_pendingRedeems[index];
-
-                // If it belongs to the actor and the cooldown has passed, delete it
-                if (pending.controller == actor && pending.releaseTime <= block.timestamp) {
+                if (pending.controller == actor) {
                     _removePendingRedeem(index);
                 }
             }
@@ -266,14 +303,13 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Note that requesting redemption of 1 share returns 0 assets due to rounding, but the share is still burned.
     /// This means that continually redeeming tiny amounts of shares can break invariant_totalRecoverableValue
-    /// if the total amount of shares burned with zero assets exceeds the rounding tolerance.
+    /// if the total amount of shares burned with zero assets received exceeds the rounding tolerance.
     function requestRedeem(uint256 shares) external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 balance = operatorStaking.balanceOf(actor);
         if (balance == 0) return;
 
         uint256 allowed = Math.min(balance, type(uint208).max);
-        if (allowed == 0) return;
 
         uint256 boundedShares = bound(shares, 1, allowed);
 
@@ -303,6 +339,8 @@ contract OperatorStakingHandler is Test {
         uint256 assetsPendingRedemption = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
         if (liquidBalance <= assetsPendingRedemption) return;
         operatorStaking.stakeExcess();
+
+        ghost_stakeExcessCalled = true;
     }
 
     /// @dev Known limitation: direct token donations inflate `totalAssets` without minting shares,
@@ -311,8 +349,6 @@ contract OperatorStakingHandler is Test {
     /// That leaked value credits all outstanding shares — including in-flight redemptions — with a
     /// fractionally higher payout than the vault has liquid assets to cover. The result is a
     /// dust-sized insolvency (~1 wei) that reverts with `ERC20InsufficientBalance` on withdrawal.
-    /// `_executeRedeem` detects and skips affected redemptions; `ghost_truncationLoss` absorbs the
-    /// per-deposit rounding shortfall so `invariant_totalRecoverableValue` does not false-positive.
     /// see: test_IlliquidityBug_TruncationLeak
 
     function donate(uint256 amount) external assertTransitionInvariants {
@@ -321,11 +357,16 @@ contract OperatorStakingHandler is Test {
         if (balance == 0) return;
 
         // not using full balance to allow actor to perform other actions
-        amount = bound(amount, 0, balance / 4);
+        uint256 maxDonation = balance / 4;
 
-        // Direct donation
+        // account for tiny balances
+        if (maxDonation == 0) return;
+
+        amount = bound(amount, 1, maxDonation);
+
         vm.prank(actor);
         assetToken.transfer(address(operatorStaking), amount);
+        ghost_donationCount++;
     }
 
     /// @dev Allows the fuzzer to organically claim rewards
