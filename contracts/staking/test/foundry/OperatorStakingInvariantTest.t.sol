@@ -8,6 +8,7 @@ import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 import {OperatorStakingHarness} from "./harness/OperatorStakingHarness.sol";
 import {OperatorStakingHandler} from "./handlers/OperatorStakingHandler.sol";
+import {OperatorRewarder} from "../../contracts/OperatorRewarder.sol";
 
 // Invariant fuzz scaffold for OperatorStaking
 contract OperatorStakingInvariantTest is Test {
@@ -210,6 +211,62 @@ contract OperatorStakingInvariantTest is Test {
                 );
             }
         }
+    }
+
+    /// @notice The sum of per-actor pending + claimable shares must equal totalSharesInRedemption.
+    function invariant_redemptionQueueCompleteness() public view {
+        uint256 actorCount = handler.actorsLength();
+        uint256 sumSharesInRedemption;
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+            sumSharesInRedemption +=
+                operatorStaking.pendingRedeemRequest(actor) +
+                operatorStaking.claimableRedeemRequest(actor);
+        }
+
+        assertEq(
+            sumSharesInRedemption,
+            operatorStaking.totalSharesInRedemption(),
+            "Invariant: Sum of per-actor redemption shares != totalSharesInRedemption"
+        );
+    }
+
+    /// @notice Each controller's redeem-request checkpoint trace must have non-decreasing
+    /// timestamps and non-decreasing cumulative share amounts.
+    function invariant_unstakeQueueMonotonicity() public view {
+        uint256 actorCount = handler.actorsLength();
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+            uint256 count = operatorStaking._harness_getRedeemRequestCheckpointCount(actor);
+            if (count <= 1) continue;
+
+            (uint48 prevKey, uint208 prevValue) = operatorStaking._harness_getRedeemRequestCheckpointAt(actor, 0);
+            for (uint256 j = 1; j < count; j++) {
+                (uint48 key, uint208 value) = operatorStaking._harness_getRedeemRequestCheckpointAt(actor, j);
+                assertGe(key, prevKey, "Invariant: Checkpoint timestamps not monotonically non-decreasing");
+                assertGe(value, prevValue, "Invariant: Checkpoint cumulative shares not monotonically non-decreasing");
+                prevKey = key;
+                prevValue = value;
+            }
+        }
+    }
+
+    /// @notice The contract's liquid asset balance plus queued ProtocolStaking releases must
+    /// always cover the previewed payout for all in-flight redemption shares.
+    function invariant_liquidityBufferSufficiency() public view {
+        // After requestRedeem, assets are queued in ProtocolStaking.awaitingRelease, not held
+        // liquid in the vault directly. Both sources count as available for redemptions.
+        uint256 liquidBalance = zama.balanceOf(address(operatorStaking));
+        uint256 awaitingRelease = protocolStaking.awaitingRelease(address(operatorStaking));
+        uint256 redemptionObligation = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
+
+        assertGe(
+            liquidBalance + awaitingRelease,
+            redemptionObligation,
+            "Invariant: Vault liquid balance + awaiting release is less than redemption obligation"
+        );
     }
 
     /// @dev Helper to quickly spin up an isolated protocol instance with specific token distributions
