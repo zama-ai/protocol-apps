@@ -6,6 +6,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Test} from "forge-std/Test.sol";
 import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
 import {OperatorStakingHarness} from "./../harness/OperatorStakingHarness.sol";
+import {OperatorRewarder} from "./../../../contracts/OperatorRewarder.sol";
 
 /**
  * @title OperatorStakingHandler
@@ -16,6 +17,7 @@ contract OperatorStakingHandler is Test {
     OperatorStakingHarness public operatorStaking;
     ZamaERC20 public assetToken;
     ProtocolStaking public protocolStaking;
+    OperatorRewarder public rewarder;
 
     struct PendingRedeem {
         address controller;
@@ -27,11 +29,19 @@ contract OperatorStakingHandler is Test {
     // TODO: will be updated once the rounding logic is analyzed.
     uint256 public constant STAKED_FUND_RECOVERY_ROUNDING_TOLERANCE = 10;
 
+    // Truncation is used for reward calculation, so we need to account for the rounding error.
+    uint256 public constant REWARD_ROUNDING_TOLERANCE = 1;
+
     address[] public actors;
     mapping(address => uint256) public actorPrivateKeys;
 
     mapping(address => uint256) public ghost_deposited;
     mapping(address => uint256) public ghost_redeemed;
+    // Tracks the historical cumulative rewards actually harvested by each actor
+    mapping(address => uint256) public ghost_claimedRewards;
+
+    // Temporary state used exclusively inside the transition modifier
+    mapping(address => uint256) private _preTotalRewards;
 
     // Flag to exempt an account from the monotonicity check
     address public ghost_lastRedeemActor;
@@ -50,6 +60,7 @@ contract OperatorStakingHandler is Test {
         operatorStaking = _operatorStaking;
         assetToken = _assetToken;
         protocolStaking = _protocolStaking;
+        rewarder = OperatorRewarder(_operatorStaking.rewarder());
         actors = _actors;
         for (uint256 i = 0; i < _actors.length; i++) {
             actorPrivateKeys[_actors[i]] = _actorPrivateKeys[i];
@@ -60,17 +71,46 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Master modifier to check all transition invariants (State A -> State B)
     modifier assertTransitionInvariants() {
+        ghost_lastRedeemActor = address(0);
+
+        _snapshotActorTotalRewards();
+
         _; // Execute the handler action
 
-        // Repair allowance if needed after permit
-        _repairAllowanceWhenPermit();
+        _assertActorTotalRewardsMonotonicity();
 
-        ghost_lastRedeemActor = address(0);
+        // hack to repair allowance when permit is used (overrides max allowance in setUp)
+        _repairAllowanceWhenPermit();
     }
 
-    // **************** Transition invariant assertions ****************
+    // **************** Transition invariant helpers ****************
 
-    // **************** Helper functions ****************
+    function _snapshotActorTotalRewards() internal {
+        for (uint256 i = 0; i < actors.length; i++) {
+            address actor = actors[i];
+            // Total Reward = what they already have in their wallet + what they are owed
+            _preTotalRewards[actor] = ghost_claimedRewards[actor] + rewarder.earned(actor);
+        }
+    }
+
+    function _assertActorTotalRewardsMonotonicity() internal view {
+        for (uint256 i = 0; i < actors.length; i++) {
+            address actor = actors[i];
+            uint256 postTotalReward = ghost_claimedRewards[actor] + rewarder.earned(actor);
+            uint256 adjustedPreTotalReward = _preTotalRewards[actor];
+            if (_preTotalRewards[actor] > 0) {
+                adjustedPreTotalReward -= REWARD_ROUNDING_TOLERANCE;
+            }
+
+            assertGe(
+                postTotalReward,
+                adjustedPreTotalReward,
+                "Invariant: Claimed + claimable rewards decreased for an actor!"
+            );
+        }
+    }
+
+    // **************** Invariant Helper functions ****************
 
     function actorsLength() external view returns (uint256) {
         return actors.length;
@@ -95,6 +135,8 @@ contract OperatorStakingHandler is Test {
     function getStakedFundRecoveryRoundingTolerance() external pure returns (uint256) {
         return STAKED_FUND_RECOVERY_ROUNDING_TOLERANCE;
     }
+
+    // **************** Internal Helper functions ****************
 
     function _repairAllowanceWhenPermit() internal {
         if (ghost_lastPermitActor != address(0)) {
@@ -243,6 +285,33 @@ contract OperatorStakingHandler is Test {
         uint256 assetsPendingRedemption = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
         if (liquidBalance <= assetsPendingRedemption) return;
         operatorStaking.stakeExcess();
+    }
+
+    // /// @dev Simulates a direct donation
+    // function donate(uint256 amount) external assertTransitionInvariants {
+    //     address actor = msg.sender;
+    //     uint256 balance = assetToken.balanceOf(actor);
+    //     if (balance == 0) return;
+
+    //     // not using full balance to allow actor to perform other actions
+    //     amount = bound(amount, 0, balance / 4);
+
+    //     // Direct donation
+    //     vm.prank(actor);
+    //     assetToken.transfer(address(operatorStaking), amount);
+    // }
+
+    /// @dev Allows the fuzzer to organically claim rewards
+    function claimRewards() external assertTransitionInvariants {
+        address actor = msg.sender;
+        uint256 earned = rewarder.earned(actor);
+
+        // Execute the claim
+        vm.prank(actor);
+        rewarder.claimRewards(actor);
+
+        // Update the global ghost tracker
+        ghost_claimedRewards[actor] += earned;
     }
 
     // **************** Equivalence scenario handlers ****************
