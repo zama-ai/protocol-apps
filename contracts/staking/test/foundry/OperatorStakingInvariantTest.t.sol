@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {Test, console} from "forge-std/Test.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStaking} from "../../contracts/ProtocolStaking.sol";
@@ -23,8 +24,8 @@ contract OperatorStakingInvariantTest is Test {
     uint256 internal constant MIN_ACTOR_COUNT = 5;
     uint256 internal constant MAX_ACTOR_COUNT = 20;
 
-    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1 ether;
-    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1_000_000_000 ether;
+    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1e18;
+    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1e30;
 
     uint48 internal constant MIN_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
     uint48 internal constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
@@ -120,23 +121,25 @@ contract OperatorStakingInvariantTest is Test {
             (address controller, uint48 releaseTime) = handler.getPendingRedeem(i);
 
             if (releaseTime > originalTimestamp) {
+                uint256 snapshotId = vm.snapshot();
+
                 vm.warp(releaseTime);
 
-                uint256 claimableShares = operatorStaking.claimableRedeemRequest(controller);
+                uint256 claimableShares = operatorStaking.maxRedeem(controller);
 
-                // If a previous loop iteration already redeemed this user's pooled shares,
-                // skip it to prevent InvalidShares() revert on 0.
-                if (claimableShares == 0) {
-                    vm.warp(originalTimestamp);
-                    continue;
+                if (claimableShares > 0) {
+                    uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
+
+                    vm.prank(controller);
+                    uint256 assetsReturned = operatorStaking.redeem(type(uint256).max, controller, controller);
+
+                    assertEq(assetsReturned, expectedAssets, "Invariant: Exact cooldown redeem returned wrong amount");
                 }
 
-                uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
+                // Revert the EVM state
+                vm.revertTo(snapshotId);
 
-                vm.prank(controller);
-                uint256 assetsReturned = operatorStaking.redeem(claimableShares, controller, controller);
-
-                assertEq(assetsReturned, expectedAssets, "Invariant: Exact cooldown redeem returned wrong amount");
+                // Ensure the clock is safely back to normal
                 vm.warp(originalTimestamp);
             }
         }
@@ -200,10 +203,55 @@ contract OperatorStakingInvariantTest is Test {
         }
     }
 
-    // Placeholder invariant while scaffold is being built out.
-    function invariant_ScaffoldConfigured() public view {
-        assertTrue(address(handler) != address(0), "handler should be configured");
-        assertTrue(address(operatorStaking) != address(0), "operator staking should be deployed");
-        assertTrue(address(protocolStaking) != address(0), "protocol staking should be deployed");
+    /// @dev Helper to quickly spin up an isolated protocol instance with specific token distributions
+    function _setupIsolatedStaking(
+        address[] memory users,
+        uint256[] memory amounts
+    ) internal returns (ZamaERC20 token, ProtocolStaking _staking) {
+        token = new ZamaERC20("Zama", "ZAMA", users, amounts, address(this));
+
+        ProtocolStaking impl = new ProtocolStaking();
+        bytes memory initData = abi.encodeCall(
+            impl.initialize,
+            ("Staked ZAMA", "stZAMA", "1", address(token), address(this), manager, 1 days, 0)
+        );
+        _staking = ProtocolStaking(address(new ERC1967Proxy(address(impl), initData)));
+
+        token.grantRole(token.MINTER_ROLE(), address(_staking));
+
+        for (uint256 i = 0; i < users.length; i++) {
+            vm.prank(users[i]);
+            token.approve(address(_staking), type(uint256).max);
+        }
+    }
+
+    /// @dev Helper to quickly spin up an isolated OperatorStaking instance connected to an isolated ProtocolStaking
+    function _setupIsolatedOperatorStaking(
+        address[] memory users,
+        uint256[] memory amounts
+    ) internal returns (ZamaERC20 token, ProtocolStaking _protocolStaking, OperatorStakingHarness _operatorStaking) {
+        (token, _protocolStaking) = _setupIsolatedStaking(users, amounts);
+
+        OperatorStakingHarness operatorImpl = new OperatorStakingHarness();
+        bytes memory operatorInitData = abi.encodeCall(
+            operatorImpl.initialize,
+            (
+                "Operator Staked ZAMA",
+                "opstZAMA",
+                _protocolStaking,
+                address(this), // beneficiary
+                10000, // initialMaxFeeBasisPoints
+                0 // initialFeeBasisPoints
+            )
+        );
+        _operatorStaking = OperatorStakingHarness(address(new ERC1967Proxy(address(operatorImpl), operatorInitData)));
+
+        vm.prank(manager);
+        _protocolStaking.addEligibleAccount(address(_operatorStaking));
+
+        for (uint256 i = 0; i < users.length; i++) {
+            vm.prank(users[i]);
+            token.approve(address(_operatorStaking), type(uint256).max);
+        }
     }
 }

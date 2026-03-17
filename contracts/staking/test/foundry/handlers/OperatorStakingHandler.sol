@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Test} from "forge-std/Test.sol";
 import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
 import {OperatorStakingHarness} from "./../harness/OperatorStakingHarness.sol";
@@ -79,7 +80,7 @@ contract OperatorStakingHandler is Test {
 
         _assertActorTotalRewardsMonotonicity();
 
-        // hack to repair allowance when permit is used (overrides max allowance in setUp)
+        // hack to repair allowance when permit is used (overrides max allowance from setUp)
         _repairAllowanceWhenPermit();
     }
 
@@ -98,8 +99,11 @@ contract OperatorStakingHandler is Test {
             address actor = actors[i];
             uint256 postTotalReward = ghost_claimedRewards[actor] + rewarder.earned(actor);
             uint256 adjustedPreTotalReward = _preTotalRewards[actor];
-            if (_preTotalRewards[actor] > 0) {
+
+            if (adjustedPreTotalReward > REWARD_ROUNDING_TOLERANCE) {
                 adjustedPreTotalReward -= REWARD_ROUNDING_TOLERANCE;
+            } else {
+                adjustedPreTotalReward = 0;
             }
 
             assertGe(
@@ -180,6 +184,26 @@ contract OperatorStakingHandler is Test {
         }
     }
 
+    function _getSignature(
+        address actor,
+        uint256 assets,
+        uint256 deadline
+    ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+        uint256 privateKey = actorPrivateKeys[actor];
+        bytes32 structHash = keccak256(
+            abi.encode(
+                0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9,
+                actor,
+                address(operatorStaking),
+                assets,
+                assetToken.nonces(actor),
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", assetToken.DOMAIN_SEPARATOR(), structHash));
+        (v, r, s) = vm.sign(privateKey, digest);
+    }
+
     // **************** OperatorStaking actions ****************
 
     function warp(uint256 duration) public assertTransitionInvariants {
@@ -202,45 +226,24 @@ contract OperatorStakingHandler is Test {
         if (balance == 0) return;
 
         assets = bound(assets, 1, balance);
+
         vm.prank(actor);
         operatorStaking.deposit(assets, actor);
         ghost_deposited[actor] += assets;
     }
 
-    function depositWithPermit(
-        uint256 receiverIndex,
-        uint256 assets,
-        uint256 deadlineOffset
-    ) external assertTransitionInvariants {
+    function depositWithPermit(uint256 receiverIndex, uint256 assets) external assertTransitionInvariants {
         address actor = msg.sender;
-
-        // Bound the receiver to our known actors
-        receiverIndex = bound(receiverIndex, 0, actors.length - 1);
-        address receiver = actors[receiverIndex];
-
         uint256 balance = assetToken.balanceOf(actor);
         if (balance == 0) return;
+
         assets = bound(assets, 1, balance);
 
-        // Ensure deadline is in the future
-        uint256 deadline = block.timestamp + bound(deadlineOffset, 1, MAX_PERIOD_DURATION);
+        uint256 deadline = block.timestamp + 1;
+        address receiver = actors[receiverIndex % actors.length];
 
-        uint256 nonce = assetToken.nonces(actor);
-        uint256 privateKey = actorPrivateKeys[actor];
+        (uint8 v, bytes32 r, bytes32 s) = _getSignature(actor, assets, deadline);
 
-        // Construct ERC-2612 Permit Hash
-        bytes32 permitTypehash = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
-
-        bytes32 structHash = keccak256(
-            abi.encode(permitTypehash, actor, address(operatorStaking), assets, nonce, deadline)
-        );
-
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", assetToken.DOMAIN_SEPARATOR(), structHash));
-
-        // Sign with the private key
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        // Execute the transaction
         vm.prank(actor);
         operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
 
@@ -256,13 +259,14 @@ contract OperatorStakingHandler is Test {
         uint256 balance = operatorStaking.balanceOf(actor);
         if (balance == 0) return;
 
-        uint256 maxSafeShares = balance < type(uint208).max ? balance : type(uint208).max;
-        uint256 boundedShares = bound(shares, 1, maxSafeShares);
+        uint256 allowed = Math.min(balance, type(uint208).max);
+        if (allowed == 0) return;
+
+        uint256 boundedShares = bound(shares, 1, allowed);
 
         vm.prank(actor);
         uint48 releaseTime = operatorStaking.requestRedeem(SafeCast.toUint208(boundedShares), actor, actor);
 
-        // Track pending redeem requests for use in redeemAtExactCooldown()
         ghost_pendingRedeems.push(PendingRedeem({controller: actor, releaseTime: releaseTime}));
     }
 
@@ -297,7 +301,6 @@ contract OperatorStakingHandler is Test {
     /// than they would have if the donation had not been staked. However, the contract will not have additional
     /// assets to cover the increased redemption value (they were staked), so the asset transfer in the redeem function will fail.
 
-    // /// @dev Simulates a direct donation
     // function donate(uint256 amount) external assertTransitionInvariants {
     //     address actor = msg.sender;
     //     uint256 balance = assetToken.balanceOf(actor);
