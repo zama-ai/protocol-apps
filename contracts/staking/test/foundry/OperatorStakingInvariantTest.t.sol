@@ -124,27 +124,17 @@ contract OperatorStakingInvariantTest is Test {
             if (releaseTime > originalTimestamp) {
                 uint256 snapshotId = vm.snapshot();
 
+                // Warp to the release time
                 vm.warp(releaseTime);
 
                 uint256 claimableShares = operatorStaking.maxRedeem(controller);
+                (uint256 expectedAssets, uint256 availableAssets) = handler.getExpectedAssets(claimableShares);
 
-                if (claimableShares > 0) {
-                    uint256 expectedAssets = operatorStaking.previewRedeem(claimableShares);
-
-                    uint256 pendingRelease = protocolStaking._harness_amountToRelease(address(operatorStaking));
-                    uint256 availableAssets = zama.balanceOf(address(operatorStaking)) + pendingRelease;
-
-                    // Safely ignore dust bug evaluations
-                    if (expectedAssets <= availableAssets) {
-                        vm.prank(controller);
-                        uint256 assetsReturned = operatorStaking.redeem(type(uint256).max, controller, controller);
-
-                        assertEq(
-                            assetsReturned,
-                            expectedAssets,
-                            "Invariant: Exact cooldown redeem returned wrong amount"
-                        );
-                    }
+                // Safely ignore dust bug evaluations
+                if (expectedAssets <= availableAssets) {
+                    vm.prank(controller);
+                    uint256 assetsReturned = operatorStaking.redeem(type(uint256).max, controller, controller);
+                    assertEq(assetsReturned, expectedAssets, "Invariant: Exact cooldown redeem returned wrong amount");
                 }
 
                 // Revert the EVM state
