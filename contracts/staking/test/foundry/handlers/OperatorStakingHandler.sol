@@ -248,6 +248,9 @@ contract OperatorStakingHandler is Test {
         ghost_lastPermitActor = actor;
     }
 
+    /// @dev Note that requesting redemption of 1 share returns 0 assets due to rounding, but the share is still burned.
+    /// This means that continually redeeming tiny amounts of shares can break invariant_totalRecoverableValue
+    /// if the total amount of shares burned with zero assets exceeds the rounding tolerance.
     function requestRedeem(uint256 shares) external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 balance = operatorStaking.balanceOf(actor);
@@ -286,6 +289,13 @@ contract OperatorStakingHandler is Test {
         if (liquidBalance <= assetsPendingRedemption) return;
         operatorStaking.stakeExcess();
     }
+
+    /// TODO: direct donations are currently breaking redemption invariants due to in-flight
+    /// redemptions increasing in value. If a donation is staked in the contract through stakeExcess
+    /// while redemptions are pending, the per share asset value of in-flight redemptions will increase.
+    /// This means that when the redemptions are finally executed, they will receive more assets
+    /// than they would have if the donation had not been staked. However, the contract will not have additional
+    /// assets to cover the increased redemption value (they were staked), so the asset transfer in the redeem function will fail.
 
     // /// @dev Simulates a direct donation
     // function donate(uint256 amount) external assertTransitionInvariants {
