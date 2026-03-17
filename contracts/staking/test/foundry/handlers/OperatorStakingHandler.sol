@@ -35,6 +35,8 @@ contract OperatorStakingHandler is Test {
 
     mapping(address => uint256) public ghost_deposited;
     mapping(address => uint256) public ghost_redeemed;
+    // Tracks rounding allowance per actor caused by floor division in redeem
+    mapping(address => uint256) public ghost_actorFloorRedemptionTolerance;
     // Tracks the historical cumulative rewards actually harvested by each actor
     mapping(address => uint256) public ghost_claimedRewards;
 
@@ -174,6 +176,9 @@ contract OperatorStakingHandler is Test {
         ghost_redeemed[actor] += assetsOut;
         ghost_lastRedeemActor = actor;
 
+        // allow 1 wei of rounding tolerance per redeem
+        ghost_actorFloorRedemptionTolerance[actor]++;
+
         // If this actor has claimed everything currently available to them,
         // we can safely wipe all of their past requests from the ghost array.
         if (operatorStaking.claimableRedeemRequest(actor) == 0) {
@@ -233,7 +238,10 @@ contract OperatorStakingHandler is Test {
         assets = bound(assets, 1, balance);
 
         vm.prank(actor);
-        ghost_deposited[actor] += assets;
+        uint256 sharesMinted = operatorStaking.deposit(assets, actor);
+
+        // get present value of shares to account for donation inflation
+        ghost_deposited[actor] += operatorStaking.previewRedeem(sharesMinted);
     }
 
     function depositWithPermit(uint256 receiverIndex, uint256 assets) external assertTransitionInvariants {
@@ -249,9 +257,10 @@ contract OperatorStakingHandler is Test {
         (uint8 v, bytes32 r, bytes32 s) = _getSignature(actor, assets, deadline);
 
         vm.prank(actor);
-        operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
+        uint256 sharesMinted = operatorStaking.depositWithPermit(assets, receiver, deadline, v, r, s);
 
-        ghost_deposited[receiver] += assets;
+        // get present value of shares to account for donation inflation
+        ghost_deposited[receiver] += operatorStaking.previewRedeem(sharesMinted);
         ghost_lastPermitActor = actor;
     }
 

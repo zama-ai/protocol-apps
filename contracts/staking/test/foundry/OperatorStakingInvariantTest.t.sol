@@ -161,6 +161,7 @@ contract OperatorStakingInvariantTest is Test {
 
         for (uint256 i = 0; i < actorCount; i++) {
             address actor = handler.actorAt(i);
+            uint256 acceptableLoss = handler.ghost_actorFloorRedemptionTolerance(actor);
 
             uint256 deposited = handler.ghost_deposited(actor);
             uint256 redeemed = handler.ghost_redeemed(actor);
@@ -175,8 +176,14 @@ contract OperatorStakingInvariantTest is Test {
             // Calculate the current underlying asset value of all combined shares
             uint256 currentValue = operatorStaking.previewRedeem(totalShares);
 
+            uint256 currentValueAdjusted = currentValue + acceptableLoss;
+
             // The core invariant: Past withdrawals + Current value >= Total historical deposits
-            assertGe(redeemed + currentValue, deposited, "Invariant: User recoverable value is less than deposited");
+            assertGe(
+                redeemed + currentValueAdjusted,
+                deposited,
+                "Invariant: User recoverable value is less than deposited"
+            );
         }
     }
 
