@@ -5,6 +5,7 @@ pragma solidity ^0.8.27;
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 /**
  * @title ProtocolStakingHarness
@@ -35,5 +36,13 @@ contract ProtocolStakingHarness is ProtocolStaking {
             index
         ];
         return (cp._key, cp._value);
+    }
+
+    /// @notice Read-only version of `release()`: returns how many tokens are currently
+    /// claimable for `account` without executing the transfer.
+    function _harness_amountToRelease(address account) external view returns (uint256) {
+        ProtocolStakingStorage storage $ = _getProtocolStakingStorage();
+        uint256 totalAmountCooledDown = Checkpoints.upperLookup($._unstakeRequests[account], Time.timestamp());
+        return totalAmountCooledDown - $._released[account];
     }
 }
