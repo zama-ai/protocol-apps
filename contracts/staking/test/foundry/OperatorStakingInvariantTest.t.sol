@@ -3,15 +3,15 @@ pragma solidity ^0.8.27;
 
 /* solhint-disable func-name-mixedcase */ // Foundry discovers invariant tests by invariant_* prefix
 
-import {Test, console} from "forge-std/Test.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
-import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
-import {OperatorStakingHarness} from "./harness/OperatorStakingHarness.sol";
+import {OperatorRewarder} from "./../../contracts/OperatorRewarder.sol";
 import {OperatorStakingHandler} from "./handlers/OperatorStakingHandler.sol";
-import {OperatorRewarder} from "../../contracts/OperatorRewarder.sol";
+import {OperatorStakingHarness} from "./harness/OperatorStakingHarness.sol";
+import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 
 /// @title OperatorStakingInvariantTest
 /// @notice Invariant fuzzing suite for OperatorStaking. Exercises deposit, redeem,
@@ -77,8 +77,14 @@ contract OperatorStakingInvariantTest is Test {
         ProtocolStakingHarness protocolImpl = new ProtocolStakingHarness();
         bytes memory protocolInitData = abi.encodeWithSelector(
             protocolImpl.initialize.selector,
-            "Staked ZAMA", "stZAMA", "1",
-            address(zama), governor, manager, cooldown, rewardRate
+            "Staked ZAMA",
+            "stZAMA",
+            "1",
+            address(zama),
+            governor,
+            manager,
+            cooldown,
+            rewardRate
         );
         protocolStaking = ProtocolStakingHarness(address(new ERC1967Proxy(address(protocolImpl), protocolInitData)));
 
@@ -86,9 +92,12 @@ contract OperatorStakingInvariantTest is Test {
         OperatorStakingHarness operatorImpl = new OperatorStakingHarness();
         bytes memory operatorInitData = abi.encodeWithSelector(
             operatorImpl.initialize.selector,
-            "Operator Staked ZAMA", "opstZAMA",
-            address(protocolStaking), beneficiary,
-            INITIAL_MAX_FEE_BPS, INITIAL_FEE_BPS
+            "Operator Staked ZAMA",
+            "opstZAMA",
+            address(protocolStaking),
+            beneficiary,
+            INITIAL_MAX_FEE_BPS,
+            INITIAL_FEE_BPS
         );
         operatorStaking = OperatorStakingHarness(address(new ERC1967Proxy(address(operatorImpl), operatorInitData)));
 
@@ -113,10 +122,7 @@ contract OperatorStakingInvariantTest is Test {
         }
         bytes4[] memory selectors = new bytes4[](1);
         selectors[0] = handler.assertRedeemRevertsForDust.selector;
-        excludeSelector(FuzzSelector({
-            addr: address(handler),
-            selectors: selectors
-        }));
+        excludeSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
     // -------------------------------------------------------------------
@@ -147,7 +153,12 @@ contract OperatorStakingInvariantTest is Test {
 
             if (expectedAssets > availableAssets) {
                 // Shortfall exists — assert it will revert with ERC20InsufficientBalance and is within the tolerance budget.
-                bool reverted = handler.assertRedeemRevertsForDust(controller, claimableShares, expectedAssets, availableAssets);
+                bool reverted = handler.assertRedeemRevertsForDust(
+                    controller,
+                    claimableShares,
+                    expectedAssets,
+                    availableAssets
+                );
                 assertTrue(reverted, "Invariant: redeem shortfall exceeds tolerance budget");
             } else {
                 // No shortfall — execute the redeem and verify the transfer.
@@ -178,16 +189,12 @@ contract OperatorStakingInvariantTest is Test {
             uint256 deposited = handler.ghost_deposited(actor);
             uint256 redeemed = handler.ghost_redeemed(actor);
 
-            uint256 totalShares = operatorStaking.balanceOf(actor)
-                + operatorStaking.pendingRedeemRequest(actor)
-                + operatorStaking.claimableRedeemRequest(actor);
+            uint256 totalShares = operatorStaking.balanceOf(actor) +
+                operatorStaking.pendingRedeemRequest(actor) +
+                operatorStaking.claimableRedeemRequest(actor);
             uint256 currentValue = operatorStaking.previewRedeem(totalShares);
 
-            assertGe(
-                redeemed + currentValue + acceptableLoss,
-                deposited,
-                "Invariant: recoverable value < deposited"
-            );
+            assertGe(redeemed + currentValue + acceptableLoss, deposited, "Invariant: recoverable value < deposited");
         }
     }
 
@@ -221,8 +228,7 @@ contract OperatorStakingInvariantTest is Test {
 
         for (uint256 i = 0; i < actorCount; i++) {
             address actor = handler.actorAt(i);
-            sum += operatorStaking.pendingRedeemRequest(actor)
-                + operatorStaking.claimableRedeemRequest(actor);
+            sum += operatorStaking.pendingRedeemRequest(actor) + operatorStaking.claimableRedeemRequest(actor);
         }
 
         assertEq(sum, operatorStaking.totalSharesInRedemption(), "Invariant: redemption share sum mismatch");
@@ -279,30 +285,40 @@ contract OperatorStakingInvariantTest is Test {
         // ceil(S/A) is the upper bound on round-trip loss.
         // Loss = floor(ε·S/A) + 1 when frac(ε·S/A) > 0, where ε ∈ [0,1).
         // This reaches floor(S/A) + 1 = ceil(S/A) when S/A is non-integer and ε is close to 1.
-        uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
-        uint256 A = operatorStaking.totalAssets() + 1;
-        uint256 roundTripTolerance = (S + A - 1) / A; // ceil(S/A)
+        uint256 s = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
+        uint256 a = operatorStaking.totalAssets() + 1;
+        uint256 roundTripTolerance = (s + a - 1) / a; // ceil(S/A)
 
         for (uint256 i = 0; i < actorCount; i++) {
             address actor = handler.actorAt(i);
 
-            uint256 totalShares = operatorStaking.balanceOf(actor)
-                + operatorStaking.pendingRedeemRequest(actor)
-                + operatorStaking.claimableRedeemRequest(actor);
+            uint256 totalShares = operatorStaking.balanceOf(actor) +
+                operatorStaking.pendingRedeemRequest(actor) +
+                operatorStaking.claimableRedeemRequest(actor);
             if (totalShares == 0) continue;
 
             // shares -> assets -> shares
             uint256 assets = operatorStaking.previewRedeem(totalShares);
             uint256 sharesBack = operatorStaking.previewDeposit(assets);
             assertLe(sharesBack, totalShares, "Invariant: previewDeposit(previewRedeem(x)) > x");
-            assertApproxEqAbs(sharesBack, totalShares, roundTripTolerance, "Invariant: previewDeposit(previewRedeem(x)) loss exceeds S/A");
+            assertApproxEqAbs(
+                sharesBack,
+                totalShares,
+                roundTripTolerance,
+                "Invariant: previewDeposit(previewRedeem(x)) loss exceeds S/A"
+            );
 
             // assets -> shares -> assets
             if (assets == 0) continue;
             uint256 sharesFromAssets = operatorStaking.previewDeposit(assets);
             uint256 assetsBack = operatorStaking.previewRedeem(sharesFromAssets);
             assertLe(assetsBack, assets, "Invariant: previewRedeem(previewDeposit(x)) > x");
-            assertApproxEqAbs(assetsBack, assets, roundTripTolerance, "Invariant: previewRedeem(previewDeposit(x)) loss exceeds S/A");
+            assertApproxEqAbs(
+                assetsBack,
+                assets,
+                roundTripTolerance,
+                "Invariant: previewRedeem(previewDeposit(x)) loss exceeds S/A"
+            );
         }
     }
 
@@ -344,9 +360,7 @@ contract OperatorStakingInvariantTest is Test {
             operatorImpl.initialize,
             ("Operator Staked ZAMA", "opstZAMA", _protocolStaking, address(this), 10000, 0)
         );
-        _operatorStaking = OperatorStakingHarness(
-            address(new ERC1967Proxy(address(operatorImpl), operatorInitData))
-        );
+        _operatorStaking = OperatorStakingHarness(address(new ERC1967Proxy(address(operatorImpl), operatorInitData)));
 
         vm.prank(manager);
         _protocolStaking.addEligibleAccount(address(_operatorStaking));

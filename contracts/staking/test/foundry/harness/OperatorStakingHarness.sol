@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+/* solhint-disable func-name-mixedcase */
+
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {OperatorStaking} from "./../../../contracts/OperatorStaking.sol";
 

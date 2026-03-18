@@ -6,6 +6,7 @@ pragma solidity ^0.8.27;
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {ProtocolStaking} from "./../../../contracts/ProtocolStaking.sol";
 
 /**
  * @title ProtocolStakingHarness

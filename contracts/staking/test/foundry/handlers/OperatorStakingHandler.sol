@@ -2,14 +2,15 @@
 pragma solidity ^0.8.27;
 
 /* solhint-disable var-name-mixedcase */ // ghost_variables prefix
+/* solhint-disable max-states-count */
 
-import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Test} from "forge-std/Test.sol";
-import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
-import {OperatorStakingHarness} from "./../harness/OperatorStakingHarness.sol";
+import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {OperatorRewarder} from "./../../../contracts/OperatorRewarder.sol";
+import {OperatorStakingHarness} from "./../harness/OperatorStakingHarness.sol";
+import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 
 /// @title OperatorStakingHandler
 /// @notice Invariant-test handler for OperatorStaking. Wraps all state-changing actions
@@ -158,9 +159,7 @@ contract OperatorStakingHandler is Test {
             uint256 preTotal = _preTotalRewards[actor];
 
             // Subtract tolerance safely to avoid underflow.
-            uint256 adjustedPre = preTotal > REWARD_ROUNDING_TOLERANCE
-                ? preTotal - REWARD_ROUNDING_TOLERANCE
-                : 0;
+            uint256 adjustedPre = preTotal > REWARD_ROUNDING_TOLERANCE ? preTotal - REWARD_ROUNDING_TOLERANCE : 0;
 
             assertGe(postTotal, adjustedPre, "Transition: total rewards decreased");
         }
@@ -232,7 +231,12 @@ contract OperatorStakingHandler is Test {
         availableAssets = assetToken.balanceOf(address(operatorStaking)) + pendingRelease;
     }
 
-    function assertRedeemRevertsForDust(address actor, uint256 shares, uint256 expectedAssets, uint256 availableAssets) public returns (bool) {
+    function assertRedeemRevertsForDust(
+        address actor,
+        uint256 shares,
+        uint256 expectedAssets,
+        uint256 availableAssets
+    ) public returns (bool) {
         return _assertRedeemRevertsForDust(actor, shares, expectedAssets, availableAssets);
     }
 
@@ -306,13 +310,10 @@ contract OperatorStakingHandler is Test {
     ///      Instead, when a shortfall exists within the tolerance budget, the claim is
     ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
     ///      Returns true if the claim was handled (reverted as expected).
-    function _assertClaimRewardsRevertsForDust(
-        address actor,
-        uint256 earnedAmount
-    ) internal returns (bool) {
+    function _assertClaimRewardsRevertsForDust(address actor, uint256 earnedAmount) internal returns (bool) {
         uint256 rewarderBalance = assetToken.balanceOf(address(rewarder));
         uint256 pendingFromProtocol = protocolStaking.earned(address(operatorStaking));
-        
+
         // The rewarder will pull pending rewards from the protocol before transferring,
         // so its actual liquid balance at the time of the safeTransfer is the sum of both.
         uint256 totalAvailable = rewarderBalance + pendingFromProtocol;
@@ -341,7 +342,7 @@ contract OperatorStakingHandler is Test {
             ghost_rewarderSponsoredDust += shortfall;
             return true;
         }
-        
+
         // Shortfall exceeds budget — fall through and let the revert surface.
         return false;
     }
@@ -519,8 +520,8 @@ contract OperatorStakingHandler is Test {
         assetToken.transfer(address(operatorStaking), amount);
     }
 
-    /// @dev Claims rewards from the OperatorRewarder. If a phantom-reward shortfall is 
-    ///      within budget, asserts the claim reverts with ERC20InsufficientBalance 
+    /// @dev Claims rewards from the OperatorRewarder. If a phantom-reward shortfall is
+    ///      within budget, asserts the claim reverts with ERC20InsufficientBalance
     ///      instead of executing it.
     function claimRewards() external assertTransitionInvariants {
         address actor = msg.sender;
@@ -579,7 +580,12 @@ contract OperatorStakingHandler is Test {
         uint256 sharesPathB = operatorStaking.balanceOf(actor);
         uint256 earnedPathB = rewarder.earned(actor);
 
-        assertApproxEqAbs(sharesPathA, sharesPathB, sharesTolerance, "depositEquivalence: share difference exceeds proven bound");
+        assertApproxEqAbs(
+            sharesPathA,
+            sharesPathB,
+            sharesTolerance,
+            "depositEquivalence: share difference exceeds proven bound"
+        );
         assertApproxEqAbs(earnedPathA, earnedPathB, 2, "depositEquivalence: earned differs by > 2");
     }
 
