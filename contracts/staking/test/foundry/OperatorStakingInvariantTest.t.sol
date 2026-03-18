@@ -265,6 +265,47 @@ contract OperatorStakingInvariantTest is Test {
         );
     }
 
+    /// @notice Two consecutive preview conversions can only lose value, never create it.
+    ///         The loss is bounded by S/A (the exchange rate, shares per asset).
+    ///
+    ///   Derivation: previewRedeem(x) = floor(x·A/S) = x·A/S - ε where ε ∈ [0,1).
+    ///   Then previewDeposit(floor(x·A/S)) = floor((x·A/S - ε)·S/A) = floor(x - ε·S/A).
+    ///   Since ε < 1, the loss is strictly less than S/A. At a 100:1 exchange rate this
+    ///   allows losses up to 99 shares per round-trip — the bound is loose when the rate
+    ///   diverges from 1:1, but it is the tightest provable general bound.
+    function invariant_sharesConversionRoundTrip() public view {
+        uint256 actorCount = handler.actorsLength();
+
+        // ceil(S/A) is the upper bound on round-trip loss.
+        // Loss = floor(ε·S/A) + 1 when frac(ε·S/A) > 0, where ε ∈ [0,1).
+        // This reaches floor(S/A) + 1 = ceil(S/A) when S/A is non-integer and ε is close to 1.
+        uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
+        uint256 A = operatorStaking.totalAssets() + 1;
+        uint256 roundTripTolerance = (S + A - 1) / A; // ceil(S/A)
+
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+
+            uint256 totalShares = operatorStaking.balanceOf(actor)
+                + operatorStaking.pendingRedeemRequest(actor)
+                + operatorStaking.claimableRedeemRequest(actor);
+            if (totalShares == 0) continue;
+
+            // shares -> assets -> shares
+            uint256 assets = operatorStaking.previewRedeem(totalShares);
+            uint256 sharesBack = operatorStaking.previewDeposit(assets);
+            assertLe(sharesBack, totalShares, "Invariant: previewDeposit(previewRedeem(x)) > x");
+            assertApproxEqAbs(sharesBack, totalShares, roundTripTolerance, "Invariant: previewDeposit(previewRedeem(x)) loss exceeds S/A");
+
+            // assets -> shares -> assets
+            if (assets == 0) continue;
+            uint256 sharesFromAssets = operatorStaking.previewDeposit(assets);
+            uint256 assetsBack = operatorStaking.previewRedeem(sharesFromAssets);
+            assertLe(assetsBack, assets, "Invariant: previewRedeem(previewDeposit(x)) > x");
+            assertApproxEqAbs(assetsBack, assets, roundTripTolerance, "Invariant: previewRedeem(previewDeposit(x)) loss exceeds S/A");
+        }
+    }
+
     // -------------------------------------------------------------------
     //  Isolated test helpers
     // -------------------------------------------------------------------
