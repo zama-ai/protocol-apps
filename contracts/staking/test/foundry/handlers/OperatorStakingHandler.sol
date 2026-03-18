@@ -16,43 +16,22 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 /// @notice Invariant-test handler for OperatorStaking. Wraps all state-changing actions
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
-/// @dev Tolerance budget system
+/// @dev Two known floor-division bugs can each cause at most 1 wei divergence per
+///      triggering deposit. When a shortfall is detected, the handler asserts the
+///      expected ERC20InsufficientBalance revert and checks that the shortfall is
+///      within the budget.
 ///
-///   Two distinct floor-division phenomena each allow the system to diverge by at most
-///   1 wei per triggering event. Both are tracked via ghost counters and handled by
-///   asserting expected reverts rather than patching state.
+///      Staking-side (test_IlliquidityBug_TruncationLeak): donations inflate the
+///      exchange rate; deposits at the elevated rate truncate in _convertToShares,
+///      leaking value into in-flight redemptions beyond liquid coverage. The donate()
+///      handler caps D ≤ N to bound the leak to 0 or 1 wei per deposit.
+///      Budget: ghost_inflatedDepositCount (deposits while totalSharesInRedemption > 0).
 ///
-///   ── Staking-side: donation-triggered truncation leak ──────────────────────────────
-///
-///   Direct token transfers inflate totalAssets without minting shares. Any subsequent
-///   deposit at the elevated exchange rate incurs ERC4626 floor-rounding truncation in
-///   _convertToShares: the depositor receives fewer shares than the assets warrant, and
-///   the remainder leaks into the shared pool. That leaked value raises previewRedeem for
-///   all outstanding shares — including shares already in the redemption queue — beyond
-///   what the vault holds as liquid assets.
-///   See: test_IlliquidityBug_TruncationLeak.
-///
-///   The donate() handler caps donations so that totalAssets/totalShares diverges by at
-///   most 1 wei per deposit (D ≤ N invariant), bounding the per-deposit leak to 0 or 1.
-///   ghost_inflatedDepositCount tracks deposits made while totalSharesInRedemption > 0
-///   — the upper bound on total leaked wei of vault illiquidity.
-///
-///   ── Rewarder-side: sum-of-floors < floor-of-sum phantom ──────────────────────────
-///
-///   When an actor makes two or more sequential deposits and transferHook fires on each,
-///   each call independently computes floor(R * s_i / T_i) and accumulates the result
-///   into _rewardsPaid[actor]. Later, earned() computes a single floor(R' * totalShares
-///   / totalSupply) — the floor of the combined allocation. Because the sum of individual
-///   floors can be strictly less than the floor of the combined value (the sum-of-floors
-///   < floor-of-sum property), earned() can return 1 more wei than was credited, creating
-///   a phantom reward the rewarder cannot cover.
-///   See: test_PhantomRewardBug_RewarderInsolvency.
-///
-///   ghost_inflatedDepositCount also bounds the rewarder phantom budget (a deposit that
-///   leaks to the staking side is also a deposit that can produce a phantom on the
-///   rewarder side). The two budgets draw from the same count independently.
-///     - ghost_globalSponsoredDust:   staking-side shortfalls asserted as expected reverts
-///     - ghost_rewarderSponsoredDust: rewarder-side phantom claims asserted as expected reverts
+///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency): sequential deposits
+///      each floor-divide independently in transferHook._allocation. The sum of floors
+///      can be less than the floor of the sum, so earned() returns 1 phantom wei the
+///      rewarder cannot cover.
+///      Budget: ghost_rewarderDepositCount (deposits while totalSupply > 0).
 contract OperatorStakingHandler is Test {
     // -------------------------------------------------------------------
     //  State
@@ -94,17 +73,14 @@ contract OperatorStakingHandler is Test {
     mapping(address => uint256) public ghost_actorRedeemCount;
 
     // -------------------------------------------------------------------
-    //  Ghost accounting — global tolerance budget
+    //  Ghost accounting — tolerance budgets
     // -------------------------------------------------------------------
 
-    /// @dev Deposits made while totalSharesInRedemption > 0. Upper bound on total leaked wei.
+    /// @dev Staking-side budget: deposits while totalSharesInRedemption > 0.
     uint256 public ghost_inflatedDepositCount;
 
-    /// @dev Staking-side dust injected via deal() to cover illiquidity shortfalls.
-    uint256 public ghost_globalSponsoredDust;
-
-    /// @dev Rewarder-side phantom claims skipped (independent budget from staking-side).
-    uint256 public ghost_rewarderSponsoredDust;
+    /// @dev Rewarder-side budget: deposits while totalSupply > 0.
+    uint256 public ghost_rewarderDepositCount;
 
     // -------------------------------------------------------------------
     //  Ghost state — transition checks
@@ -281,10 +257,7 @@ contract OperatorStakingHandler is Test {
     }
 
     /// @dev Check whether a redeem would hit a truncation-leak shortfall within budget.
-    ///
-    ///      When a shortfall exists within the tolerance budget, the redeem is
-    ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
-    ///      Returns true if the redeem was handled (reverted as expected).
+    ///      Returns true if the shortfall was within budget and the expected revert was asserted.
     function _assertRedeemRevertsForDust(
         address actor,
         uint256 shares,
@@ -294,13 +267,8 @@ contract OperatorStakingHandler is Test {
         if (expectedAssets <= availableAssets) return false;
 
         uint256 shortfall = expectedAssets - availableAssets;
-        uint256 remainingBudget = ghost_inflatedDepositCount - ghost_globalSponsoredDust;
 
-        if (shortfall <= remainingBudget) {
-            // The vault is insolvent by `shortfall` wei due to the truncation leak.
-            // Assert the redeem reverts with the expected ERC20InsufficientBalance error.
-            // After release(), the vault holds availableAssets. previewRedeem inside redeem()
-            // will return expectedAssets (same rate, no state change). The safeTransfer fails.
+        if (shortfall <= ghost_inflatedDepositCount) {
             vm.expectRevert(
                 abi.encodeWithSelector(
                     bytes4(0xe450d38c), // ERC20InsufficientBalance(address,uint256,uint256)
@@ -311,11 +279,8 @@ contract OperatorStakingHandler is Test {
             );
             vm.prank(actor);
             operatorStaking.redeem(shares, actor, actor);
-
-            ghost_globalSponsoredDust += shortfall;
             return true;
         }
-        // Shortfall exceeds budget — fall through and let the redeem revert to surface real bugs.
         return false;
     }
 
@@ -343,11 +308,8 @@ contract OperatorStakingHandler is Test {
         if (earnedAmount <= totalAvailable) return false;
 
         uint256 shortfall = earnedAmount - totalAvailable;
-        uint256 remainingBudget = ghost_inflatedDepositCount > ghost_rewarderSponsoredDust
-            ? ghost_inflatedDepositCount - ghost_rewarderSponsoredDust
-            : 0;
 
-        if (shortfall <= remainingBudget) {
+        if (shortfall <= ghost_rewarderDepositCount) {
             // The rewarder is insolvent by `shortfall` wei due to the phantom reward bug.
             // Assert the claim reverts with the expected ERC20InsufficientBalance error.
             vm.expectRevert(
@@ -361,7 +323,6 @@ contract OperatorStakingHandler is Test {
             vm.prank(actor);
             rewarder.claimRewards(actor);
 
-            ghost_rewarderSponsoredDust += shortfall;
             return true;
         }
 
@@ -442,9 +403,8 @@ contract OperatorStakingHandler is Test {
 
         assets = bound(assets, 1, balance);
 
-        // Track deposits during active redemptions for the tolerance budget.
-        // donate() caps D <= N, so each deposit shifts previewRedeem by at most 1 wei.
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
+        bool transferHookFires = operatorStaking.totalSupply() > 0;
 
         vm.prank(actor);
         operatorStaking.deposit(assets, actor);
@@ -452,6 +412,7 @@ contract OperatorStakingHandler is Test {
         ghost_deposited[actor] += assets;
         ghost_actorDepositCount[actor]++;
         if (hasPendingRedemptions) ghost_inflatedDepositCount++;
+        if (transferHookFires) ghost_rewarderDepositCount++;
     }
 
     function depositWithPermit(uint256 assets) external assertTransitionInvariants {
@@ -462,6 +423,7 @@ contract OperatorStakingHandler is Test {
         assets = bound(assets, 1, balance);
 
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
+        bool transferHookFires = operatorStaking.totalSupply() > 0;
         uint256 deadline = block.timestamp + 1;
         (uint8 v, bytes32 r, bytes32 s) = _getSignature(actor, assets, deadline);
 
@@ -472,6 +434,7 @@ contract OperatorStakingHandler is Test {
         ghost_actorDepositCount[actor]++;
         ghost_lastPermitActor = actor;
         if (hasPendingRedemptions) ghost_inflatedDepositCount++;
+        if (transferHookFires) ghost_rewarderDepositCount++;
     }
 
     /// @dev Requesting redemption of 1 share returns 0 assets due to rounding, but the share

@@ -256,13 +256,13 @@ contract OperatorStakingInvariantTest is Test {
     }
 
     /// @notice Liquid balance + awaiting release must cover all in-flight redemption payouts,
-    ///         within the tolerance budget (1 wei per inflated deposit, minus already-spent dust).
+    ///         within the tolerance budget (1 wei per deposit while redemptions are in-flight).
     function invariant_liquidityBufferSufficiency() public view {
         uint256 liquidBalance = zama.balanceOf(address(operatorStaking));
         uint256 awaitingRelease = protocolStaking.awaitingRelease(address(operatorStaking));
         uint256 obligation = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
 
-        uint256 tolerance = handler.ghost_inflatedDepositCount() - handler.ghost_globalSponsoredDust();
+        uint256 tolerance = handler.ghost_inflatedDepositCount();
 
         assertGe(
             liquidBalance + awaitingRelease + tolerance,

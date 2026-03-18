@@ -434,11 +434,16 @@ See: `test_PhantomRewardBug_RewarderInsolvency`.
 
 ### Ghost state counters
 
-- `ghost_inflatedDepositCount` — deposits made while `totalSharesInRedemption > 0` (upper bound on leaked wei for both systems)
-- `ghost_globalSponsoredDust` — staking-side shortfalls asserted to revert; drawn from the inflated deposit budget
-- `ghost_rewarderSponsoredDust` — rewarder-side phantom claims asserted to revert; drawn from the same budget independently
+Each phenomenon has its own budget counter (upper bound) and spent tracker:
 
-The two dust counters draw from `ghost_inflatedDepositCount` independently. A deposit during an in-flight redemption can simultaneously leak 1 wei from vault liquidity (staking-side) and produce a phantom reward (rewarder-side).
+| Budget counter | Trigger condition | Spent tracker | Phenomenon |
+|---|---|---|---|
+| `ghost_inflatedDepositCount` | deposit while `totalSharesInRedemption > 0` | `ghost_globalSponsoredDust` | Staking-side illiquidity |
+| `ghost_rewarderDepositCount` | deposit while `totalSupply > 0` | `ghost_rewarderSponsoredDust` | Rewarder-side phantom |
+
+The trigger conditions differ because:
+- **Staking-side**: the leak only matters when in-flight redemptions exist to absorb the inflated `previewRedeem`.
+- **Rewarder-side**: `transferHook` fires on any deposit where `totalSupply > 0`, regardless of redemptions. The phantom comes from sequential floor divisions in `_allocation`, not from exchange rate inflation.
 
 ### Staking-side expected revert logic
 
