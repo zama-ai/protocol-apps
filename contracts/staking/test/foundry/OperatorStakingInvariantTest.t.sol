@@ -372,11 +372,18 @@ contract OperatorStakingInvariantTest is Test {
     }
 
     // -------------------------------------------------------------------
-    //  Illiquidity bug reproductions
+    //  Bug reproductions
     // -------------------------------------------------------------------
 
-    /// @notice Demonstrates the truncation leak illiquidity bug.
+    /// @notice Demonstrates the staking-side truncation leak illiquidity bug.
     ///
+    ///   Root cause: a direct token transfer raises the per-share exchange rate. A
+    ///   subsequent deposit at the elevated rate causes floor-rounding truncation in
+    ///   _convertToShares, leaking value into the shared pool. In-flight redemptions
+    ///   capture that leaked value via previewRedeem, creating an obligation the vault
+    ///   cannot cover from liquid assets.
+    ///
+    ///   Sequence:
     ///   1. Alice deposits and requests redemption.
     ///   2. Bob donates tokens directly, inflating totalAssets without minting shares.
     ///   3. stakeExcess sweeps the donation, leaving exact redemption coverage.
@@ -448,5 +455,127 @@ contract OperatorStakingInvariantTest is Test {
             )
         );
         _opStaking.redeem(100, alice, alice);
+    }
+
+    /// @notice Demonstrates the rewarder-side phantom reward bug.
+    ///
+    ///   When two sequential deposits trigger transferHook's _allocation with floor
+    ///   division, the sum of the individual virtualAmounts can be less than the
+    ///   combined _allocation computed later in earned(). This creates a phantom
+    ///   1 wei reward that the rewarder cannot pay, reverting with ERC20InsufficientBalance.
+    ///
+    ///   Root cause chain:
+    ///     1. Alice deposits 5 wei → 500 shares (first deposit, transferHook returns early).
+    ///     2. 7 seconds pass with rewardRate=1 → 7 reward tokens accrue.
+    ///     3. Alice claims all 7 rewards → rewarder balance = 0.
+    ///     4. Bob deposits 2 wei → 200 shares.
+    ///        transferHook: V1 = floor(7 * 200 / 500) = floor(2.8) = 2.
+    ///     5. Bob deposits 3 wei → 300 shares.
+    ///        transferHook: V2 = floor((7+2) * 300 / 700) = floor(3.857) = 3.
+    ///     6. earned(bob) = floor((7+5) * 500 / 1000) - (2+3) = 6 - 5 = 1.
+    ///        But rewarder has 0 tokens and protocolStaking has 0 pending → revert.
+    function test_PhantomRewardBug_RewarderInsolvency() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        (ZamaERC20 _token, ProtocolStakingHarness _proto, OperatorStakingHarness _opStaking) =
+            _setupPhantomRewardContracts(alice, bob);
+
+        OperatorRewarder _rewarder = OperatorRewarder(_opStaking.rewarder());
+
+        // Step 1: Alice deposits 5 wei → 500 shares (first deposit).
+        vm.prank(alice);
+        assertEq(_opStaking.deposit(5, alice), 500, "Alice should get 500 shares");
+
+        // Step 2: Warp 7 seconds → 7 reward tokens accrue.
+        vm.warp(block.timestamp + 7);
+        assertEq(_proto.earned(address(_opStaking)), 7, "7 rewards should accrue");
+
+        // Step 3: Alice claims all rewards. Rewarder balance → 0.
+        assertEq(_rewarder.earned(alice), 7, "Alice earned 7");
+        vm.prank(alice);
+        _rewarder.claimRewards(alice);
+        assertEq(_token.balanceOf(address(_rewarder)), 0, "Rewarder should be empty");
+
+        // Step 4: Bob deposits 2 wei → 200 shares.
+        vm.prank(bob);
+        assertEq(_opStaking.deposit(2, bob), 200, "Bob first deposit: 200 shares");
+
+        // Step 5: Bob deposits 3 wei → 300 shares.
+        vm.prank(bob);
+        assertEq(_opStaking.deposit(3, bob), 300, "Bob second deposit: 300 shares");
+
+        // Step 6: Bob has a phantom 1 wei earned.
+        assertEq(_rewarder.earned(bob), 1, "Phantom: bob earned 1 despite no real reward accrual");
+
+        // The rewarder has 0 tokens and protocolStaking has 0 pending.
+        assertEq(_token.balanceOf(address(_rewarder)), 0, "Rewarder has 0 tokens");
+        assertEq(_proto.earned(address(_opStaking)), 0, "No pending protocol rewards");
+
+        // Bob's claimRewards reverts: rewarder is insolvent by exactly 1 wei.
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("ERC20InsufficientBalance(address,uint256,uint256)")),
+                address(_rewarder),
+                0,
+                1
+            )
+        );
+        vm.prank(bob);
+        _rewarder.claimRewards(bob);
+    }
+
+    /// @dev Deploy contracts with rewardRate=1 and fee=0 for the phantom reward test.
+    function _setupPhantomRewardContracts(
+        address alice,
+        address bob
+    )
+        internal
+        returns (ZamaERC20 _token, ProtocolStakingHarness _proto, OperatorStakingHarness _opStaking)
+    {
+        address[] memory users = new address[](2);
+        users[0] = alice;
+        users[1] = bob;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 100e18;
+        amounts[1] = 100e18;
+
+        _token = new ZamaERC20("Zama", "ZAMA", users, amounts, address(this));
+
+        ProtocolStakingHarness _protoImpl = new ProtocolStakingHarness();
+        _proto = ProtocolStakingHarness(
+            address(
+                new ERC1967Proxy(
+                    address(_protoImpl),
+                    abi.encodeCall(
+                        _protoImpl.initialize,
+                        ("Staked ZAMA", "stZAMA", "1", address(_token), address(this), manager, 1 days, 1)
+                    )
+                )
+            )
+        );
+
+        _token.grantRole(_token.MINTER_ROLE(), address(_proto));
+
+        OperatorStakingHarness _opImpl = new OperatorStakingHarness();
+        _opStaking = OperatorStakingHarness(
+            address(
+                new ERC1967Proxy(
+                    address(_opImpl),
+                    abi.encodeCall(
+                        _opImpl.initialize,
+                        ("Operator Staked ZAMA", "opstZAMA", _proto, address(this), 10000, 0)
+                    )
+                )
+            )
+        );
+
+        vm.prank(manager);
+        _proto.addEligibleAccount(address(_opStaking));
+
+        vm.prank(alice);
+        _token.approve(address(_opStaking), type(uint256).max);
+        vm.prank(bob);
+        _token.approve(address(_opStaking), type(uint256).max);
     }
 }
