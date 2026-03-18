@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+/* solhint-disable var-name-mixedcase */ // ghost_variables prefix
+
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -94,6 +96,10 @@ contract OperatorStakingHandler is Test {
     bool public ghost_redeemCalled;
     uint256 public ghost_lastRedeemExpected;
     uint256 public ghost_lastRedeemAssets;
+    uint256 public ghost_lastRedeemEffectiveShares;
+    uint256 public ghost_lastRedeemPreTotalInRedemption;
+    uint256 public ghost_lastRedeemPreSharesReleased;
+    address public ghost_lastRedeemActor;
     address public ghost_lastPermitActor;
     PendingRedeem[] public ghost_pendingRedeems;
 
@@ -129,7 +135,7 @@ contract OperatorStakingHandler is Test {
         _;
         _assertActorTotalRewardsMonotonicity();
         _assertStakeExcessExactBufferInvariant();
-        _assertRedeemExactBufferInvariant();
+        _assertRedeemTransitionInvariants();
         _repairAllowanceAfterPermit();
     }
 
@@ -171,14 +177,29 @@ contract OperatorStakingHandler is Test {
         ghost_stakeExcessCalled = false;
     }
 
-    /// @dev Actual ERC20 transfer must match the pre-call previewRedeem snapshot.
-    function _assertRedeemExactBufferInvariant() internal {
+    /// @dev After redeem:
+    ///   1. Actual ERC20 transfer must equal the pre-call previewRedeem snapshot.
+    ///   2. totalSharesInRedemption must have decreased by exactly effectiveShares.
+    ///   3. _sharesReleased[controller] must have increased by exactly effectiveShares.
+    ///
+    ///   Note: checks 2 and 3 are gated on assets > 0. OperatorStaking.redeem only updates
+    ///   the accounting block inside `if (assets > 0)`, so if previewRedeem(effectiveShares)
+    ///   rounds down to 0 (e.g. redeeming a tiny number of shares), neither field changes.
+    function _assertRedeemTransitionInvariants() internal {
         if (!ghost_redeemCalled) return;
-        assertEq(
-            ghost_lastRedeemAssets,
-            ghost_lastRedeemExpected,
-            "Transition: redeem transfer != previewRedeem"
-        );
+        assertEq(ghost_lastRedeemAssets, ghost_lastRedeemExpected, "Transition: redeem transfer != previewRedeem");
+        if (ghost_lastRedeemExpected > 0) {
+            assertEq(
+                ghost_lastRedeemPreTotalInRedemption - operatorStaking.totalSharesInRedemption(),
+                ghost_lastRedeemEffectiveShares,
+                "Transition: totalSharesInRedemption delta != effectiveShares"
+            );
+            assertEq(
+                operatorStaking._harness_getSharesReleased(ghost_lastRedeemActor) - ghost_lastRedeemPreSharesReleased,
+                ghost_lastRedeemEffectiveShares,
+                "Transition: _sharesReleased delta != effectiveShares"
+            );
+        }
         ghost_redeemCalled = false;
     }
 
@@ -211,6 +232,10 @@ contract OperatorStakingHandler is Test {
         availableAssets = assetToken.balanceOf(address(operatorStaking)) + pendingRelease;
     }
 
+    function assertRedeemRevertsForDust(address actor, uint256 shares, uint256 expectedAssets, uint256 availableAssets) public returns (bool) {
+        return _assertRedeemRevertsForDust(actor, shares, expectedAssets, availableAssets);
+    }
+
     // -------------------------------------------------------------------
     //  Internal helpers
     // -------------------------------------------------------------------
@@ -233,39 +258,108 @@ contract OperatorStakingHandler is Test {
         ghost_pendingRedeems.pop();
     }
 
-    /// @dev If expectedAssets > availableAssets and the shortfall fits within the tolerance
-    ///      budget, deal() the missing wei to the vault and debit the budget. If the shortfall
-    ///      exceeds tolerance, do nothing — let the redeem revert to surface real bugs.
+    /// @dev Check whether a redeem would hit a truncation-leak shortfall within budget.
     ///
-    ///      This deal is NOT self-defeating: DECIMALS_OFFSET=100 virtual shares guarantee
-    ///      floor(shortfall * effectiveShares / totalShares) = 0 for any single-actor shortfall,
-    ///      so the injected wei does not inflate previewRedeem for the actor being redeemed.
-    function _sponsorAcceptedRoundingDust(uint256 expectedAssets, uint256 availableAssets) internal {
-        if (expectedAssets <= availableAssets) return;
+    ///      When a shortfall exists within the tolerance budget, the redeem is
+    ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
+    ///      Returns true if the redeem was handled (reverted as expected).
+    function _assertRedeemRevertsForDust(
+        address actor,
+        uint256 shares,
+        uint256 expectedAssets,
+        uint256 availableAssets
+    ) internal returns (bool) {
+        if (expectedAssets <= availableAssets) return false;
 
         uint256 shortfall = expectedAssets - availableAssets;
         uint256 remainingBudget = ghost_inflatedDepositCount - ghost_globalSponsoredDust;
 
         if (shortfall <= remainingBudget) {
-            uint256 currentBalance = assetToken.balanceOf(address(operatorStaking));
-            deal(address(assetToken), address(operatorStaking), currentBalance + shortfall);
+            // The vault is insolvent by `shortfall` wei due to the truncation leak.
+            // Assert the redeem reverts with the expected ERC20InsufficientBalance error.
+            // After release(), the vault holds availableAssets. previewRedeem inside redeem()
+            // will return expectedAssets (same rate, no state change). The safeTransfer fails.
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    bytes4(0xe450d38c), // ERC20InsufficientBalance(address,uint256,uint256)
+                    address(operatorStaking),
+                    availableAssets,
+                    expectedAssets
+                )
+            );
+            vm.prank(actor);
+            operatorStaking.redeem(shares, actor, actor);
+
             ghost_globalSponsoredDust += shortfall;
+            return true;
         }
+        // Shortfall exceeds budget — fall through and let the redeem revert to surface real bugs.
+        return false;
     }
 
-    /// @dev Redeem shares, sponsor rounding dust if needed, update ghost state.
+    /// @dev Check whether a claimRewards would hit a phantom-reward shortfall within budget.
+    ///
+    ///      Dealing tokens to the rewarder is self-defeating: the dealt wei inflates
+    ///      _totalAssetsPlusPaidRewards, and earned() absorbs it proportionally to the
+    ///      actor's shares.
+    ///
+    ///      Instead, when a shortfall exists within the tolerance budget, the claim is
+    ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
+    ///      Returns true if the claim was handled (reverted as expected).
+    function _assertClaimRewardsRevertsForDust(
+        address actor,
+        uint256 earnedAmount
+    ) internal returns (bool) {
+        uint256 rewarderBalance = assetToken.balanceOf(address(rewarder));
+        uint256 pendingFromProtocol = protocolStaking.earned(address(operatorStaking));
+        
+        // The rewarder will pull pending rewards from the protocol before transferring,
+        // so its actual liquid balance at the time of the safeTransfer is the sum of both.
+        uint256 totalAvailable = rewarderBalance + pendingFromProtocol;
+
+        if (earnedAmount <= totalAvailable) return false;
+
+        uint256 shortfall = earnedAmount - totalAvailable;
+        uint256 remainingBudget = ghost_inflatedDepositCount > ghost_rewarderSponsoredDust
+            ? ghost_inflatedDepositCount - ghost_rewarderSponsoredDust
+            : 0;
+
+        if (shortfall <= remainingBudget) {
+            // The rewarder is insolvent by `shortfall` wei due to the phantom reward bug.
+            // Assert the claim reverts with the expected ERC20InsufficientBalance error.
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    bytes4(0xe450d38c), // ERC20InsufficientBalance(address,uint256,uint256)
+                    address(rewarder),
+                    totalAvailable,
+                    earnedAmount
+                )
+            );
+            vm.prank(actor);
+            rewarder.claimRewards(actor);
+
+            ghost_rewarderSponsoredDust += shortfall;
+            return true;
+        }
+        
+        // Shortfall exceeds budget — fall through and let the revert surface.
+        return false;
+    }
+
+    /// @dev Redeem shares. If a truncation-leak shortfall is within budget, asserts the
+    ///      redeem reverts with ERC20InsufficientBalance instead of executing it.
     function _executeRedeem(address actor, uint256 shares) internal returns (uint256 assetsOut) {
         uint256 effectiveShares = shares == type(uint256).max ? operatorStaking.maxRedeem(actor) : shares;
         if (effectiveShares == 0) return 0;
 
         (uint256 expectedAssets, uint256 availableAssets) = getExpectedAssets(effectiveShares);
-        _sponsorAcceptedRoundingDust(expectedAssets, availableAssets);
-
-        // Refresh after sponsoring: the deal may have shifted the exchange rate by a negligible
-        // amount, but we need the post-deal previewRedeem for the transition assertion.
-        (expectedAssets,) = getExpectedAssets(effectiveShares);
+        if (_assertRedeemRevertsForDust(actor, shares, expectedAssets, availableAssets)) return 0;
 
         uint256 balanceBefore = assetToken.balanceOf(actor);
+        ghost_lastRedeemPreTotalInRedemption = operatorStaking.totalSharesInRedemption();
+        ghost_lastRedeemPreSharesReleased = operatorStaking._harness_getSharesReleased(actor);
+        ghost_lastRedeemEffectiveShares = effectiveShares;
+        ghost_lastRedeemActor = actor;
 
         vm.prank(actor);
         assetsOut = operatorStaking.redeem(shares, actor, actor);
@@ -425,47 +519,97 @@ contract OperatorStakingHandler is Test {
         assetToken.transfer(address(operatorStaking), amount);
     }
 
-    /// @dev Claims rewards from the OperatorRewarder.
-    ///
-    ///      Known issue: the rewarder can be 1 wei short due to a phantom residual in
-    ///      _totalVirtualRewardsPaid. Donate inflates share price -> deposit truncates
-    ///      shares -> transferHook calls _allocation with floor division -> phantom wei
-    ///      lodges in _totalVirtualRewardsPaid -> historicalReward() overstates by 1 ->
-    ///      earned() promises 1 more token than the rewarder holds.
-    ///
-    ///      Dealing tokens to the rewarder is self-defeating: the dealt amount raises
-    ///      _totalAssetsPlusPaidRewards -> historicalReward -> earned by the same amount.
-    ///      The rewarder's _allocation divides by totalSupply (no virtual offset), so for
-    ///      majority holders the shortfall never closes.
-    ///
-    ///      Fix: skip the claim when the shortfall fits within the rewarder tolerance budget.
-    ///
-    ///      Known limitation: rewarder.claimRewards() is all-or-nothing. A persistent 1-wei
-    ///      phantom blocks ALL future claims for the affected actor until their shares burn
-    ///      via requestRedeem (which resets _rewardsPaid in the transferHook). This means
-    ///      ghost_claimedRewards under-counts for affected actors.
+    /// @dev Claims rewards from the OperatorRewarder. If a phantom-reward shortfall is 
+    ///      within budget, asserts the claim reverts with ERC20InsufficientBalance 
+    ///      instead of executing it.
     function claimRewards() external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 earnedAmount = rewarder.earned(actor);
         if (earnedAmount == 0) return;
 
-        uint256 rewarderBalance = assetToken.balanceOf(address(rewarder));
-        uint256 pendingFromProtocol = protocolStaking.earned(address(operatorStaking));
-        uint256 totalAvailable = rewarderBalance + pendingFromProtocol;
-
-        if (earnedAmount > totalAvailable) {
-            uint256 shortfall = earnedAmount - totalAvailable;
-            uint256 remainingBudget = ghost_inflatedDepositCount - ghost_rewarderSponsoredDust;
-
-            if (shortfall <= remainingBudget) {
-                ghost_rewarderSponsoredDust += shortfall;
-                return;
-            }
-            // Shortfall exceeds budget — fall through and let the revert surface.
-        }
+        // If the phantom bug is triggered, assert the revert and exit cleanly
+        if (_assertClaimRewardsRevertsForDust(actor, earnedAmount)) return;
 
         vm.prank(actor);
         rewarder.claimRewards(actor);
         ghost_claimedRewards[actor] += earnedAmount;
+    }
+
+    // -------------------------------------------------------------------
+    //  Equivalence scenarios
+    // -------------------------------------------------------------------
+
+    /// @notice deposit(a) + deposit(b) must yield shares within a proven bound of deposit(a+b).
+    ///
+    ///   After deposit(a), the exchange rate shifts by ε1/(A+a) where ε1 ∈ [0,1) is the
+    ///   fractional part of (a * S/A). deposit(b) at the new rate then yields
+    ///   floor(b * ε1/(A+a)) fewer shares than if b were deposited at the original rate.
+    ///   Combined with at most 1 unit of rounding from each floor operation:
+    ///
+    ///     |sharesB - sharesA| ≤ floor(amount2 / (A + amount1)) + 2
+    ///
+    ///   earned() can differ by at most 2 due to floor division in transferHook._allocation.
+    function depositEquivalenceScenario(uint256 amount1, uint256 amount2) external {
+        address actor = msg.sender;
+        uint256 balance = assetToken.balanceOf(actor);
+        if (balance < 2) return;
+
+        amount1 = bound(amount1, 1, balance - 1);
+        amount2 = bound(amount2, 1, balance - amount1);
+
+        // Capture pre-deposit state for tolerance computation.
+        uint256 A = operatorStaking.totalAssets() + 1;
+        uint256 sharesTolerance = amount2 / (A + amount1) + 2;
+
+        uint256 snapshot = vm.snapshotState();
+
+        // Path A: two deposits via the handler (maintains all ghost state and transition checks).
+        vm.prank(actor);
+        this.deposit(amount1);
+        vm.prank(actor);
+        this.deposit(amount2);
+        uint256 sharesPathA = operatorStaking.balanceOf(actor);
+        uint256 earnedPathA = rewarder.earned(actor);
+
+        vm.revertToState(snapshot);
+
+        // Path B: single deposit of sum (surviving path — ghost state updated by handler).
+        vm.prank(actor);
+        this.deposit(amount1 + amount2);
+        uint256 sharesPathB = operatorStaking.balanceOf(actor);
+        uint256 earnedPathB = rewarder.earned(actor);
+
+        assertApproxEqAbs(sharesPathA, sharesPathB, sharesTolerance, "depositEquivalence: share difference exceeds proven bound");
+        assertApproxEqAbs(earnedPathA, earnedPathB, 2, "depositEquivalence: earned differs by > 2");
+    }
+
+    /// @notice requestRedeem(a) + requestRedeem(b) must yield the same pending shares
+    ///         as requestRedeem(a+b). Both requests happen at the same timestamp so the
+    ///         contract must accumulate them into the same checkpoint window.
+    function requestRedeemEquivalenceScenario(uint256 amount1, uint256 amount2) external {
+        address actor = msg.sender;
+        uint256 balance = operatorStaking.balanceOf(actor);
+        if (balance < 2) return;
+
+        amount1 = bound(amount1, 1, balance - 1);
+        amount2 = bound(amount2, 1, balance - amount1);
+
+        uint256 snapshot = vm.snapshotState();
+
+        // Path A: two requestRedeems.
+        vm.prank(actor);
+        this.requestRedeem(amount1);
+        vm.prank(actor);
+        this.requestRedeem(amount2);
+        uint256 pendingPathA = operatorStaking.pendingRedeemRequest(actor);
+
+        vm.revertToState(snapshot);
+
+        // Path B: single requestRedeem of sum (surviving path — ghost state updated by handler).
+        vm.prank(actor);
+        this.requestRedeem(amount1 + amount2);
+        uint256 pendingPathB = operatorStaking.pendingRedeemRequest(actor);
+
+        assertEq(pendingPathA, pendingPathB, "requestRedeemEquivalence: pending shares differ");
     }
 }

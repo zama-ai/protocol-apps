@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+/* solhint-disable func-name-mixedcase */ // Foundry discovers invariant tests by invariant_* prefix
+
 import {Test, console} from "forge-std/Test.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -109,6 +111,12 @@ contract OperatorStakingInvariantTest is Test {
         for (uint256 i = 0; i < actorCount; i++) {
             targetSender(actorsList[i]);
         }
+        bytes4[] memory selectors = new bytes4[](1);
+        selectors[0] = handler.assertRedeemRevertsForDust.selector;
+        excludeSelector(FuzzSelector({
+            addr: address(handler),
+            selectors: selectors
+        }));
     }
 
     // -------------------------------------------------------------------
@@ -118,12 +126,14 @@ contract OperatorStakingInvariantTest is Test {
     /// @notice Every pending redemption can be claimed at its exact cooldown timestamp.
     ///         Each iteration is isolated via snapshot/revertTo, so each gets the full
     ///         unspent tolerance budget independently.
+    ///
+    ///         When a truncation-leak shortfall exists within the tolerance budget, the
+    ///         invariant asserts the shortfall is bounded rather than executing the redeem.
     function invariant_redeemAtExactCooldown() public {
         uint256 count = handler.getPendingRedeemsCount();
         if (count == 0) return;
 
         uint256 originalTimestamp = block.timestamp;
-        uint256 donationBudget = handler.ghost_inflatedDepositCount() - handler.ghost_globalSponsoredDust();
 
         for (uint256 i = 0; i < count; i++) {
             (address controller, uint48 releaseTime) = handler.getPendingRedeem(i);
@@ -135,22 +145,20 @@ contract OperatorStakingInvariantTest is Test {
             uint256 claimableShares = operatorStaking.maxRedeem(controller);
             (uint256 expectedAssets, uint256 availableAssets) = handler.getExpectedAssets(claimableShares);
 
-            // Sponsor dust if within budget.
             if (expectedAssets > availableAssets) {
-                uint256 shortfall = expectedAssets - availableAssets;
-                if (shortfall <= donationBudget) {
-                    uint256 currentBalance = zama.balanceOf(address(operatorStaking));
-                    deal(address(zama), address(operatorStaking), currentBalance + shortfall);
-                }
+                // Shortfall exists — assert it will revert with ERC20InsufficientBalance and is within the tolerance budget.
+                bool reverted = handler.assertRedeemRevertsForDust(controller, claimableShares, expectedAssets, availableAssets);
+                assertTrue(reverted, "Invariant: redeem shortfall exceeds tolerance budget");
+            } else {
+                // No shortfall — execute the redeem and verify the transfer.
+                uint256 balanceBefore = zama.balanceOf(controller);
+
+                vm.prank(controller);
+                uint256 assetsReturned = operatorStaking.redeem(claimableShares, controller, controller);
+
+                uint256 actualTransfer = zama.balanceOf(controller) - balanceBefore;
+                assertEq(actualTransfer, assetsReturned, "Invariant: exact-cooldown redeem transfer mismatch");
             }
-
-            uint256 balanceBefore = zama.balanceOf(controller);
-
-            vm.prank(controller);
-            uint256 assetsReturned = operatorStaking.redeem(claimableShares, controller, controller);
-
-            uint256 actualTransfer = zama.balanceOf(controller) - balanceBefore;
-            assertEq(actualTransfer, assetsReturned, "Invariant: exact-cooldown redeem transfer mismatch");
 
             vm.revertTo(snapshotId);
             vm.warp(originalTimestamp);
