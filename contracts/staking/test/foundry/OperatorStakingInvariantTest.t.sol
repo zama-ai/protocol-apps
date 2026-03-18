@@ -6,7 +6,7 @@ pragma solidity ^0.8.27;
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {OperatorRewarder} from "./../../contracts/OperatorRewarder.sol";
 import {OperatorStakingHandler} from "./handlers/OperatorStakingHandler.sol";

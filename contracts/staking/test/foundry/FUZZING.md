@@ -335,8 +335,8 @@ Invariant checks fall into three categories:
 
 ### Files
 
-- Handler: [`handlers/ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol)
-- Test: [`ProtocolStakingInvariantTest.t.sol`](ProtocolStakingInvariantTest.t.sol)
+- Handler: [`handlers/ProtocolStakingHandler.sol`](/contracts/staking/test/foundry/handlers/ProtocolStakingHandler.sol)
+- Test: [`ProtocolStakingInvariantTest.t.sol`](/contracts/staking/test/foundry/ProtocolStakingInvariantTest.t.sol)
 
 ### Covered actions
 
@@ -394,9 +394,9 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testin
 
 ### Files
 
-- Handler: [`handlers/OperatorStakingHandler.sol`](handlers/OperatorStakingHandler.sol)
-- Test: [`OperatorStakingInvariantTest.t.sol`](OperatorStakingInvariantTest.t.sol)
-- Harness: [`harness/OperatorStakingHarness.sol`](harness/OperatorStakingHarness.sol)
+- Handler: [`handlers/OperatorStakingHandler.sol`](/contracts/staking/test/foundry/handlers/OperatorStakingHandler.sol)
+- Test: [`OperatorStakingInvariantTest.t.sol`](/contracts/staking/test/foundry/OperatorStakingInvariantTest.t.sol)
+- Harness: [`harness/OperatorStakingHarness.sol`](/contracts/staking/test/foundry/harness/OperatorStakingHarness.sol)
 
 ### Covered actions
 
@@ -606,11 +606,11 @@ forge clean && forge test
 
 ### Configuration
 
-Fuzz parameters are in [`foundry.toml`](../../foundry.toml):
+Fuzz parameters are in [`foundry.toml`](/contracts/staking/foundry.toml):
 
 ```toml
 [invariant]
-runs  = 2000
+runs  = 256
 depth = 100
 fail_on_revert = true
 ```
