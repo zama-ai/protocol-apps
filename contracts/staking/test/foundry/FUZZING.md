@@ -388,9 +388,9 @@ Invariant checks fall into three categories:
 OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testing is more involved than ProtocolStaking because:
 
 - It has an internal redemption queue (`requestRedeem` → cooldown → `redeem`) backed by ProtocolStaking unstakes
-- Donations inflate `totalAssets` without minting shares, causing ERC4626 floor-rounding to leak value into in-flight redemptions
-- The `OperatorRewarder` adds a second reward accounting system with its own truncation behaviour
-- Two contracts (vault + rewarder) can be independently affected by the same truncation event
+- Direct token transfers inflate `totalAssets` without minting shares, causing ERC4626 floor-rounding in `_convertToShares` to leak value into in-flight redemptions (staking-side illiquidity bug)
+- The `OperatorRewarder` adds a second reward accounting system where sequential deposits expose a sum-of-floors < floor-of-sum phantom (rewarder-side phantom bug)
+- Two contracts (vault + rewarder) can be independently affected by the same deposit event
 
 ### Files
 
@@ -406,23 +406,43 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testin
 
 ## Tolerance Budget System
 
-### The truncation leak
+Two distinct floor-division phenomena each allow the system to diverge by at most 1 wei per triggering event. Rather than patching state, the handler asserts that the expected `ERC20InsufficientBalance` revert occurs.
 
-Direct token donations inflate `totalAssets` without minting shares, raising the per-share exchange rate. Any subsequent deposit at the elevated rate incurs ERC4626 floor-rounding truncation: `_convertToShares` floors down, leaking the remainder into the shared pool. That leaked value raises `previewRedeem` for all outstanding shares — including shares already in the redemption queue — beyond what the vault holds as liquid assets.
+### Staking-side: donation-triggered truncation leak
+
+Direct token transfers inflate `totalAssets` without minting shares, raising the per-share exchange rate. Any subsequent deposit at the elevated rate incurs ERC4626 floor-rounding truncation: `_convertToShares` floors down, leaking the remainder into the shared pool. That leaked value raises `previewRedeem` for all outstanding shares — including shares already in the redemption queue — beyond what the vault holds as liquid assets.
 
 The `donate()` handler caps donations so that `totalAssets / totalShares ≤ 1` (using virtual offsets), which bounds the per-deposit leak to exactly 0 or 1 wei. Proof: if `D ≤ N` (where D = totalAssets+1, N = totalShares+100), then for any single deposit minting N' shares, `pendingShares × (D'/N' − D/N) < 1`.
 
+See: `test_IlliquidityBug_TruncationLeak`.
+
+### Rewarder-side: sum-of-floors < floor-of-sum phantom
+
+When an actor makes N sequential deposits and `transferHook` fires on each, each call independently computes `floor(R × s_i / T_i)` and accumulates the result into `_rewardsPaid[actor]`. Later, `earned()` computes a single `floor(R' × totalShares / totalSupply)` — the floor of the combined allocation.
+
+By the sum-of-floors property, the sum of N individual floors can be strictly less than the floor of their combined value. Concretely, with totalSupply=500, R=7, and deposits of 200 then 300 shares:
+
+```
+V1 = floor(7 × 200 / 500)    = floor(2.8)   = 2
+V2 = floor(9 × 300 / 700)    = floor(3.857) = 3   [R' = 7+2 = 9]
+earned = floor(12 × 500 / 1000) − (2+3) = 6 − 5 = 1  ← phantom
+```
+
+The rewarder has 0 tokens after the preceding claim and protocolStaking has 0 pending, so `claimRewards` reverts with `ERC20InsufficientBalance(rewarder, 0, 1)`.
+
+See: `test_PhantomRewardBug_RewarderInsolvency`.
+
 ### Ghost state counters
 
-- `ghost_inflatedDepositCount` — deposits made while totalSharesInRedemption > 0 (upper bound on total leaked wei)
-- `ghost_globalSponsoredDust` — staking-side shortfalls explicitly verified and asserted to revert
-- `ghost_rewarderSponsoredDust` — rewarder-side phantom claims explicitly verified and asserted to revert
+- `ghost_inflatedDepositCount` — deposits made while `totalSharesInRedemption > 0` (upper bound on leaked wei for both systems)
+- `ghost_globalSponsoredDust` — staking-side shortfalls asserted to revert; drawn from the inflated deposit budget
+- `ghost_rewarderSponsoredDust` — rewarder-side phantom claims asserted to revert; drawn from the same budget independently
 
-`ghost_inflatedDepositCount` is the shared budget. The two dust counters draw from it independently, because a single truncation event can simultaneously cause a shortfall in vault liquidity AND a phantom wei in the rewarder's `_totalVirtualRewardsPaid`.
+The two dust counters draw from `ghost_inflatedDepositCount` independently. A deposit during an in-flight redemption can simultaneously leak 1 wei from vault liquidity (staking-side) and produce a phantom reward (rewarder-side).
 
 ### Staking-side expected revert logic
 
-Instead of failing the fuzzer or fixing the balance, the handler expects redemption in an illiquid valut to revert. When `redeem()` encounters a dust-sized shortfall within the tolerance budget, `_assertRedeemRevertsForDust` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state, and debits `ghost_globalSponsoredDust`. If the shortfall exceeds the remaining budget, it falls through and surfaces as a real, unhandled bug.
+When `redeem()` encounters a dust-sized shortfall within the tolerance budget, `_assertRedeemRevertsForDust` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state, and debits `ghost_globalSponsoredDust`. If the shortfall exceeds the remaining budget, it falls through and surfaces as a real, unhandled bug.
 
 ### Rewarder-side expected revert logic
 

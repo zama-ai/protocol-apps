@@ -18,23 +18,41 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///
 /// @dev Tolerance budget system
 ///
-///   Direct token donations inflate totalAssets without minting shares. Any subsequent
-///   deposit at the elevated exchange rate incurs ERC4626 floor-rounding truncation,
-///   leaking up to 1 wei of asset value per deposit into the shared pool. That leaked
-///   value inflates previewRedeem for in-flight redemptions beyond liquid coverage.
+///   Two distinct floor-division phenomena each allow the system to diverge by at most
+///   1 wei per triggering event. Both are tracked via ghost counters and handled by
+///   asserting expected reverts rather than patching state.
+///
+///   ── Staking-side: donation-triggered truncation leak ──────────────────────────────
+///
+///   Direct token transfers inflate totalAssets without minting shares. Any subsequent
+///   deposit at the elevated exchange rate incurs ERC4626 floor-rounding truncation in
+///   _convertToShares: the depositor receives fewer shares than the assets warrant, and
+///   the remainder leaks into the shared pool. That leaked value raises previewRedeem for
+///   all outstanding shares — including shares already in the redemption queue — beyond
+///   what the vault holds as liquid assets.
 ///   See: test_IlliquidityBug_TruncationLeak.
 ///
-///   The donate() handler caps donations so that totalAssets/totalShares diverges by
-///   at most 1 wei per deposit, bounding the leak to exactly 0 or 1 wei per deposit.
-///   ghost_inflatedDepositCount tracks the number of deposits made while redemptions
-///   existed — the upper bound on total leaked wei.
+///   The donate() handler caps donations so that totalAssets/totalShares diverges by at
+///   most 1 wei per deposit (D ≤ N invariant), bounding the per-deposit leak to 0 or 1.
+///   ghost_inflatedDepositCount tracks deposits made while totalSharesInRedemption > 0
+///   — the upper bound on total leaked wei of vault illiquidity.
 ///
-///   Two independent budgets draw from this count:
-///     - ghost_globalSponsoredDust:   staking-side shortfalls patched via deal()
-///     - ghost_rewarderSponsoredDust: rewarder-side phantom claims skipped
+///   ── Rewarder-side: sum-of-floors < floor-of-sum phantom ──────────────────────────
 ///
-///   They are independent because a single truncation event can cause a phantom in
-///   both systems simultaneously.
+///   When an actor makes two or more sequential deposits and transferHook fires on each,
+///   each call independently computes floor(R * s_i / T_i) and accumulates the result
+///   into _rewardsPaid[actor]. Later, earned() computes a single floor(R' * totalShares
+///   / totalSupply) — the floor of the combined allocation. Because the sum of individual
+///   floors can be strictly less than the floor of the combined value (the sum-of-floors
+///   < floor-of-sum property), earned() can return 1 more wei than was credited, creating
+///   a phantom reward the rewarder cannot cover.
+///   See: test_PhantomRewardBug_RewarderInsolvency.
+///
+///   ghost_inflatedDepositCount also bounds the rewarder phantom budget (a deposit that
+///   leaks to the staking side is also a deposit that can produce a phantom on the
+///   rewarder side). The two budgets draw from the same count independently.
+///     - ghost_globalSponsoredDust:   staking-side shortfalls asserted as expected reverts
+///     - ghost_rewarderSponsoredDust: rewarder-side phantom claims asserted as expected reverts
 contract OperatorStakingHandler is Test {
     // -------------------------------------------------------------------
     //  State
@@ -303,11 +321,15 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Check whether a claimRewards would hit a phantom-reward shortfall within budget.
     ///
-    ///      Dealing tokens to the rewarder is self-defeating: the dealt wei inflates
-    ///      _totalAssetsPlusPaidRewards, and earned() absorbs it proportionally to the
-    ///      actor's shares.
+    ///      Root cause (sum-of-floors < floor-of-sum): when an actor makes N sequential
+    ///      deposits, each transferHook call independently computes floor(R * s_i / T_i)
+    ///      and adds it to _rewardsPaid[actor]. earned() later computes a single combined
+    ///      floor(R' * totalShares / totalSupply). Because the sum of individual floors can
+    ///      be strictly less than the floor of the combined allocation, earned() returns 1
+    ///      more wei than was credited via _rewardsPaid, creating a phantom the rewarder
+    ///      cannot cover.
     ///
-    ///      Instead, when a shortfall exists within the tolerance budget, the claim is
+    ///      When a shortfall exists within the tolerance budget, the claim is
     ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
     ///      Returns true if the claim was handled (reverted as expected).
     function _assertClaimRewardsRevertsForDust(address actor, uint256 earnedAmount) internal returns (bool) {
