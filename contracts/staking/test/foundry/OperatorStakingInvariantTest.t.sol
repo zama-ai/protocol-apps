@@ -478,8 +478,11 @@ contract OperatorStakingInvariantTest is Test {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
 
-        (ZamaERC20 _token, ProtocolStakingHarness _proto, OperatorStakingHarness _opStaking) =
-            _setupPhantomRewardContracts(alice, bob);
+        (
+            ZamaERC20 _token,
+            ProtocolStakingHarness _proto,
+            OperatorStakingHarness _opStaking
+        ) = _setupPhantomRewardContracts(alice, bob);
 
         OperatorRewarder _rewarder = OperatorRewarder(_opStaking.rewarder());
 
@@ -529,10 +532,7 @@ contract OperatorStakingInvariantTest is Test {
     function _setupPhantomRewardContracts(
         address alice,
         address bob
-    )
-        internal
-        returns (ZamaERC20 _token, ProtocolStakingHarness _proto, OperatorStakingHarness _opStaking)
-    {
+    ) internal returns (ZamaERC20 _token, ProtocolStakingHarness _proto, OperatorStakingHarness _opStaking) {
         address[] memory users = new address[](2);
         users[0] = alice;
         users[1] = bob;
