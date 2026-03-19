@@ -284,6 +284,16 @@ contract ProtocolStakingHandler is Test {
     }
 
     // **************** ProtocolStaking actions ****************
+    //
+    // Actor identity via targetSender:
+    //   The test contract registers each entry in `actors` with Foundry's `targetSender()`.
+    //   On every fuzz call Foundry picks one of those addresses as `msg.sender`, so inside
+    //   every handler function `msg.sender` is always a known actor from the `actors` array.
+    //   Handler actions that the actor performs directly (stake, unstake, claimRewards,
+    //   release) read `address actor = msg.sender` and prank as that address.
+    //   Actions that require manager privileges (setRewardRate, addEligibleAccount,
+    //   removeEligibleAccount, setUnstakeCooldownPeriod) still use `msg.sender` to select
+    //   which account is affected, but prank as `manager` to satisfy the access-control check.
 
     /// @dev Move the block timestamp forward by a given duration.
     function warp(uint256 duration) public assertTransitionInvariants {
