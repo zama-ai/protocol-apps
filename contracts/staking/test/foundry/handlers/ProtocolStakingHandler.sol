@@ -9,10 +9,31 @@ import {Test} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 
-/**
- * @title ProtocolStakingHandler
- * @notice Handler for invariant tests: wraps ProtocolStaking actions, bounds inputs, and tracks ghost state.
- */
+/// @title ProtocolStakingHandler
+/// @notice Invariant-test handler for ProtocolStaking. Wraps all state-changing actions
+///         with bounded fuzz inputs and per-transition invariant checks.
+///
+/// @dev Two opposing floor-division phenomena compete in the reward debt accounting system.
+///      Their interaction bounds the total divergence to at most N wei (not 2N), where N
+///      is the maximum number of simultaneously eligible accounts.
+///
+///      Truncation dust (test_MaxNormalTruncationDust): each call to earned() floor-divides
+///      `rewardPool × weight / totalWeight` independently per account. The sum of N floors
+///      is strictly less than the pool total, pulling the reward debt LHS DOWN by at most
+///      N − 1 wei across all accounts.
+///
+///      Phantom wei / dilution trap (test_DilutionTrap): after an account claims rewards,
+///      pool dilution can reduce its theoretical allocation below its already-locked _paid
+///      value. The max(0) guard in earned() prevents negative balances, but 1 wei remains
+///      permanently stranded in _paid, pulling the reward debt LHS UP by at most 1 wei
+///      per affected account.
+///
+///      Because these forces pull in opposite directions they partially cancel, giving a
+///      combined bound of N wei in either direction.
+///      Budget: ghost_maxEligibleAccounts (static upper bound set at construction).
+///
+///      A designated outgroup (bottom 20% of actors) is never made eligible. This keeps
+///      ghost_maxEligibleAccounts a strict static bound regardless of fuzz sequencing.
 contract ProtocolStakingHandler is Test {
     ProtocolStakingHarness public protocolStaking;
     ZamaERC20 public zama;
