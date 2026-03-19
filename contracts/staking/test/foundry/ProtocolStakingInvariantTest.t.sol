@@ -5,8 +5,9 @@ pragma solidity ^0.8.27;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHandler} from "./handlers/ProtocolStakingHandler.sol";
 import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
@@ -414,11 +415,6 @@ contract ProtocolStakingInvariantTest is Test {
 
         int256 globalDrift = int256(token.totalSupply() - initialTotalSupply) - int256(expectedTotalRewards);
 
-        console.log("globalDrift", globalDrift);
-        console.log("expectedTotalRewards", expectedTotalRewards);
-        console.log("initialTotalSupply", initialTotalSupply);
-        console.log("token.totalSupply()", token.totalSupply());
-
         assertGt(globalDrift, 0, "Protocol failed to over-mint unbacked dust");
         assertLe(globalDrift, 20, "Over-minting exceeded the 1-wei-per-op bound");
     }
@@ -485,10 +481,6 @@ contract ProtocolStakingInvariantTest is Test {
         // Measure the final physical drift
         uint256 actualRewardsMinted = token.totalSupply() - initialTotalSupply;
         int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
-
-        console.log("Expected Total Rewards: ", expectedTotalRewards);
-        console.log("Actual Rewards Minted:  ", actualRewardsMinted);
-        console.log("Total Unbacked Wei Printed: ", uint256(totalDrift));
 
         // Final Assertions
         assertGt(uint256(totalDrift), 0, "Failed to print dust");
@@ -576,17 +568,9 @@ contract ProtocolStakingInvariantTest is Test {
         vm.prank(sponge);
         staking.claimRewards(sponge);
 
-        console.log("--- The Results ---");
-
         int256 aliceGain = int256(token.balanceOf(alice)) - int256(aliceExpected);
-        console.log("Alice (Honest) Unexpected Gain: %s wei", uint256(aliceGain));
 
         int256 spongeGain = int256(token.balanceOf(sponge)) - int256(spongeExpectedBaseline);
-        if (spongeGain >= 0) {
-            console.log("Sponge (Attacker) Gain: +%s wei", uint256(spongeGain));
-        } else {
-            console.log("Sponge (Attacker) Loss: -%s wei", uint256(-spongeGain));
-        }
 
         // Alice received free dust printed by the Martyr
         assertGt(aliceGain, 0, "Alice should have received the abandoned dust");
@@ -594,5 +578,117 @@ contract ProtocolStakingInvariantTest is Test {
         // Attacker's Sponge failed to extract a meaningful amount
         // because the claim truncation and proportional sharing swallowed it.
         assertLe(spongeGain, 0, "Attacker should not profit from this vector");
+    }
+
+    /// @dev Demonstrates that phantom wei compounds beyond 1 for a single account through
+    ///      repeated dilution events. Each new staker that enters while Bob is in the phantom
+    ///      zone (earned == 0) causes his allocation to drop further below his locked _paid,
+    ///      accumulating 4 wei of phantom on a single account with just 7 dilution events.
+    ///
+    ///      Truncation dust (5 wei downward) partially cancels the phantom
+    ///      (4 wei upward), but a sufficiently adversarial sequence could in theory push the
+    ///      total phantom past N.
+    ///
+    ///      Trace (pool / W / Bob allocation / phantom):
+    ///        Claim:    29 / 10 / 26 / 0   (Bob locks _paid = 26)
+    ///        Diluter0: 31 / 11 / 25 / 1
+    ///        Diluter1: 33 / 12 / 24 / 2
+    ///        Diluter2: 35 / 13 / 24 / 2
+    ///        Diluter3: 37 / 14 / 23 / 3
+    ///        Diluter4: 39 / 15 / 23 / 3
+    ///        Diluter5: 41 / 16 / 23 / 3
+    ///        Diluter6: 43 / 17 / 22 / 4
+    function test_CompoundPhantomWei() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+
+        uint256 numDiluters = 7;
+        uint256 totalUsers = 2 + numDiluters;
+
+        ZamaERC20 token;
+        ProtocolStakingHarness staking;
+        address[] memory users;
+
+        {
+            users = new address[](totalUsers);
+            uint256[] memory amounts = new uint256[](totalUsers);
+
+            users[0] = alice;
+            amounts[0] = 1; // weight = sqrt(1) = 1
+            users[1] = bob;
+            amounts[1] = 81; // weight = sqrt(81) = 9
+            for (uint256 i = 0; i < numDiluters; i++) {
+                users[2 + i] = makeAddr(string(abi.encodePacked("d", vm.toString(i))));
+                amounts[2 + i] = 1; // weight = 1 each
+            }
+
+            (token, staking) = _setupIsolatedStaking(users, amounts);
+        }
+
+        vm.startPrank(manager);
+        staking.addEligibleAccount(alice);
+        staking.addEligibleAccount(bob);
+        vm.stopPrank();
+
+        vm.prank(alice);
+        staking.stake(1);
+        vm.prank(bob);
+        staking.stake(81);
+
+        // Pool = 29, W = 10. Bob's allocation = floor(29 * 9 / 10) = 26.
+        vm.prank(manager);
+        staking.setRewardRate(29);
+        vm.warp(block.timestamp + 1);
+        vm.prank(manager);
+        staking.setRewardRate(0);
+
+        // Bob claims: locks _paid[Bob] = 26. earned(Bob) = 0.
+        vm.prank(bob);
+        staking.claimRewards(bob);
+        assertEq(staking._harness_getPaid(bob), 26, "Bob _paid after claim");
+        assertEq(staking.earned(bob), 0, "Bob earned 0 after claim");
+
+        // Add 7 diluters one at a time. Each entry adjusts the pool via a truncated
+        // virtualAmount, causing Bob's allocation to drop below his locked _paid.
+        for (uint256 i = 0; i < numDiluters; i++) {
+            vm.prank(manager);
+            staking.addEligibleAccount(users[2 + i]);
+            vm.prank(users[2 + i]);
+            staking.stake(1);
+        }
+
+        // Bob is still in the phantom zone: allocation < _paid, so earned = 0.
+        assertEq(staking.earned(bob), 0, "Bob still in phantom zone after dilution");
+
+        // Compute Bob's phantom: _paid - allocation
+        uint256 bobPhantom;
+        {
+            uint256 pool = SafeCast.toUint256(
+                SafeCast.toInt256(staking._harness_getHistoricalReward()) + staking._harness_getTotalVirtualPaid()
+            );
+            uint256 bobAllocation = Math.mulDiv(pool, staking.weight(staking.balanceOf(bob)), staking.totalStakedWeight());
+            bobPhantom = 26 - bobAllocation;
+        }
+
+        // Bob's account accumulates 4 wei of phantom
+        assertEq(bobPhantom, 4, "Compound phantom: 4 wei on single account");
+
+        // When Bob exits, the full phantom becomes stranded in _paid.
+        vm.prank(bob);
+        staking.unstake(81);
+        assertEq(uint256(staking._harness_getPaid(bob)), bobPhantom, "Residual _paid equals phantom");
+
+        // The reward debt invariant still holds here because truncation dust
+        // (5 wei downward) partially cancels the phantom (4 wei upward).
+        {
+            int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
+            int256 lhs = 0;
+            for (uint256 i = 0; i < totalUsers; i++) {
+                lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
+            }
+            // Net divergence is -1 (truncation dominates), well within N=9.
+            // But this only holds because the two forces happen to partially cancel.
+            assertEq(lhs - rhs, -1, "Net divergence: truncation (5) vs phantom (4)");
+        }
     }
 }
