@@ -143,10 +143,12 @@ invariant were violated the subtraction would underflow and revert, which `fail_
 surface as a test failure.
 
 
-#### Earned is zero after claim:
+#### Earned is zero after claim
 ```
-earned(account) is always zero after a claim
+protocolStaking.earned(ghost_lastClaimedActor) == 0
 ```
+`claimRewards` sets `ghost_lastClaimedActor` to the claiming account. The modifier checks this immediately
+after the action and clears the flag. Guards on the zero address so non-claim steps are unaffected.
 
 ### 3. Equivalence Scenarios
 

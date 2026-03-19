@@ -84,6 +84,10 @@ contract ProtocolStakingHandler is Test {
     // Flag to exempt an account from the awaitingRelease monotonicity check
     address public ghost_releasedAccount;
 
+    // Set to the claiming account by claimRewards(); checked in assertTransitionInvariants
+    // to assert earned() == 0 immediately after the claim, then cleared.
+    address public ghost_lastClaimedActor;
+
     constructor(ProtocolStakingHarness _protocolStaking, ZamaERC20 _zama, address _manager, address[] memory _actors) {
         require(_actors.length > 0, "need at least one actor");
         protocolStaking = _protocolStaking;
@@ -126,6 +130,7 @@ contract ProtocolStakingHandler is Test {
             _assertClaimedPlusEarnedTransition(account, preClaimedEarned[i]);
             _assertAwaitingReleaseTransition(account, preAwaitingRelease[i]);
         }
+        _assertEarnedZeroAfterClaim();
 
         _resetTransitionFlags();
     }
@@ -152,6 +157,11 @@ contract ProtocolStakingHandler is Test {
         assertGe(postAwaitingRelease, preAwaitingRelease, "awaitingRelease must not decrease except after release");
     }
 
+    function _assertEarnedZeroAfterClaim() internal view {
+        if (ghost_lastClaimedActor == address(0)) return;
+        assertEq(protocolStaking.earned(ghost_lastClaimedActor), 0, "earned must be 0 immediately after claimRewards");
+    }
+
 
     // **************** Helper functions ****************
 
@@ -165,8 +175,8 @@ contract ProtocolStakingHandler is Test {
     }
 
     function _resetTransitionFlags() internal {
-        // Reset the released account flag for the next fuzz step.
         ghost_releasedAccount = address(0);
+        ghost_lastClaimedActor = address(0);
     }
 
     // **************** Storage reading functions ****************
@@ -342,8 +352,8 @@ contract ProtocolStakingHandler is Test {
         address account = msg.sender;
         uint256 amount = protocolStaking.earned(account);
         protocolStaking.claimRewards(account);
-        assertEq(protocolStaking.earned(account), 0, "earned(account) must be 0 after claimRewards");
         ghost_claimed[account] += amount;
+        ghost_lastClaimedActor = account;
     }
 
     function release() external assertTransitionInvariants {
