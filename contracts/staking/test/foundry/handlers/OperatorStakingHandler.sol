@@ -75,14 +75,14 @@ contract OperatorStakingHandler is Test {
     //  Ghost accounting — tolerance budgets
     // -------------------------------------------------------------------
 
-    /// @dev Staking-side budget: accumulates ceil(A/S) for deposits made while 
+    /// @dev Staking-side budget: accumulates ceil(A/S) for deposits made while
     ///      totalSharesInRedemption > 0. Bounds the total possible truncation leak.
     uint256 public ghost_globalRedemptionBudget;
 
     /// @dev Per-actor budget: accumulates ceil(A/S) for deposits made by each actor.
     mapping(address => uint256) public ghost_actorDepositBudget;
 
-     /// @dev Rewarder-side budget: deposits while totalSupply > 0.
+    /// @dev Rewarder-side budget: deposits while totalSupply > 0.
     uint256 public ghost_rewarderDepositCount;
 
     // -------------------------------------------------------------------
@@ -418,7 +418,7 @@ contract OperatorStakingHandler is Test {
         operatorStaking.deposit(assets, actor);
 
         ghost_deposited[actor] += assets;
-        ghost_actorDepositBudget[actor] += currentCeilAS; 
+        ghost_actorDepositBudget[actor] += currentCeilAS;
         if (hasPendingRedemptions) ghost_globalRedemptionBudget += currentCeilAS;
         if (transferHookFires) ghost_rewarderDepositCount++;
     }
