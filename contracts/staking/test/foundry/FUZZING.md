@@ -24,11 +24,11 @@ Tests use a **handler pattern**: a handler contract wraps ProtocolStaking, bound
 
 We separate our invariant rules into two distinct categories to handle EVM state constraints:
 
-1. **Global Invariants**: Checked via invariant_* functions in the test contract after every sequence step. These check system-wide accounting rules.
+1. **Global Invariants**: Checked via invariant_* functions in the test contract after every sequence step. These check system-wide accounting rules. (**ProtocolStakingInvariantTest.t**)
 
-2. **Transition Invariants**: Checked via the `assertTransitionInvariants` modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected).
+2. **Transition Invariants**: Checked via the `assertTransitionInvariants` modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected). (**ProtocolStakingHandler**)
 
-3. **Equivalence Invariants**: Verify that two different execution paths to the same logical outcome produce identical on-chain state. Checked inline in the handler using `vm.snapshotState()` to fork execution, run both paths, and compare results.
+3. **Equivalence Invariants**: Verify that two different execution paths to the same logical outcome produce identical on-chain state. Checked inline in the handler using `vm.snapshotState()` to fork execution, run both paths, and compare results. (**ProtocolStakingHandler**)
 
 ### Handler
 
@@ -44,7 +44,7 @@ We separate our invariant rules into two distinct categories to handle EVM state
 [`ProtocolStakingInvariantTest.t.sol`](ProtocolStakingInvariantTest.t.sol)
 
 - Defines invariants via `invariant_*` functions
-- Uses `targetContract` and `targetSelector` to limit which handler methods are fuzzed
+- Uses `targetContract` and `targetSender` to direct the fuzzer's actions
 - Invariants are checked after every handler call in the fuzz sequence
 
 ## Invariants
@@ -55,22 +55,31 @@ We separate our testing rules into three distinct categories:
 
 Checked via `invariant_*` functions in the main test contract after every handler call.
 
-- **Total supply bounded by reward rate** — token issuance never exceeds the authorized emission:
+#### Total supply bounded by reward rate
+
+Token issuance never exceeds the authorized emission:
+
 ```
 zama.totalSupply()
   ≤ ghost_initialTotalSupply
-  + ghost_accumulatedRewardCapacity   // Σ(δT_i × rewardRate_i), updated on every warp
+  + ghost_accumulatedRewardCapacity   // Σ(δT_i × rewardRate_i), the sum of rewards allowed to be distributed for a given period, updated on every warp
   + ghost_truncationOps               // 1 wei tolerance per weight-decrease op (see Reward Debt System)
 ```
 
-- **Total staked weight** — the on-chain weight register matches the sum of eligible-account weights:
+#### Total staked weight
+
+The on-chain weight register matches the sum of eligible-account weights:
+
 ```
 protocolStaking.totalStakedWeight()
   == Σ weight(protocolStaking.balanceOf(account))   // summed over all eligible accounts only
 ```
 Ineligible accounts hold staked balance but contribute zero weight.
 
-- **Reward debt conservation** — the virtual accounting system stays balanced within rounding tolerance:
+#### Reward debt conservation
+
+The virtual accounting system stays balanced within rounding tolerance:
+
 ```
 | Σ protocolStaking._paid[account]     // per-account already-credited amount (internal storage)
 + Σ protocolStaking.earned(account)   // per-account claimable rewards (view function)
@@ -80,13 +89,19 @@ Ineligible accounts hold staked balance but contribute zero weight.
 ```
 Both sums range over all actors. See the Reward Debt System section for the tolerance derivation.
 
-- **Pending withdrawals solvency** — the staking contract holds enough tokens to cover all queued withdrawals:
+#### Pending withdrawals solvency
+
+The staking contract holds enough tokens to cover all queued withdrawals:
+
 ```
 zama.balanceOf(address(protocolStaking))
   ≥ Σ protocolStaking.awaitingRelease(account)   // summed over all actors
 ```
 
-- **Staked funds solvency** — every token an actor ever staked is accounted for, per account:
+#### Staked funds solvency
+
+Every token an actor ever staked is accounted for, per account:
+
 ```
 ghost_totalStaked[account]            // ghost: cumulative tokens staked by this account (handler)
   == protocolStaking.balanceOf(account)         // currently staked (shares → tokens)
@@ -95,7 +110,10 @@ ghost_totalStaked[account]            // ghost: cumulative tokens staked by this
 ```
 Checked independently for every actor.
 
-- **Unstake queue monotonicity** — the checkpoint trace for each account is internally consistent:
+#### Unstake queue monotonicity
+
+The checkpoint trace for each account is internally consistent:
+
 ```
 For all consecutive checkpoints (j-1, j) in _unstakeRequests[account]:
   key[j]   ≥ key[j-1]                          // timestamps are non-decreasing
@@ -110,12 +128,12 @@ history.
 
 Because Foundry reverts the EVM state after evaluating `invariant_*` functions, transition checks (State A vs. State B) are executed natively inside the Handler using the `assertTransitionInvariants` modifier.
 
-- Claimed + claimable never decreases:
+#### Claimed + claimable never decreases
 ```
 claimed + earned is strictly increasing per account across any action (incorporating a tolerance for division rounding).
 ```
 
-- Awaiting release never decreases:
+#### Awaiting release never decreases
 ```
 protocolStaking.awaitingRelease(account) is non-decreasing until release() is explicitly called by that account.
 ```
@@ -125,7 +143,7 @@ invariant were violated the subtraction would underflow and revert, which `fail_
 surface as a test failure.
 
 
-- Earned is zero after claim:
+#### Earned is zero after claim:
 ```
 earned(account) is always zero after a claim
 ```
@@ -134,14 +152,20 @@ earned(account) is always zero after a claim
 
 These ensure that complex or batched actions result in the exact same mathematical state as singular actions. They utilize vm.snapshotState() and are checked inline inside the Handler.
 
-- Stake equivalence:
+#### Stake equivalence
 ```
-stake(a1 + a2) results in the exact same shares, weight, and (approx) earned rewards as stake(a1) followed by stake(a2).
+stake(a + b) ≡ stake(a); stake(b)
+  shares: exactly equal   (1:1 mint, no share-conversion ratio)
+  weight: exactly equal   (same balance ⟹ same weight)
+  earned: equal ± 2 wei   (path B has one extra pool update, introducing at most 1 wei rounding error)
 ```
 
-- Unstake equivalence:
+#### Unstake equivalence
 ```
-A partial unstake to a target amount results in the exact same shares, weight, and (approx) earned rewards as a full unstake followed by a new stake of the target amount.
+unstake(initialStake - targetStake) ≡ unstake(initialStake); stake(targetStake)
+  shares: exactly equal
+  weight: exactly equal
+  earned: equal ± 2 wei
 ```
 
 ## Running Tests
