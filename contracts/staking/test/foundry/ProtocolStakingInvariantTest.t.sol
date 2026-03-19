@@ -415,8 +415,10 @@ contract ProtocolStakingInvariantTest is Test {
 
         int256 globalDrift = int256(token.totalSupply() - initialTotalSupply) - int256(expectedTotalRewards);
 
+        // The sum of all unstakes telescopes to approximately floor(P₀ × W_bob / W₀),
+        // bounding total drift near 1 wei — the same as a single one-shot unstake.
         assertGt(globalDrift, 0, "Protocol failed to over-mint unbacked dust");
-        assertLe(globalDrift, 20, "Over-minting exceeded the 1-wei-per-op bound");
+        assertLe(globalDrift, 2, "Over-minting exceeded throttling bound for single-account sequential unstakes");
     }
 
     /// @dev Demonstrates unbounded dust extraction
@@ -482,9 +484,10 @@ contract ProtocolStakingInvariantTest is Test {
         uint256 actualRewardsMinted = token.totalSupply() - initialTotalSupply;
         int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
 
-        // Final Assertions
-        assertGt(uint256(totalDrift), 0, "Failed to print dust");
-        assertGt(uint256(totalDrift), relayCount / 3, "Dust did not scale continuously");
+        // Each relay is an independent removeEligibleAccount on a different account and
+        // pool state — no cross-step throttling applies. Each produces ~1 wei of inflation
+        // in _totalVirtualPaid that the next sole claimer extracts at full W/W ratio.
+        assertApproxEqAbs(uint256(totalDrift), relayCount - 1, 1, "Each independent relay should produce ~1 wei of drift");
     }
 
     function test_SpongeAndMartyr_NoManagerPrivileges() public {
@@ -588,16 +591,6 @@ contract ProtocolStakingInvariantTest is Test {
     ///      Truncation dust (5 wei downward) partially cancels the phantom
     ///      (4 wei upward), but a sufficiently adversarial sequence could in theory push the
     ///      total phantom past N.
-    ///
-    ///      Trace (pool / W / Bob allocation / phantom):
-    ///        Claim:    29 / 10 / 26 / 0   (Bob locks _paid = 26)
-    ///        Diluter0: 31 / 11 / 25 / 1
-    ///        Diluter1: 33 / 12 / 24 / 2
-    ///        Diluter2: 35 / 13 / 24 / 2
-    ///        Diluter3: 37 / 14 / 23 / 3
-    ///        Diluter4: 39 / 15 / 23 / 3
-    ///        Diluter5: 41 / 16 / 23 / 3
-    ///        Diluter6: 43 / 17 / 22 / 4
     function test_CompoundPhantomWei() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
