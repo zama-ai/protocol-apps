@@ -95,19 +95,19 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    function invariant_TotalStakedWeightEqualsEligibleWeights() public view {
-        assertEq(
-            protocolStaking.totalStakedWeight(),
-            handler.computeExpectedTotalWeight(),
-            "totalStakedWeight does not match sum of eligible weights"
-        );
-    }
-
     function invariant_TotalSupplyBoundedByRewardRate() public view {
         assertLe(
             zama.totalSupply(),
             handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity() + handler.ghost_truncationOps(),
             "totalSupply exceeds piecewise rewardRate bound + truncation tolerance"
+        );
+    }
+
+    function invariant_TotalStakedWeightEqualsEligibleWeights() public view {
+        assertEq(
+            protocolStaking.totalStakedWeight(),
+            handler.computeExpectedTotalWeight(),
+            "totalStakedWeight does not match sum of eligible weights"
         );
     }
 
