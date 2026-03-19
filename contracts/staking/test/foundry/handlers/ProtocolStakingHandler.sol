@@ -36,58 +36,64 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///      A designated outgroup (bottom 20% of actors) is never made eligible. This keeps
 ///      ghost_maxEligibleAccounts a strict static bound regardless of fuzz sequencing.
 contract ProtocolStakingHandler is Test {
+    // *** Protocol contracts ***
+
     ProtocolStakingHarness public protocolStaking;
     ZamaERC20 public zama;
+
+    // *** Actor set ***
 
     address public manager;
     address[] public actors;
     mapping(address => bool) public isOutgroup;
 
-    // @dev Maximum duration to warp the block timestamp by.
+    // *** Fuzz bounds ***
+
     uint256 public constant MAX_PERIOD_DURATION = 365 days * 3;
-    // @dev Maximum unstake cooldown period. Must be <= 365 days for required checks.
     uint256 public constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
-    // @dev Maximum reward rate.
     uint256 public constant MAX_REWARD_RATE = 1e24;
 
-    // The 2-step path (Path B) incurs up to 2 wei of compounding truncation drift
-    // compared to a 1-step action (Path A) due to intermediate virtual pool updates.
-    // See: test_MaxNormalTruncationDust in ProtocolStakingInvariantTest.t.sol for more details.
+    // *** Tolerance constants ***
+    //
+    // TRANSITION_EARNED_TOLERANCE (1): a single pool update floors earned() by at most 1 wei.
+    // EQUIVALENCE_EARNED_TOLERANCE (2): Path B has one extra pool update vs Path A, adding ≤1 more floor.
+
+    uint256 internal constant TRANSITION_EARNED_TOLERANCE = 1;
     uint256 internal constant EQUIVALENCE_EARNED_TOLERANCE = 2;
 
-    // A single protocol action can update the virtual pool using truncated math.
-    // The continuous loss is strictly < 1 wei, meaning a user's floored `earned()`
-    // balance can drop by a maximum of exactly 1 wei across a single state transition.
-    uint256 internal constant TRANSITION_EARNED_TOLERANCE = 1;
+    // *** Ghost state — reward accounting ***
 
-    uint256 public ghost_maxEligibleAccounts;
-
-    uint256 public ghost_accumulatedRewardCapacity;
-    uint256 public ghost_currentRate;
     uint256 public ghost_initialTotalSupply;
+    uint256 public ghost_accumulatedRewardCapacity; // Σ(δT_i × rewardRate_i), updated on every warp
+    uint256 public ghost_currentRate;
 
     mapping(address => uint256) public ghost_claimed;
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
 
-    // Counts weight-decrease operations (unstake on eligible accounts, removeEligibleAccount with
-    // staked balance) that trigger mulDiv truncation in _updateRewards, inflating _totalVirtualPaid
-    // by at most 1 wei each. Used as the tolerance for invariant_TotalSupplyBoundedByRewardRate.
+    // *** Ghost state — tolerance counters ***
+    //
+    // ghost_truncationOps: weight-decrease ops (unstake on eligible accounts,
+    //   removeEligibleAccount with balance) that inflate _totalVirtualPaid by ≤1 wei each.
+    //   Tolerance for invariant_TotalSupplyBoundedByRewardRate.
+    //
+    // ghost_dilutionOps: weight-increase ops (stake by eligible accounts,
+    //   addEligibleAccount with balance) that can compound phantom wei by ≤1 per event.
+    //   Tolerance term D in computeRewardDebtTolerance.
+    //
+    // ghost_maxEligibleAccounts: static upper bound on simultaneously eligible accounts (N).
+    //   Tolerance term N in computeRewardDebtTolerance. Fixed at construction.
+
     uint256 public ghost_truncationOps;
-
-    // Counts weight-increase operations (stake by eligible accounts, addEligibleAccount for accounts
-    // with existing balance) that are the dilution events responsible for compounding phantom wei.
-    // Each such event can drop a phantom account's allocation by 1 more wei, increasing the phantom
-    // beyond the initial 1-wei-per-account bound. Added as a separate term in computeRewardDebtTolerance.
-    // See: test_CompoundPhantomWei.
     uint256 public ghost_dilutionOps;
+    uint256 public ghost_maxEligibleAccounts;
 
-    // Flag to exempt an account from the awaitingRelease monotonicity check
-    address public ghost_releasedAccount;
+    // *** Ghost state — transition flags ***
+    //
+    // Cleared at the end of every assertTransitionInvariants execution.
 
-    // Set to the claiming account by claimRewards(); checked in assertTransitionInvariants
-    // to assert earned() == 0 immediately after the claim, then cleared.
-    address public ghost_lastClaimedActor;
+    address public ghost_releasedAccount; // exempts this account from awaitingRelease monotonicity
+    address public ghost_lastClaimedActor; // triggers earned() == 0 check for this account
 
     constructor(ProtocolStakingHarness _protocolStaking, ZamaERC20 _zama, address _manager, address[] memory _actors) {
         require(_actors.length > 0, "need at least one actor");
