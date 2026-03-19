@@ -98,7 +98,9 @@ contract ProtocolStakingInvariantTest is Test {
     function invariant_TotalSupplyBoundedByRewardRate() public view {
         assertLe(
             zama.totalSupply(),
-            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity() + handler.ghost_truncationOps(),
+            handler.ghost_initialTotalSupply() +
+                handler.ghost_accumulatedRewardCapacity() +
+                handler.ghost_truncationOps(),
             "totalSupply exceeds piecewise rewardRate bound + truncation tolerance"
         );
     }
@@ -443,7 +445,7 @@ contract ProtocolStakingInvariantTest is Test {
 
     /// @dev Demonstrates unbounded dust extraction
     function test_SybilRelayDustPrinter_18Decimals() public {
-        uint256 WAD = 1e18;
+        uint256 wad = 1e18;
         uint256 relayCount = 20;
 
         address[] memory users = new address[](relayCount);
@@ -452,7 +454,7 @@ contract ProtocolStakingInvariantTest is Test {
         // Setup Chaotic Sybil Weights
         for (uint256 i = 0; i < relayCount; i++) {
             users[i] = address(uint160(uint256(keccak256(abi.encode("sybil", i)))));
-            amounts[i] = ((i * 13) + 7) * WAD;
+            amounts[i] = ((i * 13) + 7) * wad;
         }
 
         ZamaERC20 token;
@@ -471,7 +473,7 @@ contract ProtocolStakingInvariantTest is Test {
         uint256 initialTotalSupply = token.totalSupply();
 
         // Generate 10 tokens of reward capacity
-        uint256 rate = 1 * WAD;
+        uint256 rate = 1 * wad;
         uint256 duration = 10;
         uint256 expectedTotalRewards = rate * duration;
 
@@ -507,7 +509,12 @@ contract ProtocolStakingInvariantTest is Test {
         // Each relay is an independent removeEligibleAccount on a different account and
         // pool state — no cross-step throttling applies. Each produces ~1 wei of inflation
         // in _totalVirtualPaid that the next sole claimer extracts at full W/W ratio.
-        assertApproxEqAbs(uint256(totalDrift), relayCount - 1, 1, "Each independent relay should produce ~1 wei of drift");
+        assertApproxEqAbs(
+            uint256(totalDrift),
+            relayCount - 1,
+            1,
+            "Each independent relay should produce ~1 wei of drift"
+        );
     }
 
     function test_SpongeAndMartyr_NoManagerPrivileges() public {
@@ -679,7 +686,11 @@ contract ProtocolStakingInvariantTest is Test {
             uint256 pool = SafeCast.toUint256(
                 SafeCast.toInt256(staking._harness_getHistoricalReward()) + staking._harness_getTotalVirtualPaid()
             );
-            uint256 bobAllocation = Math.mulDiv(pool, staking.weight(staking.balanceOf(bob)), staking.totalStakedWeight());
+            uint256 bobAllocation = Math.mulDiv(
+                pool,
+                staking.weight(staking.balanceOf(bob)),
+                staking.totalStakedWeight()
+            );
             bobPhantom = 26 - bobAllocation;
         }
 
@@ -694,7 +705,8 @@ contract ProtocolStakingInvariantTest is Test {
         // The reward debt invariant still holds here because truncation dust
         // (5 wei downward) partially cancels the phantom (4 wei upward).
         {
-            int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
+            int256 rhs = staking._harness_getTotalVirtualPaid() +
+                SafeCast.toInt256(staking._harness_getHistoricalReward());
             int256 lhs = 0;
             for (uint256 i = 0; i < totalUsers; i++) {
                 lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 /* solhint-disable var-name-mixedcase */ // ghost_variables prefix
+/* solhint-disable max-states-count*/
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -161,7 +162,6 @@ contract ProtocolStakingHandler is Test {
         if (ghost_lastClaimedActor == address(0)) return;
         assertEq(protocolStaking.earned(ghost_lastClaimedActor), 0, "earned must be 0 immediately after claimRewards");
     }
-
 
     // **************** Helper functions ****************
 
