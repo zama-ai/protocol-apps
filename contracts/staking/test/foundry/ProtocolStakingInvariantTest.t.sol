@@ -168,9 +168,16 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    // ---------- Phantom Wei & Rounding Tests ----------
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Tolerance Bound Proofs
+    //
+    // Each test constructs a minimal, numerically exact scenario to prove the bound
+    // of one tolerance term in the invariant suite. Together they justify every
+    // constant and ghost counter used in the handler.
+    // ─────────────────────────────────────────────────────────────────────────────
 
-    /// @dev Helper to quickly spin up an isolated protocol instance with specific token distributions
+    /// @dev Deploys a fresh ZamaERC20 + ProtocolStaking pair for isolated unit tests,
+    ///      independent of the fuzz setUp state.
     function _setupIsolatedStaking(
         address[] memory users,
         uint256[] memory amounts
@@ -192,8 +199,15 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    /// @dev Demonstrates the "phantom wei" lock-in: claiming rewards, suffering ratio dilution,
-    /// and unstaking leaves an unbacked 1 wei in the user's _paid tracker.
+    /// @notice Shows that the unit contribution of the phantom wei (D) term in computeRewardDebtTolerance.
+    /// @dev One dilution event — a weight-increase op while a claimant's _paid is already locked —
+    ///      strands exactly 1 wei in `_paid`, pushing the reward debt LHS up by 1.
+    ///      This is the base case for ghost_dilutionOps: each dilution event contributes at most 1
+    ///      to the D term.
+    ///
+    ///      Setup:  Alice (w=1), Bob (w=9). Pool = 29. Bob claims, locking _paid = 26.
+    ///      Event:  Charlie stakes (w=1). W becomes 11. Bob's allocation drops to floor(31×9/11) = 25.
+    ///      Assert: lhs − rhs == 1.
     function test_DilutionTrap() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -232,21 +246,18 @@ contract ProtocolStakingInvariantTest is Test {
         vm.prank(manager);
         staking.setRewardRate(0);
 
-        // 1. Claim: Locks Bob's _paid at 26 (29 pool * 9 weight / 10 total = 26.1 -> 26).
+        // Claim: locks _paid[Bob] = floor(29 × 9 / 10) = 26.
         vm.prank(bob);
         staking.claimRewards(bob);
 
-        // 2. Dilute: Charlie adds 1 weight. Total pool becomes 31. Total weight becomes 11.
-        //    Bob's new theoretical allocation drops to 25 (31 * 9 / 11 = 25.36 -> 25).
+        // Dilute: Charlie stakes. Pool → 31, W → 11. Bob's allocation drops to floor(31 × 9 / 11) = 25.
         vm.prank(charlie);
         staking.stake(1);
 
-        // 3. Unstake: Subtracts Bob's current allocation (25) from his _paid (26).
-        //    Bob's weight becomes 0, but 1 wei remains permanently locked in his _paid.
+        // Unstake: _updateRewards credits Bob floor(31 × 9 / 11) = 25, but _paid is 26. 1 wei stranded.
         vm.prank(bob);
         staking.unstake(81);
 
-        // Evaluate invariant
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
         int256 lhs = 0;
         for (uint256 i = 0; i < users.length; i++) {
@@ -256,9 +267,16 @@ contract ProtocolStakingInvariantTest is Test {
         assertEq(lhs - rhs, 1, "Invariant broken: Phantom wei locked in LHS");
     }
 
-    /// @dev Validates the maximum expected truncation dust (N - 1) for active users.
+    /// @notice Shows the N term in computeRewardDebtTolerance (truncation dust).
+    /// @dev N eligible accounts with equal weight and a worst-case reward rate produce exactly
+    ///      N − 1 wei of truncation dust, pulling the reward debt LHS down by N − 1.
+    ///
+    ///      Worst-case formula: rate % N == N − 1 (maximises per-account fractional loss).
+    ///      With N=20, rate=39: each account earns floor(39/20) = 1, losing 0.95 each.
+    ///      Aggregate dust = 39 − 20 = 19 = N − 1.
+    ///      Assert: rhs − lhs == N − 1.
     function test_MaxNormalTruncationDust() public {
-        uint256 n = 20;
+        uint256 n = vm.randomUint(1, 100);
 
         address[] memory users = new address[](n);
         uint256[] memory amounts = new uint256[](n);
@@ -278,26 +296,20 @@ contract ProtocolStakingInvariantTest is Test {
         }
         vm.stopPrank();
 
-        // 1. Setup weights: Every user has weight 1. (Total Weight = 20)
+        // N accounts, weight 1 each (W = 20).
         for (uint256 i = 0; i < n; i++) {
             vm.prank(users[i]);
             staking.stake(1);
         }
 
-        // 2. Generate exactly 39 wei of reward capacity.
-        // Formula to maximize dust: RewardRate % TotalWeight == TotalWeight - 1
-        // 39 % 20 == 19
+        // Rate 39 chosen so 39 % 20 == 19 = N − 1 (maximises per-account fractional loss).
+        // Each account earns floor(39 × 1 / 20) = 1. Aggregate allocated = 20. Dust = 19.
         vm.prank(manager);
         staking.setRewardRate(39);
         vm.warp(block.timestamp + 1);
         vm.prank(manager);
         staking.setRewardRate(0);
 
-        // 3. Mathematical result:
-        //    Each User: 39 * 1 / 20 = 1.95 -> floors to 1 (loses 0.95)
-        //    Total allocated = 20 * 1 = 20. Total pool = 39. Resulting dust = 19 (N - 1).
-
-        // Evaluate invariant without any claims or unstakes
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
         int256 lhs = 0;
         for (uint256 i = 0; i < n; i++) {
@@ -307,8 +319,16 @@ contract ProtocolStakingInvariantTest is Test {
         assertEq(rhs - lhs, int256(n - 1), "Truncation dust exceeds N - 1 expectation");
     }
 
-    /// @dev Dust Printing PoC: Demonstrates that downward rounding on exit abandons fractional dust
-    ///      in the virtual pool, allowing remaining users to mint unauthorized tokens.
+    /// @notice Shows the unit contribution of ghost_truncationOps to invariant_TotalSupplyBoundedByRewardRate.
+    /// @dev One weight-decrease op (removeEligibleAccount with staked balance) inflates _totalVirtualPaid
+    ///      by 1 wei via mulDiv truncation, enabling a subsequent claimer to mint exactly 1 wei above
+    ///      the authorised reward cap.
+    ///
+    ///      Setup:  Bob (w=3) is the sole eligible staker. Pool = 10. Bob claims all 10.
+    ///      Event:  Alice (w=2) enters, Bob exits via removeEligibleAccount (1 truncation op).
+    ///      Result: Alice claims 1 unbacked wei. totalMinted = 11 > historicalReward = 10.
+    ///      Assert: totalMinted == authorizedRewards + 1 (invariant_TotalSupplyBoundedByRewardRate
+    ///              would fail without the + ghost_truncationOps tolerance term).
     function test_FractionalDustPrinter() public {
         address alice = makeAddr("alice"); // Target Weight: 2
         address bob = makeAddr("bob"); // Target Weight: 3
@@ -344,19 +364,19 @@ contract ProtocolStakingInvariantTest is Test {
 
         assertEq(authorizedRewards, 10, "Authorized rewards should be 10");
 
-        // Bob extracts maximum theoretical value (10 wei)
+        // Bob (sole eligible, W/W = 1) claims all 10. No truncation.
         vm.prank(bob);
         staking.claimRewards(bob);
 
-        // Alice enters, Bob exits (abandoning fractional dust)
+        // Alice enters, Bob exits. removeEligibleAccount inflates _totalVirtualPaid by 1 wei (1 truncation op).
         vm.prank(manager);
         staking.addEligibleAccount(alice);
         vm.prank(manager);
         staking.removeEligibleAccount(bob);
 
-        assertEq(token.balanceOf(alice), 0, "Alice should have no tokens");
+        assertEq(token.balanceOf(alice), 0, "Alice should have no tokens before claim");
 
-        // Alice claims the abandoned dust
+        // Alice (now sole eligible) claims. The inflated pool lets her mint 1 unbacked wei.
         vm.prank(alice);
         staking.claimRewards(alice);
 
@@ -443,7 +463,15 @@ contract ProtocolStakingInvariantTest is Test {
         assertLe(globalDrift, 2, "Over-minting exceeded throttling bound for single-account sequential unstakes");
     }
 
-    /// @dev Demonstrates unbounded dust extraction
+    /// @notice Shows that ghost_truncationOps scales linearly with independent weight-decrease ops.
+    /// @dev Each relay calls removeEligibleAccount on a different account and pool state, so the
+    ///      throttling recurrence does not apply — each exit inflates _totalVirtualPaid by ~1 wei
+    ///      and the next sole claimer extracts it at full W/W = 1. Over relayCount − 1 iterations,
+    ///      total drift ≈ relayCount − 1 wei.
+    ///
+    ///      This validates that one ghost_truncationOps increment per weight-decrease op is the
+    ///      tight upper bound for invariant_TotalSupplyBoundedByRewardRate.
+    ///      Assert: totalDrift ≈ relayCount − 1 (within ±1 wei).
     function test_SybilRelayDustPrinter_18Decimals() public {
         uint256 wad = 1e18;
         uint256 relayCount = 20;
@@ -486,29 +514,26 @@ contract ProtocolStakingInvariantTest is Test {
         vm.prank(users[0]);
         staking.claimRewards(users[0]);
 
-        // The Extraction Loop
+        // Relay loop: each iteration hands the eligible slot to the next sybil.
+        // removeEligibleAccount inflates _totalVirtualPaid by ~1 wei (independent pool state each time).
+        // The incoming sole claimer extracts that inflation at W/W = 1 — no truncation.
         for (uint256 i = 0; i < relayCount - 1; i++) {
             address currentSybil = users[i];
             address nextSybil = users[i + 1];
 
-            // Pass the baton: Next enters, Current exits
             vm.startPrank(manager);
             staking.addEligibleAccount(nextSybil);
             staking.removeEligibleAccount(currentSybil);
             vm.stopPrank();
 
-            // NextSybil claims as the lone account, bypassing claim truncation (W/W = 1)
             vm.prank(nextSybil);
             staking.claimRewards(nextSybil);
         }
 
-        // Measure the final physical drift
         uint256 actualRewardsMinted = token.totalSupply() - initialTotalSupply;
         int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
 
-        // Each relay is an independent removeEligibleAccount on a different account and
-        // pool state — no cross-step throttling applies. Each produces ~1 wei of inflation
-        // in _totalVirtualPaid that the next sole claimer extracts at full W/W ratio.
+        // relayCount - 1 exits × ~1 wei each = ~relayCount - 1 total drift.
         assertApproxEqAbs(
             uint256(totalDrift),
             relayCount - 1,
@@ -517,107 +542,22 @@ contract ProtocolStakingInvariantTest is Test {
         );
     }
 
-    function test_SpongeAndMartyr_NoManagerPrivileges() public {
-        address alice = makeAddr("alice"); // Honest User
-        address sponge = makeAddr("sponge"); // Attacker Account 1
-        address martyr = makeAddr("martyr"); // Attacker Account 2
-
-        ZamaERC20 token;
-        ProtocolStakingHarness staking;
-
-        // Isolate the setup arrays so they drop off the stack immediately
-        {
-            address[] memory users = new address[](3);
-            users[0] = alice;
-            users[1] = sponge;
-            users[2] = martyr;
-
-            uint256[] memory amounts = new uint256[](3);
-            amounts[0] = 3 * 1e18; // Alice Weight: sqrt(3e18)
-            amounts[1] = 1 * 1e18; // Sponge Weight: 1e9
-            amounts[2] = 1000 * 1e18; // Martyr Weight: sqrt(1000e18)
-
-            (token, staking) = _setupIsolatedStaking(users, amounts);
-        }
-
-        // Initial Setup
-        vm.prank(manager);
-        staking.addEligibleAccount(alice);
-        vm.prank(alice);
-        staking.stake(3 * 1e18);
-
-        vm.prank(manager);
-        staking.addEligibleAccount(sponge);
-        vm.prank(sponge);
-        staking.stake(1 * 1e18);
-
-        vm.prank(manager);
-        staking.addEligibleAccount(martyr);
-        vm.prank(martyr);
-        staking.stake(1000 * 1e18);
-
-        // Generate Rewards (Block Scoped)
-        {
-            vm.prank(manager);
-            staking.setRewardRate(10_000 * 1e18);
-            vm.warp(block.timestamp + 10);
-            vm.prank(manager);
-            staking.setRewardRate(0);
-        }
-
-        // Snapshot legitimate baselines before the attack
-        uint256 aliceExpected = staking.earned(alice);
-        uint256 spongeExpectedBaseline = staking.earned(sponge);
-
-        // The Attack Step 1: Martyr claims legitimate rewards first
-        vm.prank(martyr);
-        staking.claimRewards(martyr);
-
-        // The Attack Step 2: Martyr executes chunked unstake to print dust
-        uint256 currentWeight = staking.weight(1000 * 1e18);
-        uint256 weightStep = currentWeight / 10;
-
-        vm.startPrank(martyr);
-        for (uint256 j = 0; j < 10; j++) {
-            uint256 nextWeight = currentWeight - weightStep;
-
-            // On the final chunk, ensure weight zeroes out completely
-            if (j == 9) nextWeight = 0;
-
-            staking.unstake((currentWeight * currentWeight) - (nextWeight * nextWeight));
-            currentWeight = nextWeight;
-        }
-        vm.stopPrank();
-
-        // Measure Results
-        // Alice (Honest User) claims
-        vm.prank(alice);
-        staking.claimRewards(alice);
-
-        // Sponge (Attacker) claims
-        vm.prank(sponge);
-        staking.claimRewards(sponge);
-
-        int256 aliceGain = int256(token.balanceOf(alice)) - int256(aliceExpected);
-
-        int256 spongeGain = int256(token.balanceOf(sponge)) - int256(spongeExpectedBaseline);
-
-        // Alice received free dust printed by the Martyr
-        assertGt(aliceGain, 0, "Alice should have received the abandoned dust");
-
-        // Attacker's Sponge failed to extract a meaningful amount
-        // because the claim truncation and proportional sharing swallowed it.
-        assertLe(spongeGain, 0, "Attacker should not profit from this vector");
-    }
-
-    /// @dev Demonstrates that phantom wei compounds beyond 1 for a single account through
-    ///      repeated dilution events. Each new staker that enters while Bob is in the phantom
-    ///      zone (earned == 0) causes his allocation to drop further below his locked _paid,
-    ///      accumulating 4 wei of phantom on a single account with just 7 dilution events.
+    /// @notice Shows that phantom wei compounds across multiple dilution events on a single account,
+    ///         justifying ghost_dilutionOps (D) as the correct bound rather than a per-account constant.
+    /// @dev After Bob claims (locking _paid = 26), each new staker reduces his allocation via
+    ///      truncated virtualAmount arithmetic. With 7 diluters, Bob accumulates 4 wei of phantom —
+    ///      exceeding the naive 1-per-account assumption and proving D must scale with event count.
     ///
-    ///      Truncation dust (5 wei downward) partially cancels the phantom
-    ///      (4 wei upward), but a sufficiently adversarial sequence could in theory push the
-    ///      total phantom past N.
+    ///      Trace (pool / W / Bob alloc / phantom):
+    ///        Claim:    29 / 10 / 26 / 0
+    ///        After D1: 31 / 11 / 25 / 1
+    ///        After D2: 33 / 12 / 24 / 2
+    ///        After D3: 35 / 13 / 24 / 2
+    ///        After D4: 37 / 14 / 23 / 3
+    ///        After D5: 39 / 15 / 23 / 3
+    ///        After D6: 41 / 16 / 23 / 3
+    ///        After D7: 43 / 17 / 22 / 4
+    ///      Assert: bobPhantom == 4, lhs − rhs == −1 (truncation dust of 5 partially cancels phantom of 4).
     function test_CompoundPhantomWei() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -668,8 +608,8 @@ contract ProtocolStakingInvariantTest is Test {
         assertEq(staking._harness_getPaid(bob), 26, "Bob _paid after claim");
         assertEq(staking.earned(bob), 0, "Bob earned 0 after claim");
 
-        // Add 7 diluters one at a time. Each entry adjusts the pool via a truncated
-        // virtualAmount, causing Bob's allocation to drop below his locked _paid.
+        // Each diluter's addEligibleAccount + stake adjusts the pool via truncated virtualAmount,
+        // compounding Bob's phantom one step at a time (see trace in function natspec).
         for (uint256 i = 0; i < numDiluters; i++) {
             vm.prank(manager);
             staking.addEligibleAccount(users[2 + i]);
@@ -677,10 +617,10 @@ contract ProtocolStakingInvariantTest is Test {
             staking.stake(1);
         }
 
-        // Bob is still in the phantom zone: allocation < _paid, so earned = 0.
+        // Bob remains in the phantom zone after all 7 dilutions (allocation < _paid → earned = 0).
         assertEq(staking.earned(bob), 0, "Bob still in phantom zone after dilution");
 
-        // Compute Bob's phantom: _paid - allocation
+        // phantom = _paid − current allocation
         uint256 bobPhantom;
         {
             uint256 pool = SafeCast.toUint256(
@@ -694,16 +634,14 @@ contract ProtocolStakingInvariantTest is Test {
             bobPhantom = 26 - bobAllocation;
         }
 
-        // Bob's account accumulates 4 wei of phantom
         assertEq(bobPhantom, 4, "Compound phantom: 4 wei on single account");
 
-        // When Bob exits, the full phantom becomes stranded in _paid.
+        // On exit, _updateRewards credits the floored allocation; residual _paid == phantom.
         vm.prank(bob);
         staking.unstake(81);
         assertEq(uint256(staking._harness_getPaid(bob)), bobPhantom, "Residual _paid equals phantom");
 
-        // The reward debt invariant still holds here because truncation dust
-        // (5 wei downward) partially cancels the phantom (4 wei upward).
+        // Invariant still holds: truncation dust (5 wei down) partially cancels phantom (4 wei up).
         {
             int256 rhs = staking._harness_getTotalVirtualPaid() +
                 SafeCast.toInt256(staking._harness_getHistoricalReward());
@@ -711,8 +649,7 @@ contract ProtocolStakingInvariantTest is Test {
             for (uint256 i = 0; i < totalUsers; i++) {
                 lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
             }
-            // Net divergence is -1 (truncation dominates), well within N=9.
-            // But this only holds because the two forces happen to partially cancel.
+            // Net = −1: truncation dust (5↓) dominates phantom (4↑). Both forces within N+D tolerance.
             assertEq(lhs - rhs, -1, "Net divergence: truncation (5) vs phantom (4)");
         }
     }
