@@ -16,16 +16,18 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 /// @notice Invariant-test handler for OperatorStaking. Wraps all state-changing actions
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
-/// @dev Two known floor-division bugs can each cause at most 1 wei divergence per
-///      triggering deposit. When a shortfall is detected, the handler asserts the
-///      expected ERC20InsufficientBalance revert and checks that the shortfall is
-///      within the budget.
+/// @dev Two known floor-division phenomena each allow the system to diverge by at most
+///      ceil(A/S) wei per triggering deposit. Shortfalls within budget are asserted to
+///      produce the expected ERC20InsufficientBalance revert rather than failing the test.
 ///
-///      Staking-side (test_IlliquidityBug_TruncationLeak): donations inflate the
-///      exchange rate; deposits at the elevated rate truncate in _convertToShares,
-///      leaking value into in-flight redemptions beyond liquid coverage. The donate()
-///      handler caps D ≤ N to bound the leak to 0 or 1 wei per deposit.
-///      Budget: ghost_inflatedDepositCount (deposits while totalSharesInRedemption > 0).
+///      Staking-side (test_IlliquidityBug_TruncationLeak): when a deposit of `d` assets
+///      mints `n = floor(d × S/A)` shares, the truncated fractional share ε = d×S/A − n
+///      (ε ∈ [0,1)) remains in the vault as a value donation. Its asset equivalent
+///      ε × A/S < A/S inflates previewRedeem for all outstanding shares, including those
+///      in the redemption queue. The per-deposit obligation increase is strictly less than
+///      A/S, so ceil(A/S) is a sound upper bound per deposit while R > 0.
+///      Budget: ghost_globalRedemptionBudget (Σ ceil(A/S) for deposits while R > 0).
+///      Per-actor: ghost_actorDepositBudget (Σ ceil(A/S) for all deposits).
 ///
 ///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency): sequential deposits
 ///      each floor-divide independently in transferHook._allocation. The sum of floors

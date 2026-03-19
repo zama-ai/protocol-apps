@@ -406,13 +406,31 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testin
 
 ## Tolerance Budget System
 
-Two distinct floor-division phenomena each allow the system to diverge by at most 1 wei per triggering event. Rather than patching state, the handler asserts that the expected `ERC20InsufficientBalance` revert occurs.
+Two distinct floor-division phenomena can each cause bounded divergence per triggering deposit. The handler asserts that the expected `ERC20InsufficientBalance` revert occurs and verifies the shortfall is within the pre-computed budget.
 
 ### Staking-side: donation-triggered truncation leak
 
-Direct token transfers inflate `totalAssets` without minting shares, raising the per-share exchange rate. Any subsequent deposit at the elevated rate incurs ERC4626 floor-rounding truncation: `_convertToShares` floors down, leaking the remainder into the shared pool. That leaked value raises `previewRedeem` for all outstanding shares — including shares already in the redemption queue — beyond what the vault holds as liquid assets.
+When a user deposits `d` assets, the ERC4626 standard calculates the shares to mint (`n`) using floor division:
 
-The `donate()` handler caps donations so that `totalAssets / totalShares ≤ 1` (using virtual offsets), which bounds the per-deposit leak to exactly 0 or 1 wei. Proof: if `D ≤ N` (where D = totalAssets+1, N = totalShares+100), then for any single deposit minting N' shares, `pendingShares × (D'/N' − D/N) < 1`.
+```
+n = floor(d × S/A)
+```
+
+Because it rounds down, there is a fractional, truncated share `ε` that the depositor paid for but did not receive, where `ε ∈ [0, 1)`:
+
+```
+n = d × S/A − ε
+```
+
+The actual asset value of that truncated fraction `ε` remains in the vault, effectively donated to the pool. Its asset value is `ε × A/S`. Because `ε < 1`, the maximum possible value leaked per deposit is strictly bounded by:
+
+```
+Max leak per deposit < A/S   →   ceil(A/S)
+```
+
+This leaked value inflates `previewRedeem` for all outstanding shares, including those in the redemption queue — creating an obligation the vault cannot cover from liquid assets.
+
+The handler captures `ceil(A/S)` **before each deposit** (when the pre-deposit exchange rate is known) and accumulates it into the tolerance budget.
 
 See: `test_IlliquidityBug_TruncationLeak`.
 
@@ -434,24 +452,24 @@ See: `test_PhantomRewardBug_RewarderInsolvency`.
 
 ### Ghost state counters
 
-Each phenomenon has its own budget counter (upper bound) and spent tracker:
-
-| Budget counter | Trigger condition | Spent tracker | Phenomenon |
+| Budget counter | Accumulates | Trigger condition | Phenomenon |
 |---|---|---|---|
-| `ghost_inflatedDepositCount` | deposit while `totalSharesInRedemption > 0` | `ghost_globalSponsoredDust` | Staking-side illiquidity |
-| `ghost_rewarderDepositCount` | deposit while `totalSupply > 0` | `ghost_rewarderSponsoredDust` | Rewarder-side phantom |
+| `ghost_globalRedemptionBudget` | `ceil(A/S)` per deposit | deposit while `totalSharesInRedemption > 0` | Staking-side liquidity shortfall |
+| `ghost_actorDepositBudget[actor]` | `ceil(A/S)` per deposit | every deposit | Per-actor recoverable value loss |
+| `ghost_rewarderDepositCount` | `1` per deposit | deposit while `totalSupply > 0` | Rewarder-side phantom reward |
 
 The trigger conditions differ because:
-- **Staking-side**: the leak only matters when in-flight redemptions exist to absorb the inflated `previewRedeem`.
-- **Rewarder-side**: `transferHook` fires on any deposit where `totalSupply > 0`, regardless of redemptions. The phantom comes from sequential floor divisions in `_allocation`, not from exchange rate inflation.
+- **Staking-side**: the truncation leak only creates a liquidity shortfall when in-flight redemptions exist to absorb the inflated `previewRedeem`.
+- **Per-actor**: any deposit can cause the depositor to receive fewer shares than the value they contributed, regardless of redemption state.
+- **Rewarder-side**: `transferHook` fires on any deposit where `totalSupply > 0`. The phantom arises from sequential floor divisions in `_allocation`, not from exchange rate inflation.
 
 ### Staking-side expected revert logic
 
-When `redeem()` encounters a dust-sized shortfall within the tolerance budget, `_assertRedeemRevertsForDust` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state, and debits `ghost_globalSponsoredDust`. If the shortfall exceeds the remaining budget, it falls through and surfaces as a real, unhandled bug.
+When `redeem()` encounters a shortfall within `ghost_globalRedemptionBudget`, `_assertRedeemRevertsForDust` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state. If the shortfall exceeds the budget, it falls through and surfaces as a real failure.
 
 ### Rewarder-side expected revert logic
 
-Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within budget, `_assertClaimRewardsRevertsForDust` explicitly asserts the expected `ERC20InsufficientBalance` revert and debits `ghost_rewarderSponsoredDust`.
+Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within `ghost_rewarderDepositCount`, `_assertClaimRewardsRevertsForDust` explicitly asserts the expected `ERC20InsufficientBalance` revert.
 
 ---
 
@@ -461,7 +479,7 @@ Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.
 
 Every pending redemption can be claimed at exactly its cooldown timestamp. Each iteration is isolated via snapshot/revertTo, so each gets the full unspent tolerance budget independently.
 
-When a truncation-leak shortfall exists within the tolerance budget, the invariant asserts the shortfall is bounded rather than executing the redeem. Dealing tokens to the vault to fix the shortfall is self-defeating for dominant redeemers: the dealt wei inflates `totalAssets`, which `previewRedeem` absorbs proportionally to `effectiveShares / totalShares`. When `actor_shares / S ≈ 1`, the obligation rises in lockstep with the injection.
+When a truncation-leak shortfall exists within the tolerance budget, the invariant asserts the shortfall is bounded rather than executing the redeem.
 
 The invariant explicitly asserts the expected `ERC20InsufficientBalance` revert occurs via the handler. If no shortfall exists, it executes the redeem and strictly verifies the exact ERC20 transfer matches the assets returned.
 
@@ -473,7 +491,7 @@ No actor ever loses funds without slashing:
 redeemed + previewRedeem(allShares) + acceptableLoss ≥ deposited
 ```
 
-`acceptableLoss = ghost_actorRedeemCount + ghost_actorDepositCount` — 1 wei per floor-rounding event across deposits and redeems.
+`acceptableLoss = ghost_actorRedeemCount + ghost_actorDepositBudget` — the cumulative `ceil(A/S)` captured before each deposit (at the pre-deposit exchange rate) plus 1 wei per redeem for floor-rounding in `_convertToAssets`.
 
 ### `invariant_canAlwaysRequestRedeem`
 
@@ -491,26 +509,25 @@ Each controller's `_redeemRequests` checkpoint trace has non-decreasing timestam
 
 ### `invariant_sharesConversionRoundTrip`
 
-Two consecutive preview conversions can only lose value, never create it:
+Two consecutive preview conversions can only lose value, never create it. Each direction has its own tolerance:
 
+**shares → assets → shares** (`previewDeposit(previewRedeem(x)) ≤ x`):
 ```
-previewDeposit(previewRedeem(x)) ≤ x
-previewRedeem(previewDeposit(x)) ≤ x
-```
-
-The round-trip loss is bounded by `ceil(S/A)` where `S = totalSupply + totalSharesInRedemption + 100` and `A = totalAssets + 1`.
-
-**Why `ceil(S/A)` and not 1:**
-
-```
-previewRedeem(x)    = floor(x × A/S) = x × A/S − ε,   ε ∈ [0, 1)
-previewDeposit(y)   = floor(y × S/A)
-round-trip loss     = floor(ε × S/A) + 1   when frac(ε × S/A) > 0
+previewRedeem(x)  = floor(x × A/S) = x × A/S − ε,   ε ∈ [0, 1)
+previewDeposit(y) = floor(y × S/A)
+round-trip loss   = ceil(ε × S/A) ≤ ceil(S/A)
+tolerance         = (S + A − 1) / A
 ```
 
-With ε approaching 1 and a fractional S/A (e.g. 99.5), the loss reaches `floor(S/A) + 1 = ceil(S/A) = 100`. For integer S/A the ceiling equals the floor, so the loss stays within `S/A`. The tolerance is `(S + A − 1) / A` in integer arithmetic.
+**assets → shares → assets** (`previewRedeem(previewDeposit(x)) ≤ x`):
+```
+previewDeposit(x) = floor(x × S/A) = x × S/A − ε',  ε' ∈ [0, 1)
+previewRedeem(y)  = floor(y × A/S)
+round-trip loss   = ceil(ε' × A/S) ≤ ceil(A/S)
+tolerance         = (A + S − 1) / S
+```
 
-At a healthy 1:1 exchange rate this tolerance is 1. It widens only when the rate diverges due to large donations or reward accumulation.
+Where `S = totalSupply + totalSharesInRedemption + 100` and `A = totalAssets + 1`. At a 1:1 exchange rate both tolerances equal 1; they widen only when the rate diverges.
 
 ### `invariant_liquidityBufferSufficiency`
 
@@ -518,7 +535,7 @@ At a healthy 1:1 exchange rate this tolerance is 1. It widens only when the rate
 balanceOf(operatorStaking) + awaitingRelease(operatorStaking) + tolerance ≥ previewRedeem(totalSharesInRedemption())
 ```
 
-`tolerance = ghost_inflatedDepositCount − ghost_globalSponsoredDust` — the unspent rounding budget.
+`tolerance = ghost_globalRedemptionBudget` — the cumulative `ceil(A/S)` captured before each deposit made while `totalSharesInRedemption > 0`.
 
 ---
 
