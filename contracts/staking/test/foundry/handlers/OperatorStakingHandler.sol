@@ -66,9 +66,6 @@ contract OperatorStakingHandler is Test {
     /// @dev Cumulative rewards claimed by each actor.
     mapping(address => uint256) public ghost_claimedRewards;
 
-    /// @dev Number of deposits per actor (1 wei rounding tolerance each).
-    mapping(address => uint256) public ghost_actorDepositCount;
-
     /// @dev Number of redeems per actor (1 wei rounding tolerance each).
     mapping(address => uint256) public ghost_actorRedeemCount;
 
@@ -76,10 +73,14 @@ contract OperatorStakingHandler is Test {
     //  Ghost accounting — tolerance budgets
     // -------------------------------------------------------------------
 
-    /// @dev Staking-side budget: deposits while totalSharesInRedemption > 0.
-    uint256 public ghost_inflatedDepositCount;
+    /// @dev Staking-side budget: accumulates ceil(A/S) for deposits made while 
+    ///      totalSharesInRedemption > 0. Bounds the total possible truncation leak.
+    uint256 public ghost_globalRedemptionBudget;
 
-    /// @dev Rewarder-side budget: deposits while totalSupply > 0.
+    /// @dev Per-actor budget: accumulates ceil(A/S) for deposits made by each actor.
+    mapping(address => uint256) public ghost_actorDepositBudget;
+
+     /// @dev Rewarder-side budget: deposits while totalSupply > 0.
     uint256 public ghost_rewarderDepositCount;
 
     // -------------------------------------------------------------------
@@ -268,7 +269,7 @@ contract OperatorStakingHandler is Test {
 
         uint256 shortfall = expectedAssets - availableAssets;
 
-        if (shortfall <= ghost_inflatedDepositCount) {
+        if (shortfall <= ghost_globalRedemptionBudget) {
             vm.expectRevert(
                 abi.encodeWithSelector(
                     bytes4(0xe450d38c), // ERC20InsufficientBalance(address,uint256,uint256)
@@ -406,12 +407,17 @@ contract OperatorStakingHandler is Test {
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
+        // Capture ceil(A/S) before the deposit changes A.
+        uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
+        uint256 A = operatorStaking.totalAssets() + 1;
+        uint256 currentCeilAS = (A + S - 1) / S;
+
         vm.prank(actor);
         operatorStaking.deposit(assets, actor);
 
         ghost_deposited[actor] += assets;
-        ghost_actorDepositCount[actor]++;
-        if (hasPendingRedemptions) ghost_inflatedDepositCount++;
+        ghost_actorDepositBudget[actor] += currentCeilAS; 
+        if (hasPendingRedemptions) ghost_globalRedemptionBudget += currentCeilAS;
         if (transferHookFires) ghost_rewarderDepositCount++;
     }
 
@@ -424,6 +430,12 @@ contract OperatorStakingHandler is Test {
 
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
         bool transferHookFires = operatorStaking.totalSupply() > 0;
+
+        // Capture ceil(A/S) BEFORE the deposit changes A.
+        uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
+        uint256 A = operatorStaking.totalAssets() + 1;
+        uint256 currentCeilAS = (A + S - 1) / S;
+
         uint256 deadline = block.timestamp + 1;
         (uint8 v, bytes32 r, bytes32 s) = _getSignature(actor, assets, deadline);
 
@@ -431,9 +443,9 @@ contract OperatorStakingHandler is Test {
         operatorStaking.depositWithPermit(assets, actor, deadline, v, r, s);
 
         ghost_deposited[actor] += assets;
-        ghost_actorDepositCount[actor]++;
         ghost_lastPermitActor = actor;
-        if (hasPendingRedemptions) ghost_inflatedDepositCount++;
+        ghost_actorDepositBudget[actor] += currentCeilAS;
+        if (hasPendingRedemptions) ghost_globalRedemptionBudget += currentCeilAS;
         if (transferHookFires) ghost_rewarderDepositCount++;
     }
 
@@ -478,28 +490,14 @@ contract OperatorStakingHandler is Test {
     }
 
     /// @dev Donations inflate totalAssets without minting shares, raising the exchange rate.
-    ///      Any subsequent deposit at the elevated rate incurs floor-rounding truncation,
-    ///      leaking up to 1 wei per deposit into in-flight redemptions.
-    ///      See: test_IlliquidityBug_TruncationLeak.
-    ///
-    ///      The cap ensures totalAssets <= totalShares (with virtual offsets), which bounds
-    ///      the per-deposit leak to exactly 0 or 1 wei. Proof: if D/N <= 1, then
-    ///      pendingShares * (D'/N' - D/N) < 1 for any single deposit of N' shares.
+    ///      When redemptions are in-flight, any subsequent deposit at the elevated rate incurs
+    ///      floor-rounding truncation, leaking up to ceil(A/S) wei per deposit into the pool.
     function donate(uint256 amount) external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 balance = assetToken.balanceOf(actor);
         if (balance == 0) return;
 
-        // Virtual offsets: +100 shares (DECIMALS_OFFSET), +1 asset (ERC4626 standard).
-        uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
-        uint256 A = operatorStaking.totalAssets() + 1;
-
-        // Cap: keep totalAssets/totalShares <= 1.
-        uint256 maxDonation = S > A ? S - A : 0;
-        if (maxDonation == 0) return;
-
-        uint256 allowed = Math.min(balance, maxDonation);
-        amount = bound(amount, 1, allowed);
+        amount = bound(amount, 1, balance);
 
         vm.prank(actor);
         assetToken.transfer(address(operatorStaking), amount);

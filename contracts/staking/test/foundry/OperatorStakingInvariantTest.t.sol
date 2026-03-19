@@ -184,7 +184,7 @@ contract OperatorStakingInvariantTest is Test {
             address actor = handler.actorAt(i);
 
             // Each deposit and redeem incurs up to 1 wei of floor-rounding loss.
-            uint256 acceptableLoss = handler.ghost_actorRedeemCount(actor) + handler.ghost_actorDepositCount(actor);
+            uint256 acceptableLoss = handler.ghost_actorRedeemCount(actor) + handler.ghost_actorDepositBudget(actor);
 
             uint256 deposited = handler.ghost_deposited(actor);
             uint256 redeemed = handler.ghost_redeemed(actor);
@@ -262,7 +262,7 @@ contract OperatorStakingInvariantTest is Test {
         uint256 awaitingRelease = protocolStaking.awaitingRelease(address(operatorStaking));
         uint256 obligation = operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption());
 
-        uint256 tolerance = handler.ghost_inflatedDepositCount();
+        uint256 tolerance = handler.ghost_globalRedemptionBudget();
 
         assertGe(
             liquidBalance + awaitingRelease + tolerance,
