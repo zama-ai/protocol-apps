@@ -368,6 +368,18 @@ contract ProtocolStakingHandler is Test {
     }
 
     // **************** Equivalence scenario handlers ****************
+    //
+    // Purpose:
+    //   These functions verify that two different execution paths to the same logical outcome
+    //   produce identical on-chain state. They are registered as fuzzable handler actions so
+    //   Foundry exercises them organically within invariant sequences, subjecting the comparison
+    //   to arbitrary prior history rather than a clean initial state.
+    //
+    // Mechanism:
+    //   Each scenario uses vm.snapshotState() to fork EVM state, runs Path A, captures results,
+    //   reverts to the snapshot via vm.revertToState(), then runs Path B on the live state.
+    //   Path B's final state persists and becomes part of the ongoing fuzz sequence, meaning
+    //   subsequent handler calls build on a real execution path.
 
     // Compare stake(amount1+amount2) once vs stake(amount1) then stake(amount2).
     function stakeEquivalenceScenario(uint256 amount1, uint256 amount2, uint256 duration) external {
@@ -406,8 +418,7 @@ contract ProtocolStakingHandler is Test {
         uint256 earnedDouble = protocolStaking.earned(account);
 
         assertEq(sharesDouble, sharesSingle, "stake equivalence: shares");
-        // TODO: Weight is not expected to be strictly equal, might want to try to break the equivalence invariant
-        // have not found a counter example for now
+        // Since weight = floor(sqrt(balance)), equal inputs should guarantee equal outputs.
         assertEq(weightDouble, weightSingle, "stake equivalence: weight");
         assertApproxEqAbs(earnedDouble, earnedSingle, EQUIVALENCE_EARNED_TOLERANCE, "stake equivalence: earned");
     }

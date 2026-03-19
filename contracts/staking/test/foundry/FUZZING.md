@@ -28,6 +28,8 @@ We separate our invariant rules into two distinct categories to handle EVM state
 
 2. **Transition Invariants**: Checked via the `assertTransitionInvariants` modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected).
 
+3. **Equivalence Invariants**: Verify that two different execution paths to the same logical outcome produce identical on-chain state. Checked inline in the handler using `vm.snapshotState()` to fork execution, run both paths, and compare results.
+
 ### Handler
 
 [`handlers/ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol)
@@ -53,30 +55,56 @@ We separate our testing rules into three distinct categories:
 
 Checked via `invariant_*` functions in the main test contract after every handler call.
 
-- Total supply bounded by reward rate:
+- **Total supply bounded by reward rate** — token issuance never exceeds the authorized emission:
 ```
-totalSupply ≤ initialTotalSupply + Σ(δT_i × rewardRate_i)
-```
-
-- Total staked weight:
-```
-totalStakedWeight() == Σ weight(balanceOf(account))
+zama.totalSupply()
+  ≤ ghost_initialTotalSupply
+  + ghost_accumulatedRewardCapacity   // Σ(δT_i × rewardRate_i), updated on every warp
+  + ghost_truncationOps               // 1 wei tolerance per weight-decrease op (see Reward Debt System)
 ```
 
-- Reward debt conservation:
+- **Total staked weight** — the on-chain weight register matches the sum of eligible-account weights:
 ```
-Σ _paid[account] + Σ earned(account) == _totalVirtualPaid + historicalRewards().
+protocolStaking.totalStakedWeight()
+  == Σ weight(protocolStaking.balanceOf(account))   // summed over all eligible accounts only
+```
+Ineligible accounts hold staked balance but contribute zero weight.
+
+- **Reward debt conservation** — the virtual accounting system stays balanced within rounding tolerance:
+```
+| Σ protocolStaking._paid[account]     // per-account already-credited amount (internal storage)
++ Σ protocolStaking.earned(account)   // per-account claimable rewards (view function)
+− protocolStaking._totalVirtualPaid() // global sum of all virtualPaid entries (harness accessor)
+− protocolStaking.historicalRewards() // cumulative rewards ever distributed (harness accessor)
+| ≤ ghost_maxEligibleAccounts + ghost_dilutionOps
+```
+Both sums range over all actors. See the Reward Debt System section for the tolerance derivation.
+
+- **Pending withdrawals solvency** — the staking contract holds enough tokens to cover all queued withdrawals:
+```
+zama.balanceOf(address(protocolStaking))
+  ≥ Σ protocolStaking.awaitingRelease(account)   // summed over all actors
 ```
 
-- Pending withdrawals solvency:
+- **Staked funds solvency** — every token an actor ever staked is accounted for, per account:
 ```
-balanceOf(protocolStaking) ≥ Σ awaitingRelease(account)
+ghost_totalStaked[account]            // ghost: cumulative tokens staked by this account (handler)
+  == protocolStaking.balanceOf(account)         // currently staked (shares → tokens)
+   + protocolStaking.awaitingRelease(account)   // pending withdrawal, cooldown not yet elapsed
+   + ghost_totalReleased[account]               // ghost: cumulative tokens already released (handler)
 ```
+Checked independently for every actor.
 
-- Staked funds solvency:
+- **Unstake queue monotonicity** — the checkpoint trace for each account is internally consistent:
 ```
-totalStaked == balanceOf(account) + awaitingRelease(account) + released
+For all consecutive checkpoints (j-1, j) in _unstakeRequests[account]:
+  key[j]   ≥ key[j-1]                          // timestamps are non-decreasing
+  value[j] ≥ value[j-1]                         // cumulative shares are non-decreasing
 ```
+`value` is a **cumulative** share total, not an incremental amount. When an unstake arrives at the same
+block timestamp as the prior checkpoint it is updated in-place (same key, higher value). When it arrives
+later a new checkpoint is appended (higher key). Both cases must preserve monotonicity across the full
+history.
 
 ### 2. Transition Invariants
 
@@ -84,18 +112,18 @@ Because Foundry reverts the EVM state after evaluating `invariant_*` functions, 
 
 - Claimed + claimable never decreases:
 ```
-claimed + earned is strictly non-decreasing per account across any action (incorporating a tolerance for division rounding).
+claimed + earned is strictly increasing per account across any action (incorporating a tolerance for division rounding).
 ```
 
 - Awaiting release never decreases:
 ```
-awaitingRelease(account) is non-decreasing until release() is explicitly called by that account.
+protocolStaking.awaitingRelease(account) is non-decreasing until release() is explicitly called by that account.
 ```
+`awaitingRelease(account)` is defined as `_unstakeRequests[account].latest() - _released[account]`. Calling
+the function also implicitly enforces that `_released[account] ≤ latest unstake checkpoint` — if that
+invariant were violated the subtraction would underflow and revert, which `fail_on_revert = true` would
+surface as a test failure.
 
-- Unstake queue monotonicity:
-```
-_unstakeRequests checkpoints strictly enforce non-decreasing timestamps and cumulative amounts.
-```
 
 - Earned is zero after claim:
 ```
