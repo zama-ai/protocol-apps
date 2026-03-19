@@ -110,21 +110,12 @@ contract ProtocolStakingHandler is Test {
         // Allocate memory for pre-states
         uint256[] memory preClaimedEarned = new uint256[](actorsLen);
         uint256[] memory preAwaitingRelease = new uint256[](actorsLen);
-        uint48[] memory preKeys = new uint48[](actorsLen);
-        uint208[] memory preValues = new uint208[](actorsLen);
-        bool[] memory hadCheckpoint = new bool[](actorsLen);
 
-        // Capture pre-states: Awaiting Release, Claimed + Earned, and Unstake Queue.
+        // Capture pre-states: Awaiting Release and Claimed + Earned.
         for (uint256 i = 0; i < actorsLen; i++) {
             address account = actors[i];
             preAwaitingRelease[i] = protocolStaking.awaitingRelease(account);
             preClaimedEarned[i] = ghost_claimed[account] + protocolStaking.earned(account);
-
-            uint256 count = _getUnstakeRequestCheckpointCount(account);
-            if (count > 0) {
-                (preKeys[i], preValues[i]) = _getUnstakeRequestCheckpointAt(account, count - 1);
-                hadCheckpoint[i] = true;
-            }
         }
 
         _; // Execute the handler action
@@ -134,7 +125,6 @@ contract ProtocolStakingHandler is Test {
             address account = actors[i];
             _assertClaimedPlusEarnedTransition(account, preClaimedEarned[i]);
             _assertAwaitingReleaseTransition(account, preAwaitingRelease[i]);
-            _assertUnstakeQueueMonotonicityTransition(account, hadCheckpoint[i], preKeys[i], preValues[i]);
         }
 
         _resetTransitionFlags();
@@ -162,24 +152,6 @@ contract ProtocolStakingHandler is Test {
         assertGe(postAwaitingRelease, preAwaitingRelease, "awaitingRelease must not decrease except after release");
     }
 
-    function _assertUnstakeQueueMonotonicityTransition(
-        address account,
-        bool hadCheckpoint,
-        uint48 preKey,
-        uint208 preValue
-    ) internal view {
-        uint256 count = _getUnstakeRequestCheckpointCount(account);
-        if (count == 0) return;
-
-        (uint48 postKey, uint208 postValue) = _getUnstakeRequestCheckpointAt(account, count - 1);
-
-        if (hadCheckpoint) {
-            assertGe(postKey, preKey, "unstake request keys must be non-decreasing");
-            if (postKey == preKey) {
-                assertGe(postValue, preValue, "unstake request values must be non-decreasing for same key");
-            }
-        }
-    }
 
     // **************** Helper functions ****************
 

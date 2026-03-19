@@ -146,6 +146,26 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
+    /// @notice Checkpoint traces for each account must have non-decreasing timestamps
+    ///         and non-decreasing cumulative share amounts.
+    function invariant_UnstakeQueueMonotonicity() public view {
+        uint256 actorCount = handler.actorsLength();
+        for (uint256 i = 0; i < actorCount; i++) {
+            address actor = handler.actorAt(i);
+            uint256 count = protocolStaking._harness_getUnstakeRequestCheckpointCount(actor);
+            if (count <= 1) continue;
+
+            (uint48 prevKey, uint208 prevValue) = protocolStaking._harness_getUnstakeRequestCheckpointAt(actor, 0);
+            for (uint256 j = 1; j < count; j++) {
+                (uint48 key, uint208 value) = protocolStaking._harness_getUnstakeRequestCheckpointAt(actor, j);
+                assertGe(key, prevKey, "unstake checkpoint timestamps must be non-decreasing");
+                assertGe(value, prevValue, "unstake checkpoint cumulative shares must be non-decreasing");
+                prevKey = key;
+                prevValue = value;
+            }
+        }
+    }
+
     // ---------- Phantom Wei & Rounding Tests ----------
 
     /// @dev Helper to quickly spin up an isolated protocol instance with specific token distributions
