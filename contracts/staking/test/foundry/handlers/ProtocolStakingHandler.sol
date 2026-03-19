@@ -13,26 +13,24 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 /// @notice Invariant-test handler for ProtocolStaking. Wraps all state-changing actions
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
-/// @dev Two opposing floor-division phenomena compete in the reward debt accounting system.
-///      Their interaction bounds the total divergence to at most N wei (not 2N), where N
-///      is the maximum number of simultaneously eligible accounts.
+/// @dev Two floor-division phenomena pull the reward debt LHS in opposite directions.
+///      The combined divergence is bounded by N + D wei, where N is the maximum number
+///      of simultaneously eligible accounts and D is the total number of dilution events
+///      (weight-increase operations by eligible accounts).
 ///
-///      Truncation dust (test_MaxNormalTruncationDust): each call to earned() floor-divides
-///      `rewardPool × weight / totalWeight` independently per account. The sum of N floors
-///      is strictly less than the pool total, pulling the reward debt LHS DOWN by at most
-///      N − 1 wei across all accounts.
+///      Truncation dust (test_MaxNormalTruncationDust): earned() independently floors
+///      `pool × weight / totalWeight` for each account. The sum of N floors is at most
+///      N − 1 less than the pool, pulling the reward debt LHS DOWN by at most N − 1 wei.
 ///
-///      Phantom wei / compound dilution trap (test_DilutionTrap, test_CompoundPhantomWei):
-///      after an account claims rewards, each subsequent dilution event (a new eligible
-///      staker entering) can drop the account's allocation by 1 more wei via the same
-///      mulDiv truncation. The shortfall of one entrant's virtualAmount is < 1 wei and
-///      distributes proportionally across all phantom accounts, so the TOTAL phantom
-///      across all accounts increases by at most 1 per dilution event — not 1 per account
-///      per dilution. This pulls the reward debt LHS UP by at most N + D wei in total.
+///      Phantom wei (test_DilutionTrap, test_CompoundPhantomWei): each weight-increase
+///      operation adds a truncated virtualAmount to _totalVirtualPaid. The shortfall is
+///      always < 1 wei total and may drop one account's allocation by 1, stranding wei in
+///      _paid if that account has already claimed. This applies uniformly whether it is
+///      the first dilution trap for an account or a subsequent compounding event — both
+///      are the same mechanism. The total phantom across all accounts increases by at most
+///      1 per dilution event, pulling the reward debt LHS UP by at most D wei.
 ///
-///      Because truncation dust and phantom pull in opposite directions they partially
-///      cancel. The combined bound is N + D wei, tracked as two independent terms.
-///      Budget: ghost_maxEligibleAccounts + ghost_dilutionOps.
+///      Budget: ghost_maxEligibleAccounts (N) + ghost_dilutionOps (D).
 ///
 ///      A designated outgroup (bottom 20% of actors) is never made eligible. This keeps
 ///      ghost_maxEligibleAccounts a strict static bound regardless of fuzz sequencing.
@@ -259,26 +257,26 @@ contract ProtocolStakingHandler is Test {
 
     /**
      * @notice Calculates the maximum acceptable wei deviation for the reward debt invariant.
-     * @dev The total tolerance is the sum of two independent bounds:
+     * @dev The tolerance is the sum of two independent directional bounds that oppose each other:
      *
-     * Term 1 — ghost_maxEligibleAccounts (N):
-     *   Two opposing rounding forces partially cancel, giving a net bound of N wei.
-     *   - Truncation Dust: integer division in earned() causes each of the N active accounts
-     *     to lose up to 1 wei of fractional reward, pulling LHS DOWN by at most (N - 1) wei.
-     *   - Phantom Wei (initial): after a claim, a single dilution event can strand 1 wei in
-     *     _paid above the account's new allocation, pulling LHS UP by at most 1 wei per account.
-     *   Because these forces oppose each other the combined bound is N, not 2N.
-     *   See: test_DilutionTrap and test_MaxNormalTruncationDust.
+     * Term 1 — ghost_maxEligibleAccounts (N) — pulls LHS DOWN:
+     *   Integer division in earned() computes floor(pool × wᵢ / W) independently per account.
+     *   The sum of N individual floors is at most N − 1 less than the pool total, so truncation
+     *   dust pulls the reward debt LHS down by at most N − 1 wei. N is used as the full bound.
+     *   See: test_MaxNormalTruncationDust.
      *
-     * Term 2 — ghost_dilutionOps (D):
+     * Term 2 — ghost_dilutionOps (D) — pulls LHS UP:
      *   Each weight-increase operation (stake by an eligible account, or addEligibleAccount for
-     *   an account with existing balance) is a dilution event that adjusts the virtual pool via
-     *   a truncated mulDiv. While an account is already in the phantom zone (earned == 0), each
-     *   such event can drop its allocation by 1 more wei, compounding its phantom beyond the
-     *   initial 1-wei-per-account assumption. The phantom for a single account grows by at most
-     *   1 per dilution event, so D events add at most D additional wei to the LHS upward pressure.
-     *   See: test_CompoundPhantomWei.
+     *   an account with existing balance) adjusts the virtual pool via a truncated mulDiv. The
+     *   shortfall from one entrant's virtualAmount is always < 1 wei and distributes across all
+     *   existing accounts proportionally — so the total phantom increase across ALL accounts is
+     *   at most 1 per dilution event. This applies uniformly whether an account is entering the
+     *   phantom zone for the first time or compounding an existing phantom. D events therefore
+     *   pull LHS up by at most D wei in total.
+     *   See: test_DilutionTrap, test_CompoundPhantomWei.
      *
+     * Because the two terms pull in opposite directions the worst-case divergence in either
+     * direction is max(D, N − 1), bounded conservatively by N + D.
      * @return The maximum allowable rounding error in wei: N + D.
      */
     function computeRewardDebtTolerance() external view returns (uint256) {
