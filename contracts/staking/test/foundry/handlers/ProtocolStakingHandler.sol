@@ -69,6 +69,11 @@ contract ProtocolStakingHandler is Test {
     mapping(address => uint256) public ghost_totalStaked;
     mapping(address => uint256) public ghost_totalReleased;
 
+    // Counts weight-decrease operations (unstake on eligible accounts, removeEligibleAccount with
+    // staked balance) that trigger mulDiv truncation in _updateRewards, inflating _totalVirtualPaid
+    // by at most 1 wei each. Used as the tolerance for invariant_TotalSupplyBoundedByRewardRate.
+    uint256 public ghost_truncationOps;
+
     // Flag to exempt an account from the awaitingRelease monotonicity check
     address public ghost_releasedAccount;
 
@@ -292,6 +297,9 @@ contract ProtocolStakingHandler is Test {
 
     function removeEligibleAccount() external assertTransitionInvariants {
         address account = msg.sender;
+        if (protocolStaking.isEligibleAccount(account) && protocolStaking.balanceOf(account) > 0) {
+            ghost_truncationOps++;
+        }
         vm.prank(manager);
         protocolStaking.removeEligibleAccount(account);
     }
@@ -317,6 +325,9 @@ contract ProtocolStakingHandler is Test {
         uint256 stakedBalance = protocolStaking.balanceOf(actor);
         if (stakedBalance == 0) return;
         amount = bound(amount, 1, stakedBalance);
+        if (protocolStaking.isEligibleAccount(actor)) {
+            ghost_truncationOps++;
+        }
         vm.prank(actor);
         protocolStaking.unstake(amount);
     }

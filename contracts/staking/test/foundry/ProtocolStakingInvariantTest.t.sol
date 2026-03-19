@@ -105,10 +105,8 @@ contract ProtocolStakingInvariantTest is Test {
     function invariant_TotalSupplyBoundedByRewardRate() public view {
         assertLe(
             zama.totalSupply(),
-            // TODO: Account for tolerance in the invariant due to phantom wei minting,
-            // see test_FractionalDustPrinter for the proof of concept.
-            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity(),
-            "totalSupply exceeds piecewise rewardRate bound"
+            handler.ghost_initialTotalSupply() + handler.ghost_accumulatedRewardCapacity() + handler.ghost_truncationOps(),
+            "totalSupply exceeds piecewise rewardRate bound + truncation tolerance"
         );
     }
 
