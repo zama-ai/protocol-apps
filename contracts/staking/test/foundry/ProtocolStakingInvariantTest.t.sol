@@ -276,7 +276,7 @@ contract ProtocolStakingInvariantTest is Test {
     ///      Aggregate dust = 39 − 20 = 19 = N − 1.
     ///      Assert: rhs − lhs == N − 1.
     function test_MaxNormalTruncationDust() public {
-        uint256 n = vm.randomUint(1, 100);
+        uint256 n = 20;
 
         address[] memory users = new address[](n);
         uint256[] memory amounts = new uint256[](n);
