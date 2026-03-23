@@ -5,7 +5,7 @@
  * storage overrides that conflict with forking.
  *
  * Usage:
- *   npx hardhat --config hardhat.config.fork.ts test test/ConfidentialWrapperUpgrade.test.ts
+ *   npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
  */
 
 import '@nomicfoundation/hardhat-chai-matchers';
