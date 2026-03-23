@@ -43,6 +43,9 @@ interface IERC7984ERC20Wrapper is IERC7984 {
     /// @dev Returns the amount of wrapper tokens that were unwrapped for a given `unwrapRequestId`.
     function unwrapAmount(bytes32 unwrapRequestId) external view returns (euint64);
 
+    /// @dev Returns the recipient of the unwrap request identified by `unwrapRequestId`.
+    function unwrapRequester(bytes32 unwrapRequestId) external view returns (address);
+
     /// @dev Returns the address of the underlying ERC-20 token that is being wrapped.
     function underlying() external view returns (address);
 }

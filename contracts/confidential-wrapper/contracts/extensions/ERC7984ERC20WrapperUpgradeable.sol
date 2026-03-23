@@ -169,6 +169,12 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
+    function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
+        return $._unwrapRequests[unwrapRequestId];
+    }
+
+    /// @inheritdoc IERC7984ERC20Wrapper
     function underlying() public view virtual override returns (address) {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         return address($._underlying);
