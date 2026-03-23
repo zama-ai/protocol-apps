@@ -6,6 +6,10 @@
  *
  * Uses hardhat.config.fork.ts (no @fhevm/hardhat-plugin) to avoid genesis
  * storage overrides that conflict with hardhat's forking mode.
+ * 
+ * Performs best when using an archive node for the forked network.
+ * 
+ * NOTE: THIS SCRIPT IS ONLY FOR TESTING PURPOSES. DO NOT USE IT IN A PRODUCTION ENVIRONMENT.
  *
  * Usage:
  *   npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
