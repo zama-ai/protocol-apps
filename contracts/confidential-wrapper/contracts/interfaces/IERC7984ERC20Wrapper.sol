@@ -29,10 +29,19 @@ interface IERC7984ERC20Wrapper is IERC7984 {
      *
      * @return unwrapRequestId The unwrap request ID.
      */
-    function unwrap(address from, address to, externalEuint64 encryptedAmount, bytes calldata inputProof) external returns (bytes32);
+    function unwrap(
+        address from,
+        address to,
+        externalEuint64 encryptedAmount,
+        bytes calldata inputProof
+    ) external returns (bytes32);
 
     /// @dev Finalizes an unwrap request identified by `unwrapRequestId` with the given `unwrapAmountCleartext` and `decryptionProof`.
-    function finalizeUnwrap(bytes32 unwrapRequestId, uint64 unwrapAmountCleartext, bytes calldata decryptionProof) external;
+    function finalizeUnwrap(
+        bytes32 unwrapRequestId,
+        uint64 unwrapAmountCleartext,
+        bytes calldata decryptionProof
+    ) external;
 
     /**
      * @dev Returns the rate at which the underlying token is converted to the wrapped token.

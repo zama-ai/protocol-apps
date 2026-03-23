@@ -49,9 +49,12 @@ async function getImplementationAddress(proxyAddress: string): Promise<string> {
   return addressFromSlotValue(raw);
 }
 
-async function getLogsChunked(
-  filter: { address: string; topics: (string | string[])[]; fromBlock: number; toBlock: number },
-): Promise<Log[]> {
+async function getLogsChunked(filter: {
+  address: string;
+  topics: (string | string[])[];
+  fromBlock: number;
+  toBlock: number;
+}): Promise<Log[]> {
   const CHUNK = 5000;
   const allLogs: Log[] = [];
   for (let from = filter.fromBlock; from <= filter.toBlock; from += CHUNK) {
@@ -115,8 +118,8 @@ async function findPendingUnwrapRequests(wrapperAddress: string): Promise<Pendin
     ...blockRange,
   });
 
-  const requestedIds = new Set(requestedLogs.map((log) => extractRequestId(log, topics.newRequested)));
-  const finalizedIds = new Set(finalizedLogs.map((log) => extractFinalizedId(log, topics.newFinalized)));
+  const requestedIds = new Set(requestedLogs.map(log => extractRequestId(log, topics.newRequested)));
+  const finalizedIds = new Set(finalizedLogs.map(log => extractFinalizedId(log, topics.newFinalized)));
 
   const unwrapMappingBase = BigInt(WRAPPER_BASE) + 2n;
   const pending: PendingUnwrap[] = [];
@@ -246,7 +249,17 @@ async function main() {
   };
 
   // Public getters
-  const getterFields = ['name', 'symbol', 'contractURI', 'decimals', 'underlying', 'rate', 'totalSupply', 'maxTotalSupply', 'owner'] as const;
+  const getterFields = [
+    'name',
+    'symbol',
+    'contractURI',
+    'decimals',
+    'underlying',
+    'rate',
+    'totalSupply',
+    'maxTotalSupply',
+    'owner',
+  ] as const;
   console.log('  Public getters:');
   for (const field of getterFields) {
     const preVal = String(pre[field]);
@@ -352,7 +365,7 @@ async function main() {
   console.log('\n═══ All checks passed ═══\n');
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error('\nUpgrade test FAILED:\n');
   console.error(error);
   process.exitCode = 1;

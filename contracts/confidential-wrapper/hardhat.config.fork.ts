@@ -21,9 +21,7 @@ dotenv.config({ path: resolve(__dirname, '.env') });
 const FORK_RPC_URL = process.env.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL;
 
 if (!FORK_RPC_URL) {
-  throw new Error(
-    'CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL must be set in .env to run fork-based upgrade tests',
-  );
+  throw new Error('CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL must be set in .env to run fork-based upgrade tests');
 }
 
 const config: HardhatUserConfig = {
