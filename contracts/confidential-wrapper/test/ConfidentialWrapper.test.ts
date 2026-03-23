@@ -312,14 +312,15 @@ describe('ERC7984Wrapper', function () {
         ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
 
       const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
-      const unwrapAmount = event.args[1];
+      const unwrapRequestId = event.args[1];
+      const unwrapAmount = event.args[2];
       const publicDecryptResults = await fhevm.publicDecrypt([unwrapAmount]);
 
       await expect(
         this.wrapper
           .connect(this.holder)
           .finalizeUnwrap(
-            unwrapAmount,
+            unwrapRequestId,
             publicDecryptResults.abiEncodedClearValues,
             publicDecryptResults.decryptionProof.slice(0, publicDecryptResults.decryptionProof.length - 2),
           ),
@@ -377,9 +378,9 @@ describe('ERC7984Wrapper', function () {
 /* eslint-disable no-unexpected-multiline */
 
 async function publicDecryptAndFinalizeUnwrap(wrapper: ConfidentialWrapper, caller: HardhatEthersSigner) {
-  const [to, amount] = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested()))[0].args;
+  const [to, unwrapRequestId, amount] = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested()))[0].args;
   const { abiEncodedClearValues, decryptionProof } = await fhevm.publicDecrypt([amount]);
-  await expect(wrapper.connect(caller).finalizeUnwrap(amount, abiEncodedClearValues, decryptionProof))
+  await expect(wrapper.connect(caller).finalizeUnwrap(unwrapRequestId, abiEncodedClearValues, decryptionProof))
     .to.emit(wrapper, 'UnwrapFinalized')
-    .withArgs(to, amount, abiEncodedClearValues);
+    .withArgs(to, unwrapRequestId, amount, abiEncodedClearValues);
 }
