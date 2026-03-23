@@ -100,6 +100,28 @@ Verify all deployed confidential wrapper contracts on Etherscan. Reads wrapper n
 npx hardhat task:verifyAllConfidentialWrappers --network testnet
 ```
 
+## Scripts
+
+### `test-upgrade`
+
+Simulates an upgrade on a forked network. Captures all on-chain state before the upgrade, deploys a new implementation, executes `upgradeToAndCall`, and verifies that all storage (public getters, raw ERC7201 slots, `_unwrapRequests` mapping entries) is preserved. Also checks that new function signatures are present and security invariants hold (re-initialization blocked, non-owner upgrade blocked).
+
+Uses a dedicated hardhat config (`hardhat.config.fork.ts`) that omits `@fhevm/hardhat-plugin` to avoid genesis storage overrides that conflict with forking.
+
+**Required environment variables:**
+
+| Variable | Description |
+| --- | --- |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` | RPC URL for the network to fork |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_ADDRESS` | Address of the deployed wrapper proxy to test against |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_DEPLOY_BLOCK` | Block number at which the wrapper was deployed (for event scanning) |
+
+**Example:**
+
+```bash
+npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
+```
+
 ## Deployment Steps
 
 ### Deploy wrapper(s)
@@ -109,10 +131,10 @@ npx hardhat task:verifyAllConfidentialWrappers --network testnet
    - **Batch**: `npx hardhat task:deployAllConfidentialWrappers --network <network>`
    - **Single**: `npx hardhat task:deployConfidentialWrapper ... --network <network>`
 3. Verify the contracts:
-   - **First deployment**: 
+   - **First deployment**:
      - **Batch**: `npx hardhat task:verifyAllConfidentialWrappers --network <network>`
      - **Single**: `npx hardhat task:verifyConfidentialWrapper ... --network <network>`
-   - **Subsequent upgrades**: on Etherscan: 
+   - **Subsequent upgrades**: on Etherscan:
      - open the wrapper proxy address
      - go to "Contract" > "Code" > "More Options" > "Is this a proxy?" > "Verify" > "Save"
      - go back to the wrapper page and refresh
