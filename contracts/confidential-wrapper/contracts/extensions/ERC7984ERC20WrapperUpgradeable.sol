@@ -31,17 +31,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         IERC20 _underlying;
         uint8 _decimals;
         uint256 _rate;
-        mapping(euint64 unwrapAmount => address recipient) _unwrapRequests;
+        mapping(bytes32 unwrapRequestId => address recipient) _unwrapRequests;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ERC7984ERC20WrapperUpgradeable")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant ERC7984_ERC20_WRAPPER_UPGRADEABLE_STORAGE_LOCATION =
         0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
 
-    event UnwrapRequested(address indexed receiver, euint64 amount);
-    event UnwrapFinalized(address indexed receiver, euint64 encryptedAmount, uint64 cleartextAmount);
-
-    error InvalidUnwrapRequest(euint64 amount);
+    error InvalidUnwrapRequest(bytes32 unwrapRequestId);
     error ERC7984TotalSupplyOverflow();
 
     function _getERC7984ERC20WrapperStorage() internal pure returns (ERC7984ERC20WrapperStorage storage $) {
@@ -111,9 +108,9 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     /**
      * @dev Unwrap without passing an input proof. See {unwrap-address-address-bytes32-bytes} for more details.
      */
-    function unwrap(address from, address to, euint64 amount) public virtual {
+    function unwrap(address from, address to, euint64 amount) public virtual returns (bytes32) {
         require(FHE.isAllowed(amount, msg.sender), ERC7984UnauthorizedUseOfEncryptedAmount(amount, msg.sender));
-        _unwrap(from, to, amount);
+        return euint64.unwrap(_unwrap(from, to, amount));
     }
 
     /**
@@ -126,23 +123,25 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         address to,
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
-    ) public virtual override {
-        _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
+    ) public virtual override returns (bytes32) {
+        return euint64.unwrap(_unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof)));
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
     function finalizeUnwrap(
-        euint64 burntAmount,
+        bytes32 unwrapRequestId,
         uint64 burntAmountCleartext,
         bytes calldata decryptionProof
     ) public virtual override {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        address to = $._unwrapRequests[burntAmount];
-        require(to != address(0), InvalidUnwrapRequest(burntAmount));
-        delete $._unwrapRequests[burntAmount];
+        address to = $._unwrapRequests[unwrapRequestId];
+        require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
+
+        euint64 unwrapAmount_ = unwrapAmount(unwrapRequestId);
+        delete $._unwrapRequests[unwrapRequestId];
 
         bytes32[] memory handles = new bytes32[](1);
-        handles[0] = euint64.unwrap(burntAmount);
+        handles[0] = euint64.unwrap(unwrapAmount_);
 
         bytes memory cleartexts = abi.encode(burntAmountCleartext);
 
@@ -150,7 +149,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
 
         SafeERC20.safeTransfer(IERC20(underlying()), to, burntAmountCleartext * rate());
 
-        emit UnwrapFinalized(to, burntAmount, burntAmountCleartext);
+        emit UnwrapFinalized(to, unwrapRequestId, unwrapAmount_, burntAmountCleartext);
     }
 
     /// @inheritdoc ERC7984Upgradeable
@@ -159,13 +158,15 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return $._decimals;
     }
 
-    /**
-     * @dev Returns the rate at which the underlying token is converted to the wrapped token.
-     * For example, if the `rate` is 1000, then 1000 units of the underlying token equal 1 unit of the wrapped token.
-     */
+    /// @inheritdoc IERC7984ERC20Wrapper
     function rate() public view virtual returns (uint256) {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         return $._rate;
+    }
+
+    /// @inheritdoc IERC7984ERC20Wrapper
+    function unwrapAmount(bytes32 unwrapRequestId) public view virtual returns (euint64) {
+        return euint64.wrap(unwrapRequestId);
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
@@ -218,23 +219,24 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return super._update(from, to, amount);
     }
 
-    function _unwrap(address from, address to, euint64 amount) internal virtual {
+    function _unwrap(address from, address to, euint64 amount) internal virtual returns (euint64) {
         require(to != address(0), ERC7984InvalidReceiver(to));
         require(from == msg.sender || isOperator(from, msg.sender), ERC7984UnauthorizedSpender(from, msg.sender));
 
         // try to burn, see how much we actually got
-        euint64 burntAmount = _burn(from, amount);
-        FHE.makePubliclyDecryptable(burntAmount);
+        euint64 unwrapAmount_ = _burn(from, amount);
+        FHE.makePubliclyDecryptable(unwrapAmount_);
 
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        assert($._unwrapRequests[burntAmount] == address(0));
+        assert($._unwrapRequests[euint64.unwrap(unwrapAmount_)] == address(0));
 
         // WARNING: Storing unwrap requests in a mapping from cipher-text to address assumes that
         // cipher-texts are unique--this holds here but is not always true. Be cautious when assuming
         // cipher-text uniqueness.
-        $._unwrapRequests[burntAmount] = to;
+        $._unwrapRequests[euint64.unwrap(unwrapAmount_)] = to;
 
-        emit UnwrapRequested(to, burntAmount);
+        emit UnwrapRequested(to, euint64.unwrap(unwrapAmount_), unwrapAmount_);
+        return unwrapAmount_;
     }
 
     /**
