@@ -69,28 +69,6 @@ async function getLogsChunked(filter: {
   return allLogs;
 }
 
-/**
- * Extract the unwrap request ID from an event log.
- *
- * Old format: UnwrapRequested(address indexed, euint64)        → ID is in log.data as bytes32
- * New format: UnwrapRequested(address indexed, bytes32 indexed, euint64) → ID is topics[2]
- *
- * euint64 ABI-encodes as bytes32 since it wraps bytes32.
- */
-function extractRequestId(log: Log, newFormatTopic: string): string {
-  if (log.topics[0] === newFormatTopic) {
-    return log.topics[2];
-  }
-  return ethers.AbiCoder.defaultAbiCoder().decode(['bytes32'], log.data)[0] as string;
-}
-
-function extractFinalizedId(log: Log, newFormatTopic: string): string {
-  if (log.topics[0] === newFormatTopic) {
-    return log.topics[2];
-  }
-  return ethers.AbiCoder.defaultAbiCoder().decode(['bytes32', 'uint64'], log.data)[0] as string;
-}
-
 interface PendingUnwrap {
   requestId: string;
   recipient: string;
@@ -101,29 +79,30 @@ interface PendingUnwrap {
 async function findPendingUnwrapRequests(wrapperAddress: string): Promise<PendingUnwrap[]> {
   const latestBlock = await ethers.provider.getBlockNumber();
 
-  const topics = {
-    oldRequested: ethers.id('UnwrapRequested(address,bytes32)'),
-    newRequested: ethers.id('UnwrapRequested(address,bytes32,bytes32)'),
-    oldFinalized: ethers.id('UnwrapFinalized(address,bytes32,uint64)'),
-    newFinalized: ethers.id('UnwrapFinalized(address,bytes32,bytes32,uint64)'),
-  };
+  // Only old event signatures exist pre-upgrade
+  const requestedTopic = ethers.id('UnwrapRequested(address,bytes32)');
+  const finalizedTopic = ethers.id('UnwrapFinalized(address,bytes32,uint64)');
 
   const blockRange = { fromBlock: DEPLOY_BLOCK, toBlock: latestBlock };
 
   const requestedLogs = await getLogsChunked({
     address: wrapperAddress,
-    topics: [[topics.oldRequested, topics.newRequested]],
+    topics: [requestedTopic],
     ...blockRange,
   });
 
   const finalizedLogs = await getLogsChunked({
     address: wrapperAddress,
-    topics: [[topics.oldFinalized, topics.newFinalized]],
+    topics: [finalizedTopic],
     ...blockRange,
   });
 
-  const requestedIds = new Set(requestedLogs.map(log => extractRequestId(log, topics.newRequested)));
-  const finalizedIds = new Set(finalizedLogs.map(log => extractFinalizedId(log, topics.newFinalized)));
+  const requestedIds = new Set(
+    requestedLogs.map(log => ethers.AbiCoder.defaultAbiCoder().decode(['bytes32'], log.data)[0] as string),
+  );
+  const finalizedIds = new Set(
+    finalizedLogs.map(log => ethers.AbiCoder.defaultAbiCoder().decode(['bytes32', 'uint64'], log.data)[0] as string),
+  );
 
   const unwrapMappingBase = BigInt(WRAPPER_BASE) + 2n;
   const pending: PendingUnwrap[] = [];
@@ -135,9 +114,8 @@ async function findPendingUnwrapRequests(wrapperAddress: string): Promise<Pendin
     const rawValue = await ethers.provider.getStorage(wrapperAddress, storageSlot);
     const recipient = addressFromSlotValue(rawValue);
 
-    if (recipient !== ethers.ZeroAddress) {
-      pending.push({ requestId, recipient, storageSlot, rawValue });
-    }
+    assert(recipient !== ethers.ZeroAddress, `pending request ${requestId} has zero-address recipient in storage`);
+    pending.push({ requestId, recipient, storageSlot, rawValue });
   }
 
   return pending;
@@ -210,7 +188,7 @@ async function main() {
   console.log(`  pending unwraps: ${pre.pendingUnwraps.length}`);
 
   if (pre.pendingUnwraps.length > 0) {
-    console.log('\n  ⚠ Pending unwrap requests (must be finalized before upgrading in production):');
+    console.log('\n  ⚠ Pending unwrap requests:');
     for (const req of pre.pendingUnwraps) {
       console.log(`    ${req.requestId} → ${req.recipient}`);
     }
