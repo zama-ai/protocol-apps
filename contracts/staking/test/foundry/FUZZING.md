@@ -22,7 +22,7 @@ forge install foundry-rs/forge-std --no-git
 
 Tests use a **handler pattern**: a handler contract wraps ProtocolStaking, bounds fuzzed inputs, and tracks ghost state. Invariants run after each handler call in a fuzz sequence.
 
-We separate our invariant rules into two distinct categories to handle EVM state constraints:
+We separate our invariant rules into three distinct categories to handle EVM state constraints:
 
 1. **Global Invariants**: Checked via invariant_* functions in the test contract after every sequence step. These check system-wide accounting rules. (**ProtocolStakingInvariantTest.t**)
 
@@ -81,13 +81,18 @@ Ineligible accounts hold staked balance but contribute zero weight.
 The virtual accounting system stays balanced within rounding tolerance:
 
 ```
-| Σ protocolStaking._paid[account]     // per-account already-credited amount (internal storage)
-+ Σ protocolStaking.earned(account)   // per-account claimable rewards (view function)
-− protocolStaking._totalVirtualPaid() // global sum of all virtualPaid entries (harness accessor)
-− protocolStaking.historicalRewards() // cumulative rewards ever distributed (harness accessor)
-| ≤ ghost_maxEligibleAccounts + ghost_dilutionOps
+LHS = Σ _paid[account]              -- per-account already-credited amount
+    + Σ earned(account)              -- per-account claimable rewards
+
+RHS = _totalVirtualPaid()            -- global sum of all virtualPaid entries
+    + historicalRewards()            -- cumulative rewards ever distributed
+
+TOL = ghost_maxEligibleAccounts      -- static upper bound on simultaneously eligible accounts
+    + ghost_dilutionOps              -- weight-increase ops that compound phantom wei by ≤1 per event
+
+|LHS − RHS| ≤ TOL
 ```
-Both sums range over all actors. See the Reward Debt System section for the tolerance derivation.
+Both sums range over all actors. All contract references are on `protocolStaking`. See the Reward Debt System section for the tolerance derivation.
 
 #### Pending withdrawals solvency
 
@@ -129,9 +134,16 @@ history.
 Because Foundry reverts the EVM state after evaluating `invariant_*` functions, transition checks (State A vs. State B) are executed natively inside the Handler using the `assertTransitionInvariants` modifier.
 
 #### Claimed + claimable never decreases
+
+For every account, across any handler action:
+
 ```
-claimed + earned is strictly increasing per account across any action (incorporating a tolerance for division rounding).
+PRE  = ghost_claimed[account] + earned(account)    -- snapshot before the action
+POST = ghost_claimed[account] + earned(account)    -- snapshot after the action
+
+POST + 1 ≥ PRE
 ```
+The 1 wei tolerance accounts for a single `earned()` floor truncation per pool update.
 
 #### Awaiting release never decreases
 ```
@@ -156,7 +168,7 @@ These ensure that complex or batched actions result in the exact same mathematic
 
 #### Stake equivalence
 ```
-stake(a + b) ≡ stake(a); stake(b)
+stake(a + b) ≡ stake(a) + stake(b)
   shares: exactly equal   (1:1 mint, no share-conversion ratio)
   weight: exactly equal   (same balance ⟹ same weight)
   earned: equal ± 2 wei   (path B has one extra pool update, introducing at most 1 wei rounding error)
@@ -164,10 +176,10 @@ stake(a + b) ≡ stake(a); stake(b)
 
 #### Unstake equivalence
 ```
-unstake(initialStake - targetStake) ≡ unstake(initialStake); stake(targetStake)
+unstake(initialStake - targetStake) ≡ unstake(initialStake) - stake(targetStake)
   shares: exactly equal
   weight: exactly equal
-  earned: equal ± 2 wei
+  earned: equal ± 2 wei // rounding tolerance 
 ```
 
 ## Running Tests
