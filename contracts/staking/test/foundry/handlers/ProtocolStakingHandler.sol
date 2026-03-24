@@ -75,12 +75,12 @@ contract ProtocolStakingHandler is Test {
     //
     // ghost_truncationOps: weight-decrease ops (unstake on eligible accounts,
     //   removeEligibleAccount with balance) that inflate _totalVirtualPaid by ≤1 wei each.
-    //   Tolerance for invariant_TotalSupplyBoundedByRewardRate. Bounds how many extra tokens 
+    //   Tolerance for invariant_TotalSupplyBoundedByRewardRate. Bounds how many extra tokens
     //   can be physically minted above the authorized reward cap.
     //
     // ghost_dilutionOps: weight-increase ops (stake by eligible accounts,
     //   addEligibleAccount with balance) that can compound phantom wei by ≤1 per event.
-    //   Tolerance term D in computeRewardDebtTolerance. Bounds how much phantom wei 
+    //   Tolerance term D in computeRewardDebtTolerance. Bounds how much phantom wei
     //   inflates Σ _paid in the reward debt equation.
     //
     // ghost_maxEligibleAccounts: static upper bound on simultaneously eligible accounts (N).
