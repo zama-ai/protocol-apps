@@ -22,25 +22,19 @@ contract ProtocolStakingInvariantTest is Test {
     address internal manager = makeAddr("manager");
     address internal admin = makeAddr("admin");
 
-    uint256 internal constant MIN_ACTOR_COUNT = 5;
-    uint256 internal constant MAX_ACTOR_COUNT = 20;
-
-    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1 ether;
-    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1_000_000_000 ether;
-
-    uint256 internal constant MIN_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
-    uint256 internal constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
-
-    uint256 internal constant MIN_REWARD_RATE = 0;
-    uint256 internal constant MAX_REWARD_RATE = 1e24;
+    // Static setup constants — the fuzzer varies these dimensions via setRewardRate,
+    // setUnstakeCooldownPeriod, and bounded stake/unstake amounts.
+    // Actor count is fixed to 5 to allow for meaningful sequence depth in the fuzzer.
+    uint256 internal constant ACTOR_COUNT = 5;
+    uint256 internal constant INITIAL_DISTRIBUTION = type(uint128).max; // large but leaves upper 128 bits for reward mints
+    uint48 internal constant INITIAL_UNSTAKE_COOLDOWN_PERIOD = 7 days;
+    uint256 internal constant INITIAL_REWARD_RATE = 1e18;
 
     function setUp() public {
-        uint256 initialDistribution = uint256(vm.randomUint(MIN_INITIAL_DISTRIBUTION, MAX_INITIAL_DISTRIBUTION));
-        uint48 initialUnstakeCooldownPeriod = uint48(
-            vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD)
-        );
-        uint256 initialRewardRate = uint256(vm.randomUint(MIN_REWARD_RATE, MAX_REWARD_RATE));
-        uint256 actorCount = uint256(vm.randomUint(MIN_ACTOR_COUNT, MAX_ACTOR_COUNT));
+        uint256 actorCount = ACTOR_COUNT;
+        uint256 initialDistribution = INITIAL_DISTRIBUTION;
+        uint48 initialUnstakeCooldownPeriod = INITIAL_UNSTAKE_COOLDOWN_PERIOD;
+        uint256 initialRewardRate = INITIAL_REWARD_RATE;
 
         address[] memory actorsList = new address[](actorCount);
         for (uint256 i = 0; i < actorCount; i++) {
