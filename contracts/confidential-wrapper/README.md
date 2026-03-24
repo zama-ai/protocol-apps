@@ -100,6 +100,65 @@ Verify all deployed confidential wrapper contracts on Etherscan. Reads wrapper n
 npx hardhat task:verifyAllConfidentialWrappers --network testnet
 ```
 
+### `task:deployWrapperImplementation`
+
+Deploy a new `ConfidentialWrapper` implementation contract without upgrading any proxy. The proxy upgrade is handled separately by the DAO.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `--name` | `string` | Yes | The name of the wrapper this implementation is for |
+| `--label` | `string` | Yes | A version label appended to the artifact name (e.g. `"v2"`) |
+
+**Example:**
+
+```bash
+npx hardhat task:deployWrapperImplementation --name "Confidential USDT" --label "v2" --network testnet
+```
+
+### `task:deployAllWrapperImplementations`
+
+Requires that `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` is set in the `.env` file.
+
+Deploy upgrade implementations for all wrappers defined in the `.env` file. Reads `NUM_CONFIDENTIAL_WRAPPERS`, `CONFIDENTIAL_WRAPPER_NAME_{i}`, and `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL`.
+
+**Parameters:** None (configuration is read from environment variables).
+
+**Example:**
+
+```bash
+npx hardhat task:deployAllWrapperImplementations --network testnet
+```
+
+### `task:verifyWrapperImplementation`
+
+Verify a single `ConfidentialWrapper` implementation contract on Etherscan.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `--address` | `string` | Yes | The address of the implementation contract to verify |
+
+**Example:**
+
+```bash
+npx hardhat task:verifyWrapperImplementation --address 0x1234567890123456789012345678901234567890 --network testnet
+```
+
+### `task:verifyAllUpgradeImplementations`
+
+Verify upgrade implementation contracts for all wrappers on Etherscan. Looks up deployment artifacts using `CONFIDENTIAL_WRAPPER_NAME_{i}` and `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL`.
+
+**Parameters:** None (configuration is read from environment variables and deployment artifacts).
+
+**Example:**
+
+```bash
+npx hardhat task:verifyAllUpgradeImplementations --network testnet
+```
+
 ## Scripts
 
 ### `test-upgrade`
