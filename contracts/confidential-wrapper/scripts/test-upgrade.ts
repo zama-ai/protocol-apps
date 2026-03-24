@@ -155,7 +155,12 @@ async function assertReverts(fn: () => Promise<unknown>, message: string) {
     throw new Error(`ASSERTION FAILED: expected revert but succeeded — ${message}`);
   } catch (err: unknown) {
     if (err instanceof Error && err.message.startsWith('ASSERTION FAILED')) throw err;
-    // Reverted as expected
+    // Verify this is actually a contract revert, not a network/infra error
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const isRevert = errMsg.includes('reverted') || errMsg.includes('CALL_EXCEPTION') || errMsg.includes('execution reverted');
+    if (!isRevert) {
+      throw new Error(`ASSERTION FAILED: expected a revert but got unexpected error — ${message}\n  Original error: ${errMsg}`);
+    }
   }
 }
 
