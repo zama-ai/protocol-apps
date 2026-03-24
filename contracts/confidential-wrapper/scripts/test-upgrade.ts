@@ -28,6 +28,9 @@ const ERC7984_BASE = '0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a
 const WRAPPER_BASE = '0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700';
 const IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';
 
+// Number of finalized requests to sample for verification
+const FINALIZED_SAMPLE_SIZE = 3;
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getMappingSlot(key: string, baseSlot: bigint): string {
@@ -76,7 +79,12 @@ interface PendingUnwrap {
   rawValue: string;
 }
 
-async function findPendingUnwrapRequests(wrapperAddress: string): Promise<PendingUnwrap[]> {
+interface UnwrapRequests {
+  pending: PendingUnwrap[];
+  finalizedIds: string[];
+}
+
+async function findUnwrapRequests(wrapperAddress: string): Promise<UnwrapRequests> {
   const latestBlock = await ethers.provider.getBlockNumber();
 
   // Only old event signatures exist pre-upgrade
@@ -118,7 +126,7 @@ async function findPendingUnwrapRequests(wrapperAddress: string): Promise<Pendin
     pending.push({ requestId, recipient, storageSlot, rawValue });
   }
 
-  return pending;
+  return { pending, finalizedIds: [...finalizedIds] };
 }
 
 function assert(condition: boolean, message: string) {
@@ -169,7 +177,7 @@ async function main() {
     implementation: await getImplementationAddress(address),
     erc7984Slots: await readStorageSlots(address, BigInt(ERC7984_BASE), 6),
     wrapperSlots: await readStorageSlots(address, BigInt(WRAPPER_BASE), 3),
-    pendingUnwraps: await findPendingUnwrapRequests(address),
+    unwrapRequests: await findUnwrapRequests(address),
   };
 
   const unwrapMappingBase = BigInt(WRAPPER_BASE) + 2n;
@@ -185,11 +193,11 @@ async function main() {
   console.log(`  totalSupply:    ${pre.totalSupply}`);
   console.log(`  owner:          ${pre.owner}`);
   console.log(`  implementation: ${pre.implementation}`);
-  console.log(`  pending unwraps: ${pre.pendingUnwraps.length}`);
+  console.log(`  pending unwraps: ${pre.unwrapRequests.pending.length}`);
 
-  if (pre.pendingUnwraps.length > 0) {
+  if (pre.unwrapRequests.pending.length > 0) {
     console.log('\n  ⚠ Pending unwrap requests:');
-    for (const req of pre.pendingUnwraps) {
+    for (const req of pre.unwrapRequests.pending) {
       console.log(`    ${req.requestId} → ${req.recipient}`);
     }
   }
@@ -281,8 +289,8 @@ async function main() {
   assert(postZeroKeyValue === preZeroKeyValue, '_unwrapRequests zero-key probe changed');
 
   // Pending unwrap raw storage
-  console.log(`\n  Pending unwrap requests (${pre.pendingUnwraps.length}):`);
-  for (const req of pre.pendingUnwraps) {
+  console.log(`\n  Pending unwrap requests (${pre.unwrapRequests.pending.length}):`);
+  for (const req of pre.unwrapRequests.pending) {
     const postRaw = await ethers.provider.getStorage(address, req.storageSlot);
     const postRecipient = addressFromSlotValue(postRaw);
     const match = postRaw === req.rawValue;
@@ -290,7 +298,7 @@ async function main() {
     assert(match, `_unwrapRequests[${req.requestId}] raw storage changed`);
     assert(postRecipient === req.recipient, `_unwrapRequests[${req.requestId}] recipient changed`);
   }
-  if (pre.pendingUnwraps.length === 0) {
+  if (pre.unwrapRequests.pending.length === 0) {
     console.log('    (none)');
   }
 
@@ -301,17 +309,34 @@ async function main() {
   const unknownRequester = await upgraded.unwrapRequester(ethers.ZeroHash);
   assert(unknownRequester === ethers.ZeroAddress, 'unwrapRequester(0x00) should return zero address');
 
-  if (pre.pendingUnwraps.length > 0) {
-    for (const req of pre.pendingUnwraps) {
+  // Pending requests should return their recipient
+  if (pre.unwrapRequests.pending.length > 0) {
+    console.log(`  Pending (${pre.unwrapRequests.pending.length}):`);
+    for (const req of pre.unwrapRequests.pending) {
       const requester = await upgraded.unwrapRequester(req.requestId);
       const match = requester === req.recipient;
-      console.log(`  ${req.requestId}`);
-      console.log(`    expected: ${req.recipient}`);
-      console.log(`    got:      ${requester} ${match ? 'OK' : 'MISMATCH'}`);
+      console.log(`    ${req.requestId}`);
+      console.log(`      expected: ${req.recipient}`);
+      console.log(`      got:      ${requester} ${match ? 'OK' : 'MISMATCH'}`);
       assert(match, `unwrapRequester(${req.requestId}) mismatch`);
     }
   } else {
     console.log('  No pending unwrap requests to verify.');
+  }
+
+  // Finalized requests should return address(0)
+  const { finalizedIds } = pre.unwrapRequests;
+  const finalizedSample = finalizedIds.slice(0, FINALIZED_SAMPLE_SIZE);
+  if (finalizedSample.length > 0) {
+    console.log(`\n  Finalized (sampling ${finalizedSample.length} of ${finalizedIds.length}):`);
+    for (const requestId of finalizedSample) {
+      const requester = await upgraded.unwrapRequester(requestId);
+      const cleared = requester === ethers.ZeroAddress;
+      console.log(`    ${requestId}: ${cleared ? 'OK (cleared)' : `UNEXPECTED (${requester})`}`);
+      assert(cleared, `finalized request ${requestId} should have zero-address recipient but got ${requester}`);
+    }
+  } else {
+    console.log('\n  No finalized unwrap requests to verify.');
   }
 
   // ── 5. Verify new function signatures ──
