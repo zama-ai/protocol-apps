@@ -30,6 +30,14 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}` | Address of the underlying ERC20 token for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}` | Owner address for the wrapper at index `i` |
 
+### Task inputs (batch deploy upgrade implementations)
+
+| Variable | Description |
+| --- | --- |
+| `NUM_CONFIDENTIAL_WRAPPERS` | Same meaning as batch deployment: how many wrappers are listed in `.env` |
+| `CONFIDENTIAL_WRAPPER_NAME_{i}` | Name of the wrapper at index `i` |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` | Version label appended to the saved implementation artifact (e.g. `v2`), shared for all wrappers in the batch upgrade/verify tasks |
+
 ## Hardhat Tasks
 
 ### `task:deployConfidentialWrapper`
@@ -147,7 +155,7 @@ Verify a single `ConfidentialWrapper` implementation contract on Etherscan.
 npx hardhat task:verifyWrapperImplementation --address 0x1234567890123456789012345678901234567890 --network testnet
 ```
 
-### `task:verifyAllUpgradeImplementations`
+### `task:verifyAllWrapperImplementations`
 
 Verify upgrade implementation contracts for all wrappers on Etherscan. Looks up deployment artifacts using `CONFIDENTIAL_WRAPPER_NAME_{i}` and `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL`.
 
@@ -156,7 +164,7 @@ Verify upgrade implementation contracts for all wrappers on Etherscan. Looks up 
 **Example:**
 
 ```bash
-npx hardhat task:verifyAllUpgradeImplementations --network testnet
+npx hardhat task:verifyAllWrapperImplementations --network testnet
 ```
 
 ## Scripts

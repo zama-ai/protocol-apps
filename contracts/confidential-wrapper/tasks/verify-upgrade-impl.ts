@@ -27,8 +27,8 @@ task('task:verifyWrapperImplementation')
 //   CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL  (shared across all wrappers)
 //
 // Example usage:
-// npx hardhat task:verifyAllUpgradeImplementations --network testnet
-task('task:verifyAllUpgradeImplementations').setAction(async function (_, hre) {
+// npx hardhat task:verifyAllWrapperImplementations --network testnet
+task('task:verifyAllWrapperImplementations').setAction(async function (_, hre) {
   const { run, deployments } = hre;
   const { get } = deployments;
 
