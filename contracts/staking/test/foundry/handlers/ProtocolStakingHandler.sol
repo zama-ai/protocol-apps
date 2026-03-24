@@ -32,9 +32,6 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///      1 per dilution event, pulling the reward debt LHS UP by at most D wei.
 ///
 ///      Budget: ghost_maxEligibleAccounts (N) + ghost_dilutionOps (D).
-///
-///      A designated outgroup (bottom 20% of actors) is never made eligible. This keeps
-///      ghost_maxEligibleAccounts a strict static bound regardless of fuzz sequencing.
 contract ProtocolStakingHandler is Test {
     // *** Protocol contracts ***
 
@@ -45,7 +42,6 @@ contract ProtocolStakingHandler is Test {
 
     address public manager;
     address[] public actors;
-    mapping(address => bool) public isOutgroup;
 
     // *** Fuzz bounds ***
 
@@ -105,13 +101,7 @@ contract ProtocolStakingHandler is Test {
         actors = _actors;
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
-
-        uint256 outgroupCount = _actors.length / 5;
-        uint256 outgroupStartIndex = _actors.length - outgroupCount;
-        for (uint256 i = outgroupStartIndex; i < _actors.length; i++) {
-            isOutgroup[_actors[i]] = true;
-        }
-        ghost_maxEligibleAccounts = outgroupStartIndex;
+        ghost_maxEligibleAccounts = _actors.length;
     }
 
     // **************** Transition Invariant Modifiers ****************
@@ -305,9 +295,6 @@ contract ProtocolStakingHandler is Test {
 
     function addEligibleAccount() public assertTransitionInvariants {
         address account = msg.sender;
-
-        // Outgroup accounts are not ever eligible to earn rewards
-        if (isOutgroup[account]) return;
 
         if (!protocolStaking.isEligibleAccount(account) && protocolStaking.balanceOf(account) > 0) {
             ghost_dilutionOps++;
