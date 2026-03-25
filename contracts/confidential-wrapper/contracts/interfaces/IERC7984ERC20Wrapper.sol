@@ -18,8 +18,12 @@ interface IERC7984ERC20Wrapper is IERC7984 {
         uint64 cleartextAmount
     );
 
-    /// @dev Wraps `amount` of the underlying token into a confidential token and sends it to `to`.
-    function wrap(address to, uint256 amount) external;
+    /**
+     * @dev Wraps `amount` of the underlying token into a confidential token and sends it to `to`.
+     *
+     * Returns amount of wrapped token sent.
+     */
+    function wrap(address to, uint256 amount) external returns (euint64);
 
     /**
      * @dev Unwraps tokens from `from` and sends the underlying tokens to `to`. The caller must be `from`
