@@ -68,7 +68,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     /**
      * @dev `ERC1363` callback function which wraps tokens to the address specified in `data` or
      * the address `from` (if no address is specified in `data`). This function refunds any excess tokens
-     * sent beyond the nearest multiple of {rate} to `from`. See {wrap} from more details on wrapping tokens.
+     * sent beyond the nearest multiple of {rate} to `from`. See {wrap} for more details on wrapping tokens.
      */
     function onTransferReceived(
         address /*operator*/,
