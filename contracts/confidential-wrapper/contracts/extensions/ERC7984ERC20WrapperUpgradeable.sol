@@ -184,7 +184,10 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     function supportsInterface(
         bytes4 interfaceId
     ) public view virtual override(IERC165, ERC7984Upgradeable) returns (bool) {
-        return interfaceId == type(IERC7984ERC20Wrapper).interfaceId || super.supportsInterface(interfaceId);
+        return
+            interfaceId == type(IERC7984ERC20Wrapper).interfaceId ||
+            interfaceId == type(IERC1363Receiver).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
