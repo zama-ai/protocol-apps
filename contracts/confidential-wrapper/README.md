@@ -183,6 +183,8 @@ Uses a dedicated hardhat config (`hardhat.config.fork.ts`) that omits `@fhevm/ha
 | `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_ADDRESS` | Address of the deployed wrapper proxy to test against |
 | `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_DEPLOY_BLOCK` | Block number at which the wrapper was deployed (for event scanning) |
 
+The deployed wrapper proxy contract addresses can be found in the [address directory](https://github.com/zama-ai/protocol-apps/tree/main/docs/addresses).
+
 **Example:**
 
 ```bash
