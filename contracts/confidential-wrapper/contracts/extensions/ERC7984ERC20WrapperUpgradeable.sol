@@ -134,7 +134,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     /// @inheritdoc IERC7984ERC20Wrapper
     function finalizeUnwrap(
         bytes32 unwrapRequestId,
-        uint64 burntAmountCleartext,
+        uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
     ) public virtual override {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
@@ -147,13 +147,13 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         bytes32[] memory handles = new bytes32[](1);
         handles[0] = euint64.unwrap(unwrapAmount_);
 
-        bytes memory cleartexts = abi.encode(burntAmountCleartext);
+        bytes memory cleartexts = abi.encode(unwrapAmountCleartext);
 
         FHE.checkSignatures(handles, cleartexts, decryptionProof);
 
-        SafeERC20.safeTransfer(IERC20(underlying()), to, burntAmountCleartext * rate());
+        SafeERC20.safeTransfer(IERC20(underlying()), to, unwrapAmountCleartext * rate());
 
-        emit UnwrapFinalized(to, unwrapRequestId, unwrapAmount_, burntAmountCleartext);
+        emit UnwrapFinalized(to, unwrapRequestId, unwrapAmount_, unwrapAmountCleartext);
     }
 
     /// @inheritdoc ERC7984Upgradeable
