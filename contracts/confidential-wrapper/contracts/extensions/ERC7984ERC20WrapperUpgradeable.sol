@@ -114,7 +114,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      */
     function unwrap(address from, address to, euint64 amount) public virtual returns (bytes32) {
         require(FHE.isAllowed(amount, msg.sender), ERC7984UnauthorizedUseOfEncryptedAmount(amount, msg.sender));
-        return euint64.unwrap(_unwrap(from, to, amount));
+        return _unwrap(from, to, amount);
     }
 
     /**
@@ -128,7 +128,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
     ) public virtual override returns (bytes32) {
-        return euint64.unwrap(_unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof)));
+        return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
@@ -232,7 +232,8 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return super._update(from, to, amount);
     }
 
-    function _unwrap(address from, address to, euint64 amount) internal virtual returns (euint64) {
+    /// @dev Internal logic for handling the creation of unwrap requests. Returns the unwrap request id.
+    function _unwrap(address from, address to, euint64 amount) internal virtual returns (bytes32) {
         require(to != address(0), ERC7984InvalidReceiver(to));
         require(from == msg.sender || isOperator(from, msg.sender), ERC7984UnauthorizedSpender(from, msg.sender));
 
@@ -243,13 +244,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         assert($._unwrapRequests[euint64.unwrap(unwrapAmount_)] == address(0));
 
-        // WARNING: Storing unwrap requests in a mapping from cipher-text to address assumes that
+        // WARNING: Directly using the cipher-text as the unwrap request id assumes that
         // cipher-texts are unique--this holds here but is not always true. Be cautious when assuming
         // cipher-text uniqueness.
-        $._unwrapRequests[euint64.unwrap(unwrapAmount_)] = to;
+        bytes32 unwrapRequestId = euint64.unwrap(unwrapAmount_);
+        $._unwrapRequests[unwrapRequestId] = to;
 
-        emit UnwrapRequested(to, euint64.unwrap(unwrapAmount_), unwrapAmount_);
-        return unwrapAmount_;
+        emit UnwrapRequested(to, unwrapRequestId, unwrapAmount_);
+        return unwrapRequestId;
     }
 
     /**
