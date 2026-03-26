@@ -2,6 +2,15 @@
 
 The Zama protocol uses to $ZAMA token as its utility token to pay for protocol operations such as decryptions. It is implemented as an ERC20 on Ethereum, and exposed on other chains as a LayerZero OFT.
 
+## Contract information
+
+| Resource | Link |
+| --- | --- |
+| Deployed addresses | [Addresses directory](addresses/README.md) |
+| ZamaERC20 source | [ZamaERC20.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/token/contracts/ZamaERC20.sol) |
+| ZamaOFT source | [ZamaOFT.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/token/contracts/ZamaOFT.sol) |
+| ZamaOFTAdapter source | [ZamaOFTAdapter.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/token/contracts/ZamaOFTAdapter.sol) |
+
 ```mermaid
 flowchart
     subgraph Ethereum
