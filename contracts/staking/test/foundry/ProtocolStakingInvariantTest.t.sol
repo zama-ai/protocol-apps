@@ -24,8 +24,9 @@ contract ProtocolStakingInvariantTest is Test {
 
     // Static setup constants — the fuzzer varies these dimensions via setRewardRate,
     // setUnstakeCooldownPeriod, and bounded stake/unstake amounts.
-    // Actor count is fixed to 5 to allow for meaningful sequence depth in the fuzzer.
-    uint256 internal constant ACTOR_COUNT = 5;
+    // Actor count is fixed to 7 (5 eligible, 2 ineligible) to allow for meaningful sequence depth in the fuzzer.
+    uint256 internal constant ACTOR_COUNT = 7;
+    uint256 internal constant ELIGIBLE_COUNT = 5;
     uint256 internal constant INITIAL_DISTRIBUTION = type(uint128).max; // large but leaves upper 128 bits for reward mints
     uint48 internal constant INITIAL_UNSTAKE_COOLDOWN_PERIOD = 7 days;
     uint256 internal constant INITIAL_REWARD_RATE = 1e18;
@@ -72,6 +73,13 @@ contract ProtocolStakingInvariantTest is Test {
         // Grant MINTER_ROLE on Zama to ProtocolStaking
         vm.startPrank(admin);
         zama.grantRole(zama.MINTER_ROLE(), address(protocolStaking));
+        vm.stopPrank();
+
+        // Make the first ELIGIBLE_COUNT actors eligible; the remaining 2 start ineligible
+        vm.startPrank(manager);
+        for (uint256 i = 0; i < ELIGIBLE_COUNT; i++) {
+            protocolStaking.addEligibleAccount(actorsList[i]);
+        }
         vm.stopPrank();
 
         // Approve ProtocolStaking for all actors
