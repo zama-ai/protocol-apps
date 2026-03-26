@@ -17,7 +17,9 @@ import 'hardhat-exposed';
 
 import './tasks/accounts';
 import './tasks/deploy';
+import './tasks/deploy-upgrade-impl';
 import './tasks/verify';
+import './tasks/verify-upgrade-impl';
 
 // Get the environment configuration from .env file
 //
