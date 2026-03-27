@@ -18,8 +18,12 @@ interface IERC7984ERC20Wrapper is IERC7984 {
         uint64 cleartextAmount
     );
 
-    /// @dev Wraps `amount` of the underlying token into a confidential token and sends it to `to`.
-    function wrap(address to, uint256 amount) external;
+    /**
+     * @dev Wraps `amount` of the underlying token into a confidential token and sends it to `to`.
+     *
+     * Returns amount of wrapped token sent.
+     */
+    function wrap(address to, uint256 amount) external returns (euint64);
 
     /**
      * @dev Unwraps tokens from `from` and sends the underlying tokens to `to`. The caller must be `from`
@@ -36,6 +40,9 @@ interface IERC7984ERC20Wrapper is IERC7984 {
         bytes calldata inputProof
     ) external returns (bytes32);
 
+    /// @dev Returns the address of the underlying ERC-20 token that is being wrapped.
+    function underlying() external view returns (address);
+
     /// @dev Finalizes an unwrap request identified by `unwrapRequestId` with the given `unwrapAmountCleartext` and `decryptionProof`.
     function finalizeUnwrap(
         bytes32 unwrapRequestId,
@@ -51,10 +58,4 @@ interface IERC7984ERC20Wrapper is IERC7984 {
 
     /// @dev Returns the amount of wrapper tokens that were unwrapped for a given `unwrapRequestId`.
     function unwrapAmount(bytes32 unwrapRequestId) external view returns (euint64);
-
-    /// @dev Returns the recipient of the unwrap request identified by `unwrapRequestId`.
-    function unwrapRequester(bytes32 unwrapRequestId) external view returns (address);
-
-    /// @dev Returns the address of the underlying ERC-20 token that is being wrapped.
-    function underlying() external view returns (address);
 }
