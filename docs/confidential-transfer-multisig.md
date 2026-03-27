@@ -19,7 +19,7 @@ This guide explains how to perform confidential token operations using a multisi
 |-----------|---------|-------------|
 | Owner address `i` | `<OWNER_ADDRESS_i>` | The EOA address of the multisig's owner `i` |
 | Multisig Wallet | `<MULTISIG_ADDRESS>` | Your Gnosis Safe or similar multisig |
-| Confidential Token | `<CONFIDENTIAL_TOKEN_ADDRESS>` | The confidential token (e.g a confidential wrapper) contract holding balances |
+| Confidential Token | `<CONFIDENTIAL_TOKEN_ADDRESS>` | The confidential token (e.g a [confidential wrapper](confidential-wrapper.md)) contract holding balances |
 
 ---
 
@@ -57,7 +57,7 @@ npx hardhat task:userDecrypt \
 
 Currently there are two ways to do a confidential transfer. Better and more practical methods will become available in the future, once fhEVM will support new features (such as user delegated decryption, ACL simplifications, EIP-1271 support, etc).
 
-1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](../contracts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
+1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](https://github.com/zama-ai/protocol-apps/blob/main/contracts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
 
 2/ **Not recommended: Leaky transfer of whole balance**: this is a quick and dirty workaround, where the owners would transfer the current confidential balance handle of the multisig in a single transaction. This method would leak the fact that the multisig is sending its whole balance to the receiver. It could even be done blindly to save time and gas (not recommended), if the owners skip the steps from [previous section](#reading-the-balance-of-a-multisig-account).
 
@@ -90,8 +90,8 @@ npx hardhat task:encryptInput \
   --encrypted-type euint64 \
   --network mainnet
 ```
-**Note:** Make sure that the `<AMOUNT>` value is less or equal tha the current balance of the multisig (otherwise the confidential transfer transaction would succeed but the sent amount will be `0`), and for `<FHEVM_MULTISIG_HELPER_ADDRESS>` value you should use: 
-- Etehreum mainnet: [0xd430F46fE522a32b12ce92C719f437fFce35e127](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127)
+**Note:** Make sure that the `<AMOUNT>` value is less than or equal to the current balance of the multisig (otherwise the confidential transfer transaction would succeed but the sent amount will be `0`), and for `<FHEVM_MULTISIG_HELPER_ADDRESS>` value you should use: 
+- Ethereum mainnet: [0xd430F46fE522a32b12ce92C719f437fFce35e127](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127)
 - Ethereum Sepolia testnet: [0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61](https://sepolia.etherscan.io/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61)
 
 {% hint style="warning" %}
@@ -190,7 +190,7 @@ This method is straightforward:
 
 Retrieve the encrypted balance handle `<BALANCE_HANDLE>` of the multisig from the confidential token contract using `confidentialBalanceOf(<MULTISIG_ADDRESS>)` function.
 
-#### Step 2: Retrieve the encrypted balance of the multisig
+#### Step 2: Create a transfer proposal
 
 The proposer creates a `confidentialTransfer(<TO_ADDRESS>, <BALANCE_HANDLE>)` proposal in the multisig.
 

@@ -12,9 +12,12 @@ This document explains the **Confidential Token Wrappers Registry,** an onchain 
 * **Invalid**: An invalid confidential wrapper has been revoked by the registry owner and should not be used to wrap and unwrap tokens from the underlying token.
 * **Owner**: The owner of the registry. In the FHEVM protocol, this is a DAO governance contract handled by Zama.
 
-## Contract addresses
+## Contract information
 
-All deployed registry contract addresses can be found in the [addresses directory](addresses/README.md).
+| Resource | Link |
+| --- | --- |
+| Deployed addresses | [Addresses directory](addresses/README.md) |
+| Source code | [ConfidentialTokenWrappersRegistry.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/confidential-token-wrappers-registry/contracts/ConfidentialTokenWrappersRegistry.sol) |
 
 ## Quick Start
 

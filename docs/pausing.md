@@ -20,6 +20,9 @@ The following components can be paused.
 | Gateway     | Input verification requests can be paused |
 
 
-## Contract addresses
+## Contract information
 
-All deployed pauser contract addresses can be found in the [addresses directory](addresses/README.md).
+| Resource | Link |
+| --- | --- |
+| Deployed addresses | [Addresses directory](addresses/README.md) |
+| Source code | [PauserSetWrapper.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/pauserSetWrapper/contracts/PauserSetWrapper.sol) |

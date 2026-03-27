@@ -14,9 +14,15 @@ The Zama Protocol secures itself by allowing $ZAMA token holders to delegate on 
 * **Commission Fee**: The percentage cut of the Staking Rewards taken by the operator as payment for their services. The commission fee is set by the operator with a maximum of 20%.
 * **Owner**: The owner of all staking contracts, holding several administrative rights. For mainnet, the owner is the [Protocol DAO governance](governance.md).
 
-## Contract addresses
+## Contract information
 
-All deployed staking contract addresses can be found in the [ethereum addresses directory](addresses/mainnet/ethereum.md) for mainnet and the [sepolia addresses directory](addresses/testnet/sepolia.md) for testnet.
+| Resource | Link |
+| --- | --- |
+| Mainnet addresses | [Ethereum addresses](addresses/mainnet/ethereum.md) |
+| Testnet addresses | [Sepolia addresses](addresses/testnet/sepolia.md) |
+| `ProtocolStaking` source | [ProtocolStaking.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/ProtocolStaking.sol) |
+| `OperatorStaking` source | [OperatorStaking.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/OperatorStaking.sol) |
+| `OperatorRewarder` source | [OperatorRewarder.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/OperatorRewarder.sol) |
 
 ## Overview
 
@@ -782,14 +788,15 @@ bool shutdown = operatorRewarder.isShutdown();
 
 ## Staking rewards calculation
 
-> [!TIP]
-> For a full interactive walkthrough with example outputs, see the [APY notebook](../contracts/staking/APY.ipynb).
+{% hint style="info" %}
+For a full interactive walkthrough with example outputs, see the [APY notebook](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/APY.ipynb).
+{% endhint %}
 
 ### Calculating the rewards rate
 
 The rewards rate is defined as tokens-per-second and is determined as follows:
 
-1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This percentage (`TOTAL_YEARLY_INFLATION_PROPORTION`) is **a variable controlled by the Protocol DAO governance** and is currently set to **5%**.
+1. The total yearly rewards amount to be paid out is determined once a year as a percentage of the current total supply of $ZAMA. This percentage (`TOTAL_YEARLY_INFLATION_PROPORTION`) is a variable controlled by the [Protocol DAO governance](governance.md) and is currently set to **5%**.
 2. This total amount is divided between the roles, with 40% going to coprocessor operators and 60% to KMS operators.
 3. Each per role amount is converted into a per role tokens-per-second reward rate for the year.
 
@@ -858,7 +865,7 @@ def compute_native_apr(
     return pool_aprs
 ```
 
-## Upgradability
+## Upgradeability
 
 The `ProtocolStaking` and `OperatorStaking` contracts are upgradeable using the **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade these contracts.
 

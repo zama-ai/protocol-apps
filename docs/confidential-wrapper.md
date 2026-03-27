@@ -1,6 +1,6 @@
 # Confidential wrapper
 
-This document gives an ovrview of the **Confidential Wrapper,** a smart contract that wraps standard ERC-20 tokens into confidential ERC-7984 tokens. Built on Zama's FHEVM, it enables privacy-preserving token transfers where balances and transfer amounts remain encrypted.
+This document gives an overview of the **Confidential Wrapper,** a smart contract that wraps standard ERC-20 tokens into confidential ERC-7984 tokens. Built on Zama's FHEVM, it enables privacy-preserving token transfers where balances and transfer amounts remain encrypted.
 
 ## Terminology
 
@@ -10,15 +10,18 @@ This document gives an ovrview of the **Confidential Wrapper,** a smart contract
 * **Unwrapping**: Converting confidential tokens back into ERC-20 tokens.
 * **Rate**: The conversion ratio between underlying token units and confidential token units (due to decimal differences).
 * **Operator**: An address authorized to transfer confidential tokens on behalf of another address.
-* **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to a DAO governance contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
+* **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to a DAO [governance](governance.md) contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
 * **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](registry-contract.md).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
 * **Input proof**: A proof that the encrypted amount is valid. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
 * **Public decryption**: A request to publicly decrypt an encrypted amount. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
 
-## Contract addresses
+## Contract information
 
-All deployed confidential wrapper addresses can be found in the [addresses directory](addresses/README.md).
+| Resource | Link |
+| --- | --- |
+| Deployed addresses | [Addresses directory](addresses/README.md) |
+| Source code | [ConfidentialWrapper.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/confidential-wrapper/contracts/ConfidentialWrapper.sol) |
 
 ## Quick Start
 
@@ -86,7 +89,7 @@ Alternatively, an unwrap request can be made without an input proof if the encry
 This requests an unwrap request of `encryptedAmount` confidential tokens from `from`. Considerations:
 
 * `msg.sender` must be `from` or an approved operator for `from`.
-* `from` mut not be the zero address.
+* `from` must not be the zero address.
 * `encryptedAmount` will be burned in the request.
 * **NO** transfer of underlying tokens is made in this request.
 
@@ -350,4 +353,4 @@ wrapper.supportsInterface(type(IERC165).interfaceId);
 
 ## Upgradeability
 
-The contract uses **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade the contract. Initially, the owner is set to a DAO governance contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
+The contract uses **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer. Only the owner can upgrade the contract. Initially, the owner is set to a DAO [governance](governance.md) contract handled by Zama. Ownership will then be transferred to the underlying token's owner.
