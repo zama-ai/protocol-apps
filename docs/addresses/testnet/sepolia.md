@@ -10,7 +10,10 @@
 
 ## Confidential tokens
 
-> The **mocked** testnet confidential wrappers wrap ERC-20 tokens deployed specifically for testing and have public minting permissions, while **non-mocked** wrappers wrap "official" testnet ERC-20 tokens with restricted minting permissions. The address of each wrapper's underlying ERC-20 token can be found by calling its `underlying()` view function.
+> The **mocked** testnet confidential wrappers wrap ERC-20 tokens deployed specifically for testing. Their underlying ERC-20 tokens have a publicly accessible `mint(address to, uint256 amount)` function, limited to **1,000,000 tokens per call**. The **non-mocked** wrappers wrap "official" testnet ERC-20 tokens with restricted minting permissions.
+>
+> **Note:** The ZAMA (Mock) underlying token is a mock token deployed for testing purposes — it is **not** the real sepolia ZAMA token defined above in the [Token](#token) section.
+
 
 
 ## Wrappers registry
@@ -21,16 +24,16 @@
 
 ### Confidential wrappers
 
-| Name                | Symbol      | Mint Permission | Address |
-| ------------------- | ----------- | --------------- | ------- |
-| Confidential USDC (Mock) | `cUSDCMock` | Public | [`0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) |
-| Confidential USDT (Mock) | `cUSDTMock` | Public | [`0x4E7B06D78965594eB5EF5414c357ca21E1554491`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491) |
-| Confidential WETH (Mock) | `cWETHMock` | Public | [`0x46208622DA27d91db4f0393733C8BA082ed83158`](https://sepolia.etherscan.io/address/0x46208622DA27d91db4f0393733C8BA082ed83158) |
-| Confidential BRON (Mock) | `cBRONMock` | Public | [`0xaa5612FA27c927a0c7961f5AEFEE5ba3A0F9C891`](https://sepolia.etherscan.io/address/0xaa5612FA27c927a0c7961f5AEFEE5ba3A0F9C891) |
-| Confidential ZAMA (Mock) | `cZAMAMock` | Public | [`0xf2D628d2598aF4eAF94CB76a437Ff86CA78FfbFB`](https://sepolia.etherscan.io/address/0xf2D628d2598aF4eAF94CB76a437Ff86CA78FfbFB) |
-| Confidential tGBP (Mock) | `ctGBPMock` | Public | [`0xfCE5c7069c5525eF6c8C2b2E35A745bA20a2F7CC`](https://sepolia.etherscan.io/address/0xfCE5c7069c5525eF6c8C2b2E35A745bA20a2F7CC) |
-| Confidential XAUt (Mock) | `cXAUtMock` | Public | [`0xe4FcF848739845BC81Dee1d5352cf3844F0a60C7`](https://sepolia.etherscan.io/address/0xe4FcF848739845BC81Dee1d5352cf3844F0a60C7) |
-| Confidential tGBP | `ctGBP` | Restricted | [`0x167DC962808B32CFFFc7e14B5018c0bE06A3A208`](https://sepolia.etherscan.io/address/0x167DC962808B32CFFFc7e14B5018c0bE06A3A208) |
+| Name                | Symbol      | Address | Underlying Mint | Underlying Token |
+| ------------------- | ----------- | ------- | --------------- | ---------------- |
+| Confidential USDC (Mock) | `cUSDCMock` | [`0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639`](https://sepolia.etherscan.io/address/0x7c5BF43B851c1dff1a4feE8dB225b87f2C223639) | Public (1M limit) | [`0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF`](https://sepolia.etherscan.io/address/0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF) |
+| Confidential USDT (Mock) | `cUSDTMock` | [`0x4E7B06D78965594eB5EF5414c357ca21E1554491`](https://sepolia.etherscan.io/address/0x4E7B06D78965594eB5EF5414c357ca21E1554491) | Public (1M limit) | [`0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`](https://sepolia.etherscan.io/address/0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0) |
+| Confidential WETH (Mock) | `cWETHMock` | [`0x46208622DA27d91db4f0393733C8BA082ed83158`](https://sepolia.etherscan.io/address/0x46208622DA27d91db4f0393733C8BA082ed83158) | Public (1M limit) | [`0xff54739b16576FA5402F211D0b938469Ab9A5f3F`](https://sepolia.etherscan.io/address/0xff54739b16576FA5402F211D0b938469Ab9A5f3F) |
+| Confidential BRON (Mock) | `cBRONMock` | [`0xaa5612FA27c927a0c7961f5AEFEE5ba3A0F9C891`](https://sepolia.etherscan.io/address/0xaa5612FA27c927a0c7961f5AEFEE5ba3A0F9C891) | Public (1M limit) | [`0xFf021fB13cA64e5354c62c954b949a88cfDEb25E`](https://sepolia.etherscan.io/address/0xFf021fB13cA64e5354c62c954b949a88cfDEb25E) |
+| Confidential ZAMA (Mock) | `cZAMAMock` | [`0xf2D628d2598aF4eAF94CB76a437Ff86CA78FfbFB`](https://sepolia.etherscan.io/address/0xf2D628d2598aF4eAF94CB76a437Ff86CA78FfbFB) | Public (1M limit) | [`0x75355a85c6FB9df5f0C80FF54e8747EEe9a0BF57`](https://sepolia.etherscan.io/address/0x75355a85c6FB9df5f0C80FF54e8747EEe9a0BF57) |
+| Confidential tGBP (Mock) | `ctGBPMock` | [`0xfCE5c7069c5525eF6c8C2b2E35A745bA20a2F7CC`](https://sepolia.etherscan.io/address/0xfCE5c7069c5525eF6c8C2b2E35A745bA20a2F7CC) | Public (1M limit) | [`0x93c931278A2aad1916783F952f94276eA5111442`](https://sepolia.etherscan.io/address/0x93c931278A2aad1916783F952f94276eA5111442) |
+| Confidential XAUt (Mock) | `cXAUtMock` | [`0xe4FcF848739845BC81Dee1d5352cf3844F0a60C7`](https://sepolia.etherscan.io/address/0xe4FcF848739845BC81Dee1d5352cf3844F0a60C7) | Public (1M limit) | [`0x24377AE4AA0C45ecEe71225007f17c5D423dd940`](https://sepolia.etherscan.io/address/0x24377AE4AA0C45ecEe71225007f17c5D423dd940) |
+| Confidential tGBP | `ctGBP` | [`0x167DC962808B32CFFFc7e14B5018c0bE06A3A208`](https://sepolia.etherscan.io/address/0x167DC962808B32CFFFc7e14B5018c0bE06A3A208) | Restricted | [`0xf6Ef9ADB61A48E29E36bc873070A46A3D2667ff3`](https://sepolia.etherscan.io/address/0xf6Ef9ADB61A48E29E36bc873070A46A3D2667ff3) |
 
 
 ## Staking
