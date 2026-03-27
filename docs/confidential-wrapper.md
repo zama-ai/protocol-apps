@@ -34,7 +34,6 @@ The wrapper enforces a maximum number of decimals for the confidential token. Wh
 {% hint style="warning" %}
 ### **Unsupported tokens**
 
-{% hint style="warning" %}
 **Shielding staking shares does not earn rewards**
 
 Operator staking shares issued by the Zama [staking protocol](staking.md) are rebasing tokens whose value increases as staking rewards accumulate. Wrapping these shares transfers their custody to the confidential wrapper contract, which becomes the effective recipient of all future rewards. Holders of the shielded shares do not earn staking rewards as long as the underlying shares remain shielded.
