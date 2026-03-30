@@ -62,6 +62,7 @@ contracts-exposed
 # Foundry
 /out
 /cache_forge
+/lib/forge-std
 
 yarn.lock
 fhevmTemp
