@@ -115,20 +115,19 @@ contract ProtocolStakingInvariantTest is Test {
         );
     }
 
-    function invariant_RewardDebtConservation() public view {
-        uint256 tolerance = handler.computeRewardDebtTolerance();
-        int256 lhs = handler.computeRewardDebtLHS();
-        // When the system is empty, net debt across all users should net out to 0
-        // Σ _paid[account] + Σ earned(account) = 0
-        // Using ApproxEqAbs per contract comment: "Accounting rounding may have a marginal impact on earned rewards (dust)."
+    function invariant_RewardConservation() public view {
+        uint256 tolerance = handler.computeRewardConservationTolerance();
+        int256 actorTotal = handler.computeActorRewardTotal();
+        // When the system is empty, the actor reward total should be approximately 0:
+        // | Σ _paid[account] + Σ earned(account) | ≤ tolerance
         if (protocolStaking.totalStakedWeight() == 0) {
-            assertApproxEqAbs(lhs, 0, tolerance, "Net reward debt must be 0 when no one is staked");
+            assertApproxEqAbs(actorTotal, 0, tolerance, "Actor reward total must be ~0 when no one is staked");
             return;
         }
-        int256 rhs = handler.computeRewardDebtRHS();
-        // Otherwise: paid-plus-earned should match virtual-plus-historical within the same tolerance:
-        // Σ _paid(account) + Σ earned(account) ≈ _totalVirtualPaid + historicalReward  (abs error ≤ tolerance)
-        assertApproxEqAbs(lhs, rhs, tolerance, "reward debt conservation");
+        int256 protocolTotal = handler.computeProtocolRewardTotal();
+        // Reward conservation: actor total ≈ protocol total (abs error ≤ tolerance)
+        // Σ _paid(account) + Σ earned(account) ≈ _totalVirtualPaid + historicalReward
+        assertApproxEqAbs(actorTotal, protocolTotal, tolerance, "reward conservation");
     }
 
     function invariant_PendingWithdrawalsSolvency() public view {
@@ -203,11 +202,10 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    /// @notice Shows the unit contribution of the phantom wei (D) term in computeRewardDebtTolerance.
-    /// @dev One dilution event — a weight-increase op while a claimant's _paid is already locked —
-    ///      strands exactly 1 wei in `_paid`, pushing the reward debt LHS up by 1.
-    ///      This is the base case for ghost_dilutionOps: each dilution event contributes at most 1
-    ///      to the D term.
+    /// @notice Shows the unit contribution of the phantom wei (D) term in computeRewardConservationTolerance.
+    /// @dev One dilution event, a weight-increase operation while a claimant's _paid is already locked,
+    ///      strands exactly 1 wei in _paid, pushing the actor total up by 1.
+    ///      This is the base case for ghost_dilutionOps: each dilution event contributes at most 1 to the D term.
     ///
     ///      Notation: w = weight(balance) = sqrt(balance) for a single account.
     ///                W = _totalEligibleStakedWeight = Σ w for all eligible accounts.
@@ -310,9 +308,9 @@ contract ProtocolStakingInvariantTest is Test {
         assertEq(lhs - rhs, 1, "Invariant broken: Phantom wei locked in LHS");
     }
 
-    /// @notice Shows the N term in computeRewardDebtTolerance (truncation dust).
+    /// @notice Shows the N term in computeRewardConservationTolerance (truncation dust).
     /// @dev N eligible accounts with equal weight and a worst-case reward rate produce exactly
-    ///      N − 1 wei of truncation dust, pulling the LHS of the reward debt conservation invariant down by N − 1.
+    ///      N − 1 wei of truncation dust, pulling the actor total of the reward conservation invariant down by N − 1.
     ///      
     ///      Notation: 
     ///         N = number of eligible accounts.

@@ -14,30 +14,37 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 /// @notice Invariant-test handler for ProtocolStaking. Wraps all state-changing actions
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
-/// @dev Two floor-division phenomena pull the reward debt in opposite directions.
-///      The combined divergence is bounded by N + D wei, where N is the maximum number
-///      of simultaneously eligible accounts and D is the total number of dilution events
-///      (weight-increase operations by eligible accounts).
+/// @dev Floor division in _allocation (mulDiv) causes two independent rounding phenomena.
+///      Both stem from the same `floor(Pool × share / total)` operation inside _updateRewards
+///      and earned(), but they affect different invariants and pull in opposite directions.
 ///
-///      Truncation dust (test_MaxNormalTruncationDust): earned() independently floors
-///      `pool × weight / totalWeight` for each account. The sum of N floors is at most
-///      N − 1 less than the pool, pulling the reward debt DOWN by at most N − 1 wei.
+///      --- Reward Conservation (invariant_RewardConservation) ---
 ///
-///      Phantom wei (test_DilutionTrap, test_CompoundPhantomWei): each weight-increase
-///      operation adds a truncated virtualAmount to _totalVirtualPaid. The shortfall is
-///      always < 1 wei total and may drop one account's allocation by 1, stranding wei in
-///      _paid if that account has already claimed. This applies uniformly whether it is
-///      the first dilution trap for an account or a subsequent compounding event — both
-///      are the same mechanism. The total phantom across all accounts increases by at most
-///      1 per dilution event, pulling the reward debt UP by at most D wei.
+///      Actor total  = Σ _paid(account) + Σ earned(account)
+///      Protocol total (Pool) = _totalVirtualPaid + historicalReward
+///      Invariant: |actor total − protocol total| ≤ N + D
+///
+///      Truncation dust — pulls actor total DOWN (test_MaxNormalTruncationDust):
+///        earned() computes floor(Pool × w / W) independently per account. The sum of N
+///        individual floors is at most N − 1 less than the pool, so the actor total falls
+///        below the protocol total by up to N − 1 wei.
+///
+///      Phantom wei — pulls actor total UP (test_DilutionTrap, test_CompoundPhantomWei):
+///        Each weight-increase op adds floor(Pool × Δw / W) to _totalVirtualPaid. The floor
+///        means the increase is slightly less than the exact proportional share, so each
+///        event adds < 1 wei of phantom: existing accounts' allocations sum to more than the
+///        new pool, stranding wei in _paid (the reward debt) of anyone who already claimed.
+///        D events pull the actor total up by at most D wei.
 ///
 ///      Budget: ghost_maxEligibleAccounts (N) + ghost_dilutionOps (D).
 ///
-///      Weight-decreasing ops (unstake by eligible accounts, removeEligibleAccount with
-///      balance) are tracked separately by ghost_truncationOps. Each such op can inflate
-///      _totalVirtualPaid by at most 1 wei, which may cause the contract to physically mint
-///      up to ghost_truncationOps extra tokens above the authorized reward cap. This counter
-///      is the tolerance term used in invariant_TotalSupplyBoundedByRewardRate.
+///      --- Total Supply Bound (invariant_TotalSupplyBoundedByRewardRate) ---
+///
+///      Each weight-decrease op (unstake by eligible account, removeEligibleAccount with
+///      balance) subtracts floor(Pool × Δw / W) from _totalVirtualPaid. The floor means the
+///      subtraction is slightly less than the exact proportional share, leaving _totalVirtualPaid
+///      higher than it should be — inflating Pool by up to 1 wei. A subsequent claimer at
+///      full weight can mint that extra wei, exceeding the authorized reward cap by 1.
 ///
 ///      Budget: ghost_truncationOps.
 
@@ -79,17 +86,18 @@ contract ProtocolStakingHandler is Test {
     // *** Ghost state — tolerance counters ***
     //
     // ghost_truncationOps: weight-decrease ops (unstake on eligible accounts,
-    //   removeEligibleAccount with balance) that inflate _totalVirtualPaid by ≤1 wei each.
-    //   Tolerance for invariant_TotalSupplyBoundedByRewardRate. Bounds how many extra tokens
-    //   can be physically minted above the authorized reward cap.
+    //   removeEligibleAccount with balance). The floored subtraction from _totalVirtualPaid
+    //   leaves Pool inflated by ≤1 wei each, enabling up to 1 extra token mint per op.
+    //   Tolerance for invariant_TotalSupplyBoundedByRewardRate.
     //
     // ghost_dilutionOps: weight-increase ops (stake by eligible accounts,
-    //   addEligibleAccount with balance) that can compound phantom wei by ≤1 per event.
-    //   Tolerance term D in computeRewardDebtTolerance. Bounds how much phantom wei
-    //   inflates Σ _paid in the reward debt equation.
+    //   addEligibleAccount with balance). The floored addition to _totalVirtualPaid is
+    //   slightly less than the exact share, creating ≤1 phantom wei per event that strands
+    //   in _paid (the reward debt) of prior claimants, pulling the actor total UP.
+    //   Tolerance term D in computeRewardConservationTolerance.
     //
     // ghost_maxEligibleAccounts: static upper bound on simultaneously eligible accounts (N).
-    //   Tolerance term N in computeRewardDebtTolerance. Fixed at construction.
+    //   Tolerance term N in computeRewardConservationTolerance. Fixed at construction.
 
     uint256 public ghost_truncationOps;
     uint256 public ghost_dilutionOps;
@@ -218,7 +226,8 @@ contract ProtocolStakingHandler is Test {
 
     // **************** Invariant functions ****************
 
-    function computeRewardDebtLHS() external view returns (int256) {
+    /// @notice Per-account view of rewards: Σ _paid(account) + Σ earned(account).
+    function computeActorRewardTotal() external view returns (int256) {
         int256 sumPaid;
         uint256 sumEarned;
         for (uint256 i = 0; i < actors.length; i++) {
@@ -229,7 +238,8 @@ contract ProtocolStakingHandler is Test {
         return sumPaid + SafeCast.toInt256(sumEarned);
     }
 
-    function computeRewardDebtRHS() external view returns (int256) {
+    /// @notice Global pool view of rewards: _totalVirtualPaid + historicalReward.
+    function computeProtocolRewardTotal() external view returns (int256) {
         int256 totalVirtualPaid = _readTotalVirtualPaid();
         uint256 histReward = _readHistoricalReward();
         return totalVirtualPaid + SafeCast.toInt256(histReward);
@@ -244,31 +254,11 @@ contract ProtocolStakingHandler is Test {
         }
     }
 
-    /**
-     * @notice Calculates the maximum acceptable wei deviation for the reward debt invariant.
-     * @dev The tolerance is the sum of two independent directional bounds that oppose each other:
-     *
-     * Term 1 — ghost_maxEligibleAccounts (N) — pulls LHS DOWN:
-     *   Integer division in earned() computes floor(pool × wᵢ / W) independently per account.
-     *   The sum of N individual floors is at most N − 1 less than the pool total, so truncation
-     *   dust pulls the reward debt LHS down by at most N − 1 wei. N is used as the full bound.
-     *   See: test_MaxNormalTruncationDust.
-     *
-     * Term 2 — ghost_dilutionOps (D) — pulls LHS UP:
-     *   Each weight-increase operation (stake by an eligible account, or addEligibleAccount for
-     *   an account with existing balance) adjusts the virtual pool via a truncated mulDiv. The
-     *   shortfall from one entrant's virtualAmount is always < 1 wei and distributes across all
-     *   existing accounts proportionally — so the total phantom increase across ALL accounts is
-     *   at most 1 per dilution event. This applies uniformly whether an account is entering the
-     *   phantom zone for the first time or compounding an existing phantom. D events therefore
-     *   pull LHS up by at most D wei in total.
-     *   See: test_DilutionTrap, test_CompoundPhantomWei.
-     *
-     * Because the two terms pull in opposite directions the worst-case divergence in either
-     * direction is max(D, N − 1), bounded conservatively by N + D.
-     * @return The maximum allowable rounding error in wei: N + D.
-     */
-    function computeRewardDebtTolerance() external view returns (uint256) {
+    /// @notice Maximum acceptable wei deviation: |actorTotal − protocolTotal| ≤ N + D.
+    /// @dev N (truncation dust) pulls actor total DOWN by up to N − 1 wei (see test_MaxNormalTruncationDust).
+    ///      D (phantom wei) pulls actor total UP by up to D wei (see test_DilutionTrap, test_CompoundPhantomWei).
+    ///      Worst-case tolerance bounded conservatively by N + D.
+    function computeRewardConservationTolerance() external view returns (uint256) {
         return ghost_maxEligibleAccounts + ghost_dilutionOps;
     }
 
