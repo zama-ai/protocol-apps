@@ -359,6 +359,13 @@ contract ProtocolStakingHandler is Test {
         ghost_releasedAccount = account;
     }
 
+    /// @dev Routes msg.sender's future reward mints to any address.
+    ///      address(0) resets to mint-to-self. Only the mint target changes, not the accounting.
+    function setRewardsRecipient(address recipient) external assertTransitionInvariants {
+        vm.prank(msg.sender);
+        protocolStaking.setRewardsRecipient(recipient);
+    }
+
     /// @notice Unstake then warp past cooldown to allow for valid release() calls.
     function unstakeThenWarp() external assertTransitionInvariants {
         address account = msg.sender;
