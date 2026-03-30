@@ -361,7 +361,12 @@ contract ProtocolStakingHandler is Test {
 
     /// @dev Routes msg.sender's future reward mints to any address.
     ///      address(0) resets to mint-to-self. Only the mint target changes, not the accounting.
-    function setRewardsRecipient(address recipient) external assertTransitionInvariants {
+    function setRewardsRecipient(address recipient, uint256 index, bool isActor) external assertTransitionInvariants {
+        if (isActor) {
+            // overrides recipient by one of the actors
+            index = bound(index, 0, actors.length - 1);
+            recipient = actors[index];
+        }
         vm.prank(msg.sender);
         protocolStaking.setRewardsRecipient(recipient);
     }
