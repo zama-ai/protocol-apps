@@ -141,7 +141,7 @@ For every account, across any handler action:
 PRE  = ghost_claimed[account] + earned(account)    -- snapshot before the action
 POST = ghost_claimed[account] + earned(account)    -- snapshot after the action
 
-POST + 1 ≥ PRE
+POST ≥ PRE
 ```
 The 1 wei tolerance accounts for a single `earned()` floor truncation per pool update.
 

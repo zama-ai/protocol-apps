@@ -14,14 +14,14 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 /// @notice Invariant-test handler for ProtocolStaking. Wraps all state-changing actions
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
-/// @dev Two floor-division phenomena pull the reward debt LHS in opposite directions.
+/// @dev Two floor-division phenomena pull the reward debt in opposite directions.
 ///      The combined divergence is bounded by N + D wei, where N is the maximum number
 ///      of simultaneously eligible accounts and D is the total number of dilution events
 ///      (weight-increase operations by eligible accounts).
 ///
 ///      Truncation dust (test_MaxNormalTruncationDust): earned() independently floors
 ///      `pool × weight / totalWeight` for each account. The sum of N floors is at most
-///      N − 1 less than the pool, pulling the reward debt LHS DOWN by at most N − 1 wei.
+///      N − 1 less than the pool, pulling the reward debt DOWN by at most N − 1 wei.
 ///
 ///      Phantom wei (test_DilutionTrap, test_CompoundPhantomWei): each weight-increase
 ///      operation adds a truncated virtualAmount to _totalVirtualPaid. The shortfall is
@@ -29,9 +29,18 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///      _paid if that account has already claimed. This applies uniformly whether it is
 ///      the first dilution trap for an account or a subsequent compounding event — both
 ///      are the same mechanism. The total phantom across all accounts increases by at most
-///      1 per dilution event, pulling the reward debt LHS UP by at most D wei.
+///      1 per dilution event, pulling the reward debt UP by at most D wei.
 ///
 ///      Budget: ghost_maxEligibleAccounts (N) + ghost_dilutionOps (D).
+///
+///      Weight-decreasing ops (unstake by eligible accounts, removeEligibleAccount with
+///      balance) are tracked separately by ghost_truncationOps. Each such op can inflate
+///      _totalVirtualPaid by at most 1 wei, which may cause the contract to physically mint
+///      up to ghost_truncationOps extra tokens above the authorized reward cap. This counter
+///      is the tolerance term used in invariant_TotalSupplyBoundedByRewardRate.
+///
+///      Budget: ghost_truncationOps.
+
 contract ProtocolStakingHandler is Test {
     // *** Protocol contracts ***
 

@@ -201,7 +201,7 @@ contract ProtocolStakingInvariantTest is Test {
         }
     }
 
-    /// @notice Shows that the unit contribution of the phantom wei (D) term in computeRewardDebtTolerance.
+    /// @notice Shows the unit contribution of the phantom wei (D) term in computeRewardDebtTolerance.
     /// @dev One dilution event — a weight-increase op while a claimant's _paid is already locked —
     ///      strands exactly 1 wei in `_paid`, pushing the reward debt LHS up by 1.
     ///      This is the base case for ghost_dilutionOps: each dilution event contributes at most 1
