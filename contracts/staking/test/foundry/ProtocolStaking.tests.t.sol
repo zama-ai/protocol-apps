@@ -11,20 +11,19 @@ import {Test} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 
-/// @dev Unit tests: tolerance-bound proofs that justify ghost terms and constants in the handler / invariants suite.
+/// @dev Tolerance-bound tests that justify ghost terms and constants in the handler / invariants suite.
 contract ProtocolStakingTests is Test {
     address internal manager = makeAddr("manager");
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // Tolerance Bound Proofs
+    // Tolerance Bound Tests
     //
-    // Each test constructs a minimal, numerically exact scenario to prove the bound
+    // Each test constructs a minimal, numerically exact scenario to justify the bound
     // of one tolerance term in the invariant suite. Together they justify every
     // constant and ghost counter used in the handler.
     // ─────────────────────────────────────────────────────────────────────────────
 
-    /// @dev Deploys a fresh ZamaERC20 + ProtocolStaking pair for isolated unit tests,
-    ///      independent of the fuzz setUp state.
+    /// @dev Deploys a fresh ZamaERC20 + ProtocolStaking pair for isolated tests.
     function _setupIsolatedStaking(
         address[] memory users,
         uint256[] memory amounts
