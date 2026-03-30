@@ -101,7 +101,7 @@ contract ProtocolStakingHandler is Test {
 
     uint256 public ghost_truncationOps;
     uint256 public ghost_dilutionOps;
-    uint256 public ghost_maxEligibleAccounts;
+    uint256 public immutable GHOST_MAX_ELIGIBLE_ACCOUNTS;
 
     // *** Ghost state — transition flags ***
     //
@@ -118,7 +118,7 @@ contract ProtocolStakingHandler is Test {
         actors = _actors;
         ghost_currentRate = _protocolStaking.rewardRate();
         ghost_initialTotalSupply = _zama.totalSupply();
-        ghost_maxEligibleAccounts = _actors.length;
+        GHOST_MAX_ELIGIBLE_ACCOUNTS = _actors.length;
     }
 
     // **************** Transition Invariant Modifiers ****************
@@ -259,7 +259,7 @@ contract ProtocolStakingHandler is Test {
     ///      D (phantom wei) pulls actor total UP by up to D wei (see test_DilutionTrap, test_CompoundPhantomWei).
     ///      Worst-case tolerance bounded conservatively by N + D.
     function computeRewardConservationTolerance() external view returns (uint256) {
-        return ghost_maxEligibleAccounts + ghost_dilutionOps;
+        return GHOST_MAX_ELIGIBLE_ACCOUNTS + ghost_dilutionOps;
     }
 
     // **************** ProtocolStaking actions ****************
