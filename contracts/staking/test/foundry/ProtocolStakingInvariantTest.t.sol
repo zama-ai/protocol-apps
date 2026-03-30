@@ -311,12 +311,12 @@ contract ProtocolStakingInvariantTest is Test {
     /// @notice Shows the N term in computeRewardConservationTolerance (truncation dust).
     /// @dev N eligible accounts with equal weight and a worst-case reward rate produce exactly
     ///      N − 1 wei of truncation dust, pulling the actor total of the reward conservation invariant down by N − 1.
-    ///      
-    ///      Notation: 
+    ///
+    ///      Notation:
     ///         N = number of eligible accounts.
     ///         rate = reward rate per second.
     ///         Pool = historicalReward + _totalVirtualPaid.
-    ///      
+    ///
     ///
     ///      Worst-case formula: rate % N == N − 1 (maximises per-account fractional loss).
     ///      With N=20, rate=39: each account earns floor(39/20) = 1.95 -> 1, losing 0.95 each.
@@ -674,11 +674,7 @@ contract ProtocolStakingInvariantTest is Test {
         int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
 
         // totalMinted = 10e18 + 19 × 1 = 10e18 + 19; totalDrift = 19 = relayCount − 1.
-        assertEq(
-            totalDrift,
-            int256(relayCount - 1),
-            "Each independent relay strands exactly 1 wei of phantom"
-        );
+        assertEq(totalDrift, int256(relayCount - 1), "Each independent relay strands exactly 1 wei of phantom");
     }
 
     /// @notice Shows that ghost_dilutionOps (D) must scale with event count, not account count:
