@@ -34,8 +34,8 @@ We separate our invariant rules into three distinct categories to handle EVM sta
 
 [`handlers/ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol)
 
-- Wraps ProtocolStaking actions: `stake`, `unstake`, `claimRewards`, `release`, `warp`, `setRewardRate`, `addEligibleAccount`, `removeEligibleAccount`, `setUnstakeCooldownPeriod`, `unstakeThenWarp`
-- Bounds inputs (e.g. `amount ≤ balance`, `actorIndex ∈ [0, actors.length)`)
+- Wraps ProtocolStaking actions: `stake`, `unstake`, `claimRewards`, `release`, `warp`, `setRewardRate`, `addEligibleAccount`, `removeEligibleAccount`, `setUnstakeCooldownPeriod`, `unstakeThenWarp`, `setRewardsRecipient`
+- Bounds inputs (e.g. `amount ≤ balance`)
 - Tracks ghost state: `ghost_totalStaked`, `ghost_accumulatedRewardCapacity`, `ghost_eligibleAccounts`, `ghost_claimed`, etc.
 - Exposes equivalence scenarios: `stakeEquivalenceScenario`, `unstakeEquivalenceScenario`
 
@@ -49,137 +49,171 @@ We separate our invariant rules into three distinct categories to handle EVM sta
 
 ## Invariants
 
-We separate our testing rules into three distinct categories:
-
 ### 1. Global Invariants
 
 Checked via `invariant_*` functions in the main test contract after every handler call.
 
 #### Total supply bounded by reward rate
 
-Token issuance never exceeds the authorized emission:
+`invariant_TotalSupplyBoundedByRewardRate`: `totalSupply` must stay within the handler’s model of **accumulated reward capactiy** plus a small tolerance for rounding on weight-decreasing exits.
 
 ```
-zama.totalSupply()
-  ≤ ghost_initialTotalSupply
-  + ghost_accumulatedRewardCapacity   // Σ(δT_i × rewardRate_i), the sum of rewards allowed to be distributed for a given period, updated on every warp
-  + ghost_truncationOps               // 1 wei tolerance per weight-decrease op (see Reward Debt System)
+totalSupply ≤ ghost_initialTotalSupply
+            + ghost_accumulatedRewardCapacity
+            + ghost_truncationOps
 ```
+
+- **`ghost_initialTotalSupply`** — `totalSupply` snapshot when the handler is constructed (before fuzzing).
+- **`ghost_accumulatedRewardCapacity`** — running upper bound Σ(δTᵢ × rateᵢ): on each `warp`, if `totalStakedWeight > 0`, the handler adds `ghost_currentRate * duration` (rate is kept in sync with `setRewardRate`). This matches “rewards the contract is allowed to emit” while time advances.
+- **`ghost_truncationOps`** — count of weight-decrease operations (eligible `unstake`, `removeEligibleAccount` with balance). Each can let at most **one** extra wei be minted above the allowance.
+
+See the **Total Supply Bound** block in the contract level NatSpec on [`ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol).
 
 #### Total staked weight
 
-The on-chain weight register matches the sum of eligible-account weights:
+`invariant_TotalStakedWeightEqualsEligibleWeights`: the contract’s aggregate eligible weight must match the sum of per-account weights implied by current balances.
+
+The test compares:
 
 ```
-protocolStaking.totalStakedWeight()
-  == Σ weight(protocolStaking.balanceOf(account))   // summed over all eligible accounts only
+protocolStaking.totalStakedWeight() == handler.computeExpectedTotalWeight()
 ```
-Ineligible accounts hold staked balance but contribute zero weight.
 
-#### Reward debt conservation
+`computeExpectedTotalWeight` walks the handler’s **`actors`** list, keeps only `isEligibleAccount(account)`, and sums `weight(balanceOf(account))`.
 
-The virtual accounting system stays balanced within rounding tolerance:
+#### Reward conservation
+
+`invariant_RewardConservation`: per-account reward views must match the global pool within tolerance.
 
 ```
-LHS = Σ _paid[account]              -- per-account already-credited amount
-    + Σ earned(account)              -- per-account claimable rewards
-
-RHS = _totalVirtualPaid()            -- global sum of all virtualPaid entries
-    + historicalRewards()            -- cumulative rewards ever distributed
-
-TOL = ghost_maxEligibleAccounts      -- static upper bound on simultaneously eligible accounts
-    + ghost_dilutionOps              -- weight-increase ops that compound phantom wei by ≤1 per event
-
-|LHS − RHS| ≤ TOL
+actorTotal     = Σ _paid(account) + Σ earned(account)
+protocolTotal  = _totalVirtualPaid + historicalReward
 ```
-Both sums range over all actors. All contract references are on `protocolStaking`. See the Reward Debt System section for the tolerance derivation.
+
+**Tolerance** — `N + D`:
+
+- `N` = `GHOST_MAX_ELIGIBLE_ACCOUNTS`: actor count fixed at handler construction; bounds truncation dust from per-account `earned()` floors.
+- `D` = `ghost_dilutionOps`: handler count of weight-increase events; each contributes at most 1 wei of phantom to the actor side.
+
+```
+| actorTotal − protocolTotal | ≤ N + D
+```
+
+For why `N` and `D` arise, see the **Reward Conservation** section in the contract-level NatSpec on [`ProtocolStakingHandler.sol`](handlers/ProtocolStakingHandler.sol).
 
 #### Pending withdrawals solvency
 
-The staking contract holds enough tokens to cover all queued withdrawals:
+`invariant_PendingWithdrawalsSolvency`: the **staking token** balance held by `ProtocolStaking` must cover every wei still locked in the unstake cooldown (sum of `awaitingRelease`).
 
 ```
-zama.balanceOf(address(protocolStaking))
-  ≥ Σ protocolStaking.awaitingRelease(account)   // summed over all actors
+IERC20(token).balanceOf(address(protocolStaking))
+  ≥ Σ protocolStaking.awaitingRelease(account)
 ```
+
+`Σ` adds `awaitingRelease(account)` for every address in the handler’s `actors` array.
 
 #### Staked funds solvency
 
-Every token an actor ever staked is accounted for, per account:
+`invariant_StakedFundsSolvency`: for each actor, cumulative **staking token** deposited through the handler must equal what is inside the contract's accounting bucket (staked tokens + exit queue + already released tokens).
 
 ```
-ghost_totalStaked[account]            // ghost: cumulative tokens staked by this account (handler)
-  == protocolStaking.balanceOf(account)         // currently staked (shares → tokens)
-   + protocolStaking.awaitingRelease(account)   // pending withdrawal, cooldown not yet elapsed
-   + ghost_totalReleased[account]               // ghost: cumulative tokens already released (handler)
+ghost_totalStaked[account]
+  == protocolStaking.balanceOf(account)       // account staked balance
+   + protocolStaking.awaitingRelease(account) // unstaked balance, cooldown not finished
+   + ghost_totalReleased[account]             // exited to wallet after cooldown (handler ghost)
 ```
-Checked independently for every actor.
+
+- **`ghost_totalStaked`** — incremented on each `stake` in [`ProtocolStakingHandler`](handlers/ProtocolStakingHandler.sol).
+- **`ghost_totalReleased`** — incremented on `release` (tokens leaving the cooldown queue).
 
 #### Unstake queue monotonicity
 
-The checkpoint trace for each account is internally consistent:
+`invariant_UnstakeQueueMonotonicity`: for each actor, the `_unstakeRequests[account]` checkpoint trace has only **increasing** timestamps (`key`) and **increasing cumulative** queued shares (`value`). The stored `value` is a running total in the exit queue, not a per-unstake increment; identical `key` with a larger `value` is in-place growth at the same time.
 
 ```
-For all consecutive checkpoints (j-1, j) in _unstakeRequests[account]:
-  key[j]   ≥ key[j-1]                          // timestamps are non-decreasing
-  value[j] ≥ value[j-1]                         // cumulative shares are non-decreasing
+key[j] ≥ key[j−1]
+value[j] ≥ value[j−1]     // j indexes consecutive checkpoints
 ```
-`value` is a **cumulative** share total, not an incremental amount. When an unstake arrives at the same
-block timestamp as the prior checkpoint it is updated in-place (same key, higher value). When it arrives
-later a new checkpoint is appended (higher key). Both cases must preserve monotonicity across the full
-history.
 
-### 2. Transition Invariants
+Read from on-chain storage via [`ProtocolStakingHarness`](harness/ProtocolStakingHarness.sol): `_harness_getUnstakeRequestCheckpointCount`, `_harness_getUnstakeRequestCheckpointAt`.
 
-Because Foundry reverts the EVM state after evaluating `invariant_*` functions, transition checks (State A vs. State B) are executed natively inside the Handler using the `assertTransitionInvariants` modifier.
+### 2. Transition invariants
+
+Foundry rolls back state after each `invariant_*` call, so **per-step** (State A → State B) rules live on the [`assertTransitionInvariants`](handlers/ProtocolStakingHandler.sol) modifier in **ProtocolStakingHandler**: it snapshots `ghost_claimed + earned` and `awaitingRelease` for every `actors[]` entry **before** the handler action, runs the action, then asserts below.
 
 #### Claimed + claimable never decreases
 
-For every account, across any handler action:
+**`_assertClaimedPlusEarnedTransition`**: an actor’s total **already claimed + still claimable** tokens must not drop across a single handler step (beyond fixed rounding tolerance).
 
 ```
-PRE  = ghost_claimed[account] + earned(account)    -- snapshot before the action
-POST = ghost_claimed[account] + earned(account)    -- snapshot after the action
+pre  = ghost_claimed[account] + protocolStaking.earned(account)   // before the action
+post = ghost_claimed[account] + protocolStaking.earned(account)   // after the action
 
-POST ≥ PRE
+post ≥ pre
 ```
-The 1 wei tolerance accounts for a single `earned()` floor truncation per pool update.
 
 #### Awaiting release never decreases
-```
-protocolStaking.awaitingRelease(account) is non-decreasing until release() is explicitly called by that account.
-```
-`awaitingRelease(account)` is defined as `_unstakeRequests[account].latest() - _released[account]`. Calling
-the function also implicitly enforces that `_released[account] ≤ latest unstake checkpoint` — if that
-invariant were violated the subtraction would underflow and revert, which `fail_on_revert = true` would
-surface as a test failure.
 
+**`_assertAwaitingReleaseTransition`**: `awaitingRelease(account)` must not decrease unless that account just executed **`release()`** (then the check is skipped via `ghost_releasedAccount`).
 
-#### Earned is zero after claim
+```
+postAwaitingRelease ≥ preAwaitingRelease
+```
+
+On-chain, `awaitingRelease(account) = _unstakeRequests[account].latest() − _released[account]`. A successful read implies `_released[account] ≤ latest()`, otherwise, the subtraction reverts.
+
+#### Earned is zero immediately after claim
+
+**`_assertEarnedZeroAfterClaim`**: if the last action was **`claimRewards`**, the claimant must have **`earned(account) == 0`** right after.
+
 ```
 protocolStaking.earned(ghost_lastClaimedActor) == 0
 ```
-`claimRewards` sets `ghost_lastClaimedActor` to the claiming account. The modifier checks this immediately
-after the action and clears the flag. Guards on the zero address so non-claim steps are unaffected.
 
-### 3. Equivalence Scenarios
+`claimRewards()` sets `ghost_lastClaimedActor`. After all transition checks, **`_resetTransitionFlags`** zeroes `ghost_lastClaimedActor` and `ghost_releasedAccount`. If no claim was performed, `ghost_lastClaimedActor` is `address(0)` and `_assertEarnedZeroAfterClaim` returns without asserting.
 
-These ensure that complex or batched actions result in the exact same mathematical state as singular actions. They utilize vm.snapshotState() and are checked inline inside the Handler.
+### 3. Equivalence scenarios
 
-#### Stake equivalence
+**`stakeEquivalenceScenario`** and **`unstakeEquivalenceScenario`** in [`ProtocolStakingHandler`](handlers/ProtocolStakingHandler.sol) are regular fuzz targets. Each uses **`vm.snapshotState()`** -> runs **path A** -> **`vm.revertToState(snapshot)`** -> runs **path B** (path B stays as the live continuation), then compares **`post_A`** vs **`post_B`**.
+
+**Balances and weight** must match exactly. **Earned rewards** may differ only within **`EQUIVALENCE_EARNED_TOLERANCE`** (**2** wei): path B typically performs more intermediate reward/pool updates, so a tolerance is allocated for `muldiv` truncation.
+
+#### Stake equivalence — `stakeEquivalenceScenario`
+
+**Intent:** stake(a + b) ≡ stake(a) + stake(b)
+
 ```
-stake(a + b) ≡ stake(a) + stake(b)
-  shares: exactly equal   (1:1 mint, no share-conversion ratio)
-  weight: exactly equal   (same balance ⟹ same weight)
-  earned: equal ± 2 wei   (path B has one extra pool update, introducing at most 1 wei rounding error)
+Path A:  stake(amount1 + amount2) -> warp(duration) -> read state -> revert state
+Path B:  stake(amount1) + stake(amount2) -> warp(duration) -> read state
 ```
 
-#### Unstake equivalence
+Let **`post_A`** / **`post_B`** be the state after path **A** / path **B**:
+
 ```
-unstake(initialStake - targetStake) ≡ unstake(initialStake) - stake(targetStake)
-  shares: exactly equal
-  weight: exactly equal
-  earned: equal ± 2 wei // rounding tolerance 
+balance = protocolStaking.balanceOf(account)
+
+post_A(balance) == post_B(balance)
+post_A(protocolStaking.weight(balance)) == post_B(protocolStaking.weight(balance))
+post_A(protocolStaking.earned(account)) == post_B(protocolStaking.earned(account)) (within tolerance)
+```
+
+#### Unstake equivalence — `unstakeEquivalenceScenario`
+
+**Intent:** unstake(initialStake − targetStake) ≡ unstake(initialStake) -> stake(targetStake)
+
+```
+Path A:  stake(initialStake) -> warp -> unstake(initialStake − targetStake) -> warp -> read state -> revert state
+Path B:  stake(initialStake) -> warp -> unstake(initialStake) -> stake(targetStake) -> warp -> read state
+```
+
+Let **`post_A`** / **`post_B`** be the state after path **A** / path **B**:
+
+```
+balance = protocolStaking.balanceOf(account)
+
+post_A(balance) == post_B(balance)
+post_A(protocolStaking.weight(balance)) == post_B(protocolStaking.weight(balance))
+post_A(protocolStaking.earned(account)) == post_B(protocolStaking.earned(account)) (within tolerance)
 ```
 
 ## Running Tests
@@ -223,10 +257,10 @@ forge test -vvv
 ### 3. Run a single invariant
 
 ```bash
-forge test --match-contract ProtocolStakingInvariantTest --match-test invariant_UnstakeEquivalence
+forge test --match-contract ProtocolStakingInvariantTest --match-test invariant_TotalSupplyBoundedByRewardRate
 ```
 
-Replace `invariant_UnstakeEquivalence` with any invariant name (e.g. `invariant_RewardDebtConservation`, `invariant_StakeEquivalence`).
+Replace `invariant_TotalSupplyBoundedByRewardRate` with any invariant name (e.g. `invariant_RewardConservation`).
 
 ### Configuration
 
