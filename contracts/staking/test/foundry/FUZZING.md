@@ -24,7 +24,7 @@ Tests use a **handler pattern**: a handler contract wraps ProtocolStaking, bound
 
 We separate our invariant rules into three distinct categories to handle EVM state constraints:
 
-1. **Global Invariants**: Checked via invariant_* functions in the test contract after every sequence step. These check system-wide accounting rules. (**ProtocolStakingInvariantTest.t**)
+1. **Global Invariants**: Checked via `invariant_*` functions in the invariant test contract after every sequence step. These check system-wide accounting rules. (**ProtocolStaking.invariants.t**)
 
 2. **Transition Invariants**: Checked via the `assertTransitionInvariants` modifier directly inside the Handler contract. These compare State A (before an action) to State B (after an action) to ensure monotonicity (values only going up/down as expected). (**ProtocolStakingHandler**)
 
@@ -41,11 +41,17 @@ We separate our invariant rules into three distinct categories to handle EVM sta
 
 ### Invariant Test Contract
 
-[`ProtocolStakingInvariantTest.t.sol`](ProtocolStakingInvariantTest.t.sol)
+[`ProtocolStaking.invariants.t.sol`](ProtocolStaking.invariants.t.sol) (`ProtocolStakingInvariantsTest`)
 
 - Defines invariants via `invariant_*` functions
 - Uses `targetContract` and `targetSender` to direct the fuzzer's actions
 - Invariants are checked after every handler call in the fuzz sequence
+
+### Tolerance bound proofs (unit tests)
+
+[`ProtocolStaking.tests.t.sol`](ProtocolStaking.tests.t.sol) (`ProtocolStakingTests`)
+
+- Isolated scenarios (`test_*`) that justify ghost terms and tolerances used by the handler and invariants
 
 ## Invariants
 
@@ -257,7 +263,7 @@ forge test -vvv
 ### 3. Run a single invariant
 
 ```bash
-forge test --match-contract ProtocolStakingInvariantTest --match-test invariant_TotalSupplyBoundedByRewardRate
+forge test --match-contract ProtocolStakingInvariantsTest --match-test invariant_TotalSupplyBoundedByRewardRate
 ```
 
 Replace `invariant_TotalSupplyBoundedByRewardRate` with any invariant name (e.g. `invariant_RewardConservation`).
