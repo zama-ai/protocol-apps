@@ -126,6 +126,8 @@ contract ProtocolStakingInvariantTest is Test {
             return;
         }
         int256 rhs = handler.computeRewardDebtRHS();
+        // Otherwise: paid-plus-earned should match virtual-plus-historical within the same tolerance:
+        // Σ _paid(account) + Σ earned(account) ≈ _totalVirtualPaid + historicalReward  (abs error ≤ tolerance)
         assertApproxEqAbs(lhs, rhs, tolerance, "reward debt conservation");
     }
 
@@ -207,9 +209,14 @@ contract ProtocolStakingInvariantTest is Test {
     ///      This is the base case for ghost_dilutionOps: each dilution event contributes at most 1
     ///      to the D term.
     ///
+    ///      Notation: w = weight(balance) = sqrt(balance) for a single account.
+    ///                W = _totalEligibleStakedWeight = Σ w for all eligible accounts.
+    ///                Pool = historicalReward + _totalVirtualPaid.
+    ///                D = ghost_dilutionOps, the count of weight-increase events.
+    ///
     ///      Setup:  Alice (w=1), Bob (w=9). Pool = 29. Bob claims, locking _paid = 26.
     ///      Event:  Charlie stakes (w=1). W becomes 11. Bob's allocation drops to floor(31×9/11) = 25.
-    ///      Assert: lhs − rhs == 1.
+    ///      Assert: Σ _paid(account) + Σ earned(account) - _totalVirtualPaid + historicalReward == 1.
     function test_DilutionTrap() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -235,31 +242,65 @@ contract ProtocolStakingInvariantTest is Test {
         staking.addEligibleAccount(charlie);
         vm.stopPrank();
 
-        // Setup initial pool
+        // Alice stakes 1:  weight(1)  = sqrt(1)  = 1
+        // Bob   stakes 81: weight(81) = sqrt(81) = 9
+        //
+        // ── W = 10 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: [Alice=0, Bob=0, Charlie=0]
         vm.prank(alice);
         staking.stake(1);
         vm.prank(bob);
         staking.stake(81);
 
-        // Accrue rewards
+        // historicalReward = 0 + (29 × 1s) = 29
+        //
+        // ── W = 10 | historicalReward = 29 | _totalVirtualPaid = 0 | Pool = 29 + 0 = 29
+        // ── _paid: [Alice=0, Bob=0, Charlie=0]
         vm.prank(manager);
         staking.setRewardRate(29);
         vm.warp(block.timestamp + 1);
         vm.prank(manager);
         staking.setRewardRate(0);
 
-        // Claim: locks _paid[Bob] = floor(29 × 9 / 10) = 26.
+        // earned(Bob) = _allocation(9, 10) = floor(29 × 9 / 10) = floor(261 / 10) = 26
+        // _paid[Bob] += 26
+        //
+        // ── W = 10 | historicalReward = 29 | _totalVirtualPaid = 0 | Pool = 29
+        // ── _paid: [Alice=0, Bob=26, Charlie=0]
         vm.prank(bob);
         staking.claimRewards(bob);
 
-        // Dilute: Charlie stakes. Pool → 31, W → 11. Bob's allocation drops to floor(31 × 9 / 11) = 25.
+        // Charlie stakes 1: weight(1) = 1. _updateRewards(charlie, 0, 1):
+        //   virtualAmount = _allocation(1, 10) = floor(29 × 1 / 10) = floor(2.9) = 2
+        //   _paid[Charlie] += 2, _totalVirtualPaid += 2
+        //
+        // ── W = 11 | historicalReward = 29 | _totalVirtualPaid = 2 | Pool = 29 + 2 = 31
+        // ── _paid: [Alice=0, Bob=26, Charlie=2]
+        //
+        // Bob's allocation = _allocation(9, 11) = floor(31 × 9 / 11) = floor(25.36) = 25
+        // earned(Bob) = max(0, 25 - 26) = 0  →  1 wei phantom
         vm.prank(charlie);
         staking.stake(1);
 
-        // Unstake: _updateRewards credits Bob floor(31 × 9 / 11) = 25, but _paid is 26. 1 wei stranded.
+        // Bob unstakes 81: _updateRewards(bob, 9, 0):
+        //   virtualAmount = _allocation(9, 11) = floor(31 × 9 / 11) = floor(25.36) = 25
+        //   _paid[Bob] -= 25 → 26 - 25 = 1  (stranded phantom wei)
+        //   _totalVirtualPaid -= 25 → 2 - 25 = -23
+        //
+        // ── W = 2 | historicalReward = 29 | _totalVirtualPaid = -23 | Pool = 29 + (-23) = 6
+        // ── _paid: [Alice=0, Bob=1, Charlie=2]
         vm.prank(bob);
         staking.unstake(81);
 
+        // rhs = _totalVirtualPaid + historicalReward = -23 + 29 = 6
+        //
+        // lhs = Σ(_paid[i] + earned[i]):
+        //   Alice:   _paid=0 + earned=floor(6 × 1 / 2) - 0     = 0 + 3 = 3
+        //   Bob:     _paid=1 + earned=0 (w=0)                   = 1 + 0 = 1
+        //   Charlie: _paid=2 + earned=floor(6 × 1 / 2) - 2      = 2 + 1 = 3
+        //   lhs = 3 + 1 + 3 = 7
+        //
+        // lhs - rhs = 7 - 6 = 1
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
         int256 lhs = 0;
         for (uint256 i = 0; i < users.length; i++) {
@@ -271,12 +312,18 @@ contract ProtocolStakingInvariantTest is Test {
 
     /// @notice Shows the N term in computeRewardDebtTolerance (truncation dust).
     /// @dev N eligible accounts with equal weight and a worst-case reward rate produce exactly
-    ///      N − 1 wei of truncation dust, pulling the reward debt LHS down by N − 1.
+    ///      N − 1 wei of truncation dust, pulling the LHS of the reward debt conservation invariant down by N − 1.
+    ///      
+    ///      Notation: 
+    ///         N = number of eligible accounts.
+    ///         rate = reward rate per second.
+    ///         Pool = historicalReward + _totalVirtualPaid.
+    ///      
     ///
     ///      Worst-case formula: rate % N == N − 1 (maximises per-account fractional loss).
-    ///      With N=20, rate=39: each account earns floor(39/20) = 1, losing 0.95 each.
+    ///      With N=20, rate=39: each account earns floor(39/20) = 1.95 -> 1, losing 0.95 each.
     ///      Aggregate dust = 39 − 20 = 19 = N − 1.
-    ///      Assert: rhs − lhs == N − 1.
+    ///      Assert: Σ _paid(account) + Σ earned(account) - _totalVirtualPaid + historicalReward == N − 1.
     function test_MaxNormalTruncationDust() public {
         uint256 n = 20;
 
@@ -298,20 +345,29 @@ contract ProtocolStakingInvariantTest is Test {
         }
         vm.stopPrank();
 
-        // N accounts, weight 1 each (W = 20).
+        // Each account stakes 1: weight(1) = sqrt(1) = 1
+        //
+        // ── W = 20 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: all 0
         for (uint256 i = 0; i < n; i++) {
             vm.prank(users[i]);
             staking.stake(1);
         }
 
-        // Rate 39 chosen so 39 % 20 == 19 = N − 1 (maximises per-account fractional loss).
-        // Each account earns floor(39 × 1 / 20) = 1. Aggregate allocated = 20. Dust = 19.
+        // historicalReward = 0 + (39 × 1s) = 39
+        // Rate 39 chosen so 39 % 20 == 19 == N − 1
         vm.prank(manager);
         staking.setRewardRate(39);
         vm.warp(block.timestamp + 1);
         vm.prank(manager);
         staking.setRewardRate(0);
 
+        // ── W = 20 | historicalReward = 39 | _totalVirtualPaid = 0 | Pool = 39 + 0 = 39
+        // ── _paid: all 0
+        //
+        // Per account: earned = _allocation(1, 20) = floor(39 × 1 / 20) = floor(1.95) = 1
+        // Aggregate allocated = 20 × 1 = 20
+        // Dust = Pool − allocated = 39 − 20 = 19 = N − 1
         int256 rhs = staking._harness_getTotalVirtualPaid() + SafeCast.toInt256(staking._harness_getHistoricalReward());
         int256 lhs = 0;
         for (uint256 i = 0; i < n; i++) {
@@ -322,9 +378,13 @@ contract ProtocolStakingInvariantTest is Test {
     }
 
     /// @notice Shows the unit contribution of ghost_truncationOps to invariant_TotalSupplyBoundedByRewardRate.
-    /// @dev One weight-decrease op (removeEligibleAccount with staked balance) inflates _totalVirtualPaid
+    /// @dev One weight-decrease op (unstake / removeEligibleAccount with staked balance) inflates _totalVirtualPaid
     ///      by 1 wei via mulDiv truncation, enabling a subsequent claimer to mint exactly 1 wei above
     ///      the authorised reward cap.
+    ///
+    ///      Notation: w = weight(balance) = sqrt(balance) for a single account.
+    ///                W = _totalEligibleStakedWeight = Σ w for all eligible accounts.
+    ///                Pool = historicalReward + _totalVirtualPaid.
     ///
     ///      Setup:  Bob (w=3) is the sole eligible staker. Pool = 10. Bob claims all 10.
     ///      Event:  Alice (w=2) enters, Bob exits via removeEligibleAccount (1 truncation op).
@@ -347,7 +407,11 @@ contract ProtocolStakingInvariantTest is Test {
         ProtocolStakingHarness staking;
         (token, staking) = _setupIsolatedStaking(users, amounts);
 
-        // Initial state: Bob eligible, Alice ineligible
+        // Bob eligible, Alice ineligible (only Bob counts toward W).
+        // weight(4) = sqrt(4) = 2, weight(9) = sqrt(9) = 3
+        //
+        // ── W = 3 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: [Alice=0, Bob=0]
         vm.prank(manager);
         staking.addEligibleAccount(bob);
         vm.prank(alice);
@@ -355,7 +419,10 @@ contract ProtocolStakingInvariantTest is Test {
         vm.prank(bob);
         staking.stake(9);
 
-        // Generate exactly 10 wei of capacity
+        // historicalReward = 0 + (10 × 1s) = 10
+        //
+        // ── W = 3 | historicalReward = 10 | _totalVirtualPaid = 0 | Pool = 10 + 0 = 10
+        // ── _paid: [Alice=0, Bob=0]
         vm.prank(manager);
         staking.setRewardRate(10);
         vm.warp(block.timestamp + 1);
@@ -366,19 +433,42 @@ contract ProtocolStakingInvariantTest is Test {
 
         assertEq(authorizedRewards, 10, "Authorized rewards should be 10");
 
-        // Bob (sole eligible, W/W = 1) claims all 10. No truncation.
+        // Bob sole eligible (w=3, W=3):
+        //   earned = _allocation(3, 3) = floor(10 × 3 / 3) = 10
+        //   _paid[Bob] += 10. Mints 10 tokens.
+        //
+        // ── W = 3 | historicalReward = 10 | _totalVirtualPaid = 0 | Pool = 10
+        // ── _paid: [Alice=0, Bob=10]
         vm.prank(bob);
         staking.claimRewards(bob);
 
-        // Alice enters, Bob exits. removeEligibleAccount inflates _totalVirtualPaid by 1 wei (1 truncation op).
+        // addEligibleAccount(Alice): balance=4, weight(4)=2. _updateRewards(alice, 0, 2):
+        //   virtualAmount = _allocation(2, 3) = floor(10 × 2 / 3) = floor(6.66) = 6
+        //   _paid[Alice] += 6, _totalVirtualPaid += 6
+        //
+        // ── W = 5 | historicalReward = 10 | _totalVirtualPaid = 6 | Pool = 10 + 6 = 16
+        // ── _paid: [Alice=6, Bob=10]
         vm.prank(manager);
         staking.addEligibleAccount(alice);
+
+        // removeEligibleAccount(Bob): balance=9, weight(9)=3. _updateRewards(bob, 3, 0):
+        //   virtualAmount = _allocation(3, 5) = floor(16 × 3 / 5) = floor(9.6) = 9
+        //   (exact 9.6, floor loses 0.6 — this is the truncation op)
+        //   _paid[Bob] -= 9 → 10 - 9 = 1
+        //   _totalVirtualPaid -= 9 → 6 - 9 = -3
+        //
+        // ── W = 2 | historicalReward = 10 | _totalVirtualPaid = -3 | Pool = 10 + (-3) = 7
+        // ── _paid: [Alice=6, Bob=1]
         vm.prank(manager);
         staking.removeEligibleAccount(bob);
 
         assertEq(token.balanceOf(alice), 0, "Alice should have no tokens before claim");
 
-        // Alice (now sole eligible) claims. The inflated pool lets her mint 1 unbacked wei.
+        // Alice sole eligible (w=2, W=2):
+        //   earned = _allocation(2, 2) - _paid[Alice] = floor(7 × 2 / 2) - 6 = 7 - 6 = 1
+        //   Mints 1 token — but only 10 were authorized. This 1 is unbacked.
+        //
+        // ── _paid: [Alice=7, Bob=1]
         vm.prank(alice);
         staking.claimRewards(alice);
 
@@ -390,6 +480,15 @@ contract ProtocolStakingInvariantTest is Test {
         assertEq(totalMinted, 11, "Printer failed to extract exactly 1 wei over cap");
     }
 
+    /// @notice 18-decimal regression: many partial unstakes on one account keep extra mint vs authorized
+    ///         rewards bounded (same class as `invariant_TotalSupplyBoundedByRewardRate`).
+    /// @dev Notation: w = weight(balance) = sqrt(balance).
+    ///                Pool = historicalReward + _totalVirtualPaid.
+    ///
+    ///      Setup:  Alice (w≈1.73e9) and Bob (w≈3.16e10) eligible; balances ~3e18 and ~1000e18.
+    ///              Reward rate = 10_000e18 / s for 10s.
+    ///      Event:  Bob claims, then unstakes in 20 equal weight-steps to zero. Alice claims last.
+    ///      Assert: (totalSupply increase) − expectedTotalRewards == 1.
     function test_BatchUnstakePrintsGlobalDust_18Decimals() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -403,8 +502,8 @@ contract ProtocolStakingInvariantTest is Test {
             users[1] = bob;
 
             uint256[] memory amounts = new uint256[](2);
-            amounts[0] = 2999999998188649249; // ~sqrt(3e18)
-            amounts[1] = 999999999965065000000; // ~sqrt(1000e18)
+            amounts[0] = 2999999998188649249;
+            amounts[1] = 999999999965065000000;
 
             (token, staking) = _setupIsolatedStaking(users, amounts);
         }
@@ -414,6 +513,11 @@ contract ProtocolStakingInvariantTest is Test {
         staking.addEligibleAccount(bob);
         vm.stopPrank();
 
+        // Alice stakes ~3e18:   w_alice = sqrt(~3e18)    = 1732050807
+        // Bob   stakes ~1000e18: w_bob  = sqrt(~1000e18) = 31622776601
+        //
+        // ── W = 33354827408 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: [Alice=0, Bob=0]
         vm.prank(alice);
         staking.stake(2999999998188649249);
         vm.prank(bob);
@@ -422,16 +526,30 @@ contract ProtocolStakingInvariantTest is Test {
         uint256 initialTotalSupply = token.totalSupply();
         uint256 expectedTotalRewards = 10_000 * 1e18 * 10;
 
+        // historicalReward = 0 + (10_000e18 × 10s) = 1e23
+        //
+        // ── W = 33354827408 | historicalReward = 1e23 | _totalVirtualPaid = 0 | Pool = 1e23
+        // ── _paid: [Alice=0, Bob=0]
         vm.startPrank(manager);
         staking.setRewardRate(10_000 * 1e18);
         vm.warp(block.timestamp + 10);
         staking.setRewardRate(0);
         vm.stopPrank();
 
-        // Lock in positive debt before unstaking
+        // earned(Bob) = floor(1e23 × 31622776601 / 33354827408) = 94807196014497812448102
+        // _paid[Bob] += 94807196014497812448102
+        //
+        // ── W = 33354827408 | historicalReward = 1e23 | _totalVirtualPaid = 0 | Pool = 1e23
+        // ── _paid: [Alice=0, Bob=94807196014497812448102]
         vm.prank(bob);
         staking.claimRewards(bob);
 
+        // Bob unstakes in 20 equal weight-steps (weightStep = floor(31622776601 / 20) = 1581138830).
+        // Each step: virtualAmount = floor(Pool × Δw / W), _paid[Bob] −= va, _totalVirtualPaid −= va.
+        // The 20 floors telescope, stranding exactly 1 wei in _paid[Bob].
+        //
+        // ── W = 1732050807 | historicalReward = 1e23 | _totalVirtualPaid ≈ −9.48e22 | Pool ≈ 5.19e21
+        // ── _paid: [Alice=0, Bob=1]
         {
             uint256 currentWeight = staking.weight(staking.balanceOf(bob));
             uint256 weightStep = currentWeight / 20;
@@ -454,26 +572,30 @@ contract ProtocolStakingInvariantTest is Test {
             vm.stopPrank();
         }
 
+        // earned(Alice) = Pool ≈ 5.19e21 (sole eligible; w_alice / W = 1)
         vm.prank(alice);
         staking.claimRewards(alice);
 
         int256 globalDrift = int256(token.totalSupply() - initialTotalSupply) - int256(expectedTotalRewards);
 
-        // The sum of all unstakes telescopes to approximately floor(P₀ × W_bob / W₀),
-        // bounding total drift near 1 wei — the same as a single one-shot unstake.
-        assertGt(globalDrift, 0, "Protocol failed to over-mint unbacked dust");
-        assertLe(globalDrift, 2, "Over-minting exceeded throttling bound for single-account sequential unstakes");
+        // earned(Bob) + earned(Alice) = 94807196014497812448102 + 5192803985502187551899 = 1e23 + 1
+        assertEq(globalDrift, 1, "Bob's 20-step exit strands exactly 1 wei of phantom");
     }
 
     /// @notice Shows that ghost_truncationOps scales linearly with independent weight-decrease ops.
-    /// @dev Each relay calls removeEligibleAccount on a different account and pool state, so the
-    ///      throttling recurrence does not apply — each exit inflates _totalVirtualPaid by ~1 wei
-    ///      and the next sole claimer extracts it at full W/W = 1. Over relayCount − 1 iterations,
-    ///      total drift ≈ relayCount − 1 wei.
+    /// @dev Notation: w = weight(balance) = sqrt(balance).
+    ///                Pool = historicalReward + _totalVirtualPaid.
     ///
-    ///      This validates that one ghost_truncationOps increment per weight-decrease op is the
-    ///      tight upper bound for invariant_TotalSupplyBoundedByRewardRate.
-    ///      Assert: totalDrift ≈ relayCount − 1 (within ±1 wei).
+    ///      Setup:  20 sybil accounts; amounts[i] = ((i × 13) + 7) × 1e18, so weights vary across
+    ///              the range w[0]=2645751311 to w[19]=15937377450. Only users[0] is eligible at start.
+    ///              Reward rate = 1e18 / s for 10s.
+    ///      Event:  users[0] claims the full pool (sole eligible). Each of the 19 relay iterations
+    ///              adds the next sybil, removes the current one, and the new sole claimer claims.
+    ///              addEligibleAccount computes va_add = floor(Pool × w_next / w_curr); the subsequent
+    ///              removeEligibleAccount computes va_rem = floor(Pool_new × w_curr / W) which floors
+    ///              exactly 1 wei short of the current pool, leaving 1 wei extra in the pool that the
+    ///              next claimer extracts above their va_add baseline.
+    ///      Assert: totalDrift == relayCount − 1 == 19 (exactly 1 wei per relay iteration).
     function test_SybilRelayDustPrinter_18Decimals() public {
         uint256 wad = 1e18;
         uint256 relayCount = 20;
@@ -481,7 +603,7 @@ contract ProtocolStakingInvariantTest is Test {
         address[] memory users = new address[](relayCount);
         uint256[] memory amounts = new uint256[](relayCount);
 
-        // Setup Chaotic Sybil Weights
+        // amounts[i] = ((i × 13) + 7) × 1e18; w[0]=2645751311, w[1]=4472135954, ..., w[19]=15937377450
         for (uint256 i = 0; i < relayCount; i++) {
             users[i] = address(uint160(uint256(keccak256(abi.encode("sybil", i)))));
             amounts[i] = ((i * 13) + 7) * wad;
@@ -491,7 +613,10 @@ contract ProtocolStakingInvariantTest is Test {
         ProtocolStakingHarness staking;
         (token, staking) = _setupIsolatedStaking(users, amounts);
 
-        // Initial State
+        // All 20 sybils stake; only users[0] is eligible.
+        //
+        // ── W = 2645751311 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: all 0
         for (uint256 i = 0; i < relayCount; i++) {
             vm.prank(users[i]);
             staking.stake(amounts[i]);
@@ -502,7 +627,10 @@ contract ProtocolStakingInvariantTest is Test {
 
         uint256 initialTotalSupply = token.totalSupply();
 
-        // Generate 10 tokens of reward capacity
+        // historicalReward = 0 + (1e18 × 10s) = 10e18
+        //
+        // ── W = 2645751311 | historicalReward = 10e18 | _totalVirtualPaid = 0 | Pool = 10e18
+        // ── _paid: all 0
         uint256 rate = 1 * wad;
         uint256 duration = 10;
         uint256 expectedTotalRewards = rate * duration;
@@ -513,12 +641,24 @@ contract ProtocolStakingInvariantTest is Test {
         vm.prank(manager);
         staking.setRewardRate(0);
 
+        // earned(users[0]) = floor(10e18 × w[0] / w[0]) = 10e18 (sole eligible)
+        // _paid[0] += 10e18
+        //
+        // ── W = 2645751311 | historicalReward = 10e18 | _totalVirtualPaid = 0 | Pool = 10e18
+        // ── _paid: [users[0]=10e18, rest=0]
         vm.prank(users[0]);
         staking.claimRewards(users[0]);
 
-        // Relay loop: each iteration hands the eligible slot to the next sybil.
-        // removeEligibleAccount inflates _totalVirtualPaid by ~1 wei (independent pool state each time).
-        // The incoming sole claimer extracts that inflation at W/W = 1 — no truncation.
+        // Each relay passes the sole-eligible slot to the next sybil and claims.
+        //
+        // Example (relay 0, wi=2645751311, wn=4472135954):
+        //   addEligibleAccount(users[1]):  va_add = floor(10e18 × wn / wi) = 16903085091204930711
+        //                                  _paid[1] += va_add, _totalVirtualPaid += va_add
+        //   removeEligibleAccount(users[0]): va_rem = floor(Pool_new × wi / W) = 9999999999999999999
+        //                                   _paid[0] −= va_rem, _totalVirtualPaid −= va_rem
+        //   claimRewards(users[1]):        earned = Pool − _paid[1] = 1 (one stranded wei)
+        //
+        // The floor in va_rem is exactly 1 short of the current pool, so earned = 1 every iteration.
         for (uint256 i = 0; i < relayCount - 1; i++) {
             address currentSybil = users[i];
             address nextSybil = users[i + 1];
@@ -535,22 +675,27 @@ contract ProtocolStakingInvariantTest is Test {
         uint256 actualRewardsMinted = token.totalSupply() - initialTotalSupply;
         int256 totalDrift = int256(actualRewardsMinted) - int256(expectedTotalRewards);
 
-        // relayCount - 1 exits × ~1 wei each = ~relayCount - 1 total drift.
-        assertApproxEqAbs(
-            uint256(totalDrift),
-            relayCount - 1,
-            1,
-            "Each independent relay should produce ~1 wei of drift"
+        // totalMinted = 10e18 + 19 × 1 = 10e18 + 19; totalDrift = 19 = relayCount − 1.
+        assertEq(
+            totalDrift,
+            int256(relayCount - 1),
+            "Each independent relay strands exactly 1 wei of phantom"
         );
     }
 
-    /// @notice Shows that phantom wei compounds across multiple dilution events on a single account,
-    ///         justifying ghost_dilutionOps (D) as the correct bound rather than a per-account constant.
-    /// @dev After Bob claims (locking _paid = 26), each new staker reduces his allocation via
-    ///      truncated virtualAmount arithmetic. With 7 diluters, Bob accumulates 4 wei of phantom —
-    ///      exceeding the naive 1-per-account assumption and proving D must scale with event count.
+    /// @notice Shows that ghost_dilutionOps (D) must scale with event count, not account count:
+    ///         repeated dilution events on a single account compound phantom wei beyond 1.
+    /// @dev Notation: w = weight(balance) = sqrt(balance).
+    ///                W = _totalEligibleStakedWeight = Σ w for all eligible accounts.
+    ///                Pool = historicalReward + _totalVirtualPaid.
+    ///                D = ghost_dilutionOps, the count of weight-increase events by eligible accounts.
     ///
-    ///      Trace (pool / W / Bob alloc / phantom):
+    ///      Setup:  Alice (w=1), Bob (w=9) eligible. 7 diluters (w=1 each) staged ineligible with no balance.
+    ///              historicalReward = 29. Bob claims, locking _paid[Bob] = 26.
+    ///      Event:  Each diluter is added as eligible then stakes 1 (a weight-increase op on a fresh account).
+    ///              Each stake adds floor(Pool / W) to _totalVirtualPaid, shifting Bob's allocation floor down.
+    ///
+    ///      Trace (Pool / W / floor(Pool × 9 / W) / phantom = 26 − alloc):
     ///        Claim:    29 / 10 / 26 / 0
     ///        After D1: 31 / 11 / 25 / 1
     ///        After D2: 33 / 12 / 24 / 2
@@ -559,7 +704,8 @@ contract ProtocolStakingInvariantTest is Test {
     ///        After D5: 39 / 15 / 23 / 3
     ///        After D6: 41 / 16 / 23 / 3
     ///        After D7: 43 / 17 / 22 / 4
-    ///      Assert: bobPhantom == 4, lhs − rhs == −1 (truncation dust of 5 partially cancels phantom of 4).
+    ///      Assert: bobPhantom == 4; Σ(_paid + earned) − (_totalVirtualPaid + historicalReward) == −1
+    ///              (truncation dust of 5 across Alice and diluters partially cancels phantom of 4).
     function test_CompoundPhantomWei() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
@@ -592,26 +738,48 @@ contract ProtocolStakingInvariantTest is Test {
         staking.addEligibleAccount(bob);
         vm.stopPrank();
 
+        // Alice stakes 1:  weight(1)  = sqrt(1)  = 1
+        // Bob   stakes 81: weight(81) = sqrt(81) = 9
+        //
+        // ── W = 10 | historicalReward = 0 | _totalVirtualPaid = 0 | Pool = 0
+        // ── _paid: [Alice=0, Bob=0]
         vm.prank(alice);
         staking.stake(1);
         vm.prank(bob);
         staking.stake(81);
 
-        // Pool = 29, W = 10. Bob's allocation = floor(29 * 9 / 10) = 26.
+        // historicalReward = 0 + (29 × 1s) = 29
+        //
+        // ── W = 10 | historicalReward = 29 | _totalVirtualPaid = 0 | Pool = 29 + 0 = 29
+        // ── _paid: [Alice=0, Bob=0]
         vm.prank(manager);
         staking.setRewardRate(29);
         vm.warp(block.timestamp + 1);
         vm.prank(manager);
         staking.setRewardRate(0);
 
-        // Bob claims: locks _paid[Bob] = 26. earned(Bob) = 0.
+        // earned(Bob) = _allocation(9, 10) = floor(29 × 9 / 10) = floor(26.1) = 26
+        // _paid[Bob] += 26
+        //
+        // ── W = 10 | historicalReward = 29 | _totalVirtualPaid = 0 | Pool = 29
+        // ── _paid: [Alice=0, Bob=26]
         vm.prank(bob);
         staking.claimRewards(bob);
         assertEq(staking._harness_getPaid(bob), 26, "Bob _paid after claim");
         assertEq(staking.earned(bob), 0, "Bob earned 0 after claim");
 
-        // Each diluter's addEligibleAccount + stake adjusts the pool via truncated virtualAmount,
-        // compounding Bob's phantom one step at a time (see trace in function natspec).
+        // Each diluter: addEligibleAccount (0 balance → no weight change), then stake(1) → weight = 1.
+        // On stake: virtualAmount = floor(Pool × 1 / W), added to _paid[diluter] and _totalVirtualPaid.
+        //
+        // ── Step │ virtualAmt = floor(Pool/W) │  Pool  │  W │ Bob alloc = floor(Pool×9/W) │ phantom
+        // ── ─────┼────────────────────────────┼────────┼────┼────────────────────────────┼────────
+        // ── D1   │ floor(29 / 10) = 2         │ 29+2=31│ 11 │ floor(31×9/11) = 25         │ 26-25=1
+        // ── D2   │ floor(31 / 11) = 2         │ 31+2=33│ 12 │ floor(33×9/12) = 24         │ 26-24=2
+        // ── D3   │ floor(33 / 12) = 2         │ 33+2=35│ 13 │ floor(35×9/13) = 24         │ 26-24=2
+        // ── D4   │ floor(35 / 13) = 2         │ 35+2=37│ 14 │ floor(37×9/14) = 23         │ 26-23=3
+        // ── D5   │ floor(37 / 14) = 2         │ 37+2=39│ 15 │ floor(39×9/15) = 23         │ 26-23=3
+        // ── D6   │ floor(39 / 15) = 2         │ 39+2=41│ 16 │ floor(41×9/16) = 23         │ 26-23=3
+        // ── D7   │ floor(41 / 16) = 2         │ 41+2=43│ 17 │ floor(43×9/17) = 22         │ 26-22=4
         for (uint256 i = 0; i < numDiluters; i++) {
             vm.prank(manager);
             staking.addEligibleAccount(users[2 + i]);
@@ -619,10 +787,13 @@ contract ProtocolStakingInvariantTest is Test {
             staking.stake(1);
         }
 
-        // Bob remains in the phantom zone after all 7 dilutions (allocation < _paid → earned = 0).
+        // ── W = 17 | historicalReward = 29 | _totalVirtualPaid = 14 | Pool = 29 + 14 = 43
+        // ── _paid: [Alice=0, Bob=26, D1..D7=2 each]
+        //
+        // Bob alloc = floor(43 × 9 / 17) = floor(22.76) = 22 < _paid(26) → earned(Bob) = 0
         assertEq(staking.earned(bob), 0, "Bob still in phantom zone after dilution");
 
-        // phantom = _paid − current allocation
+        // phantom = _paid[Bob] − allocation = 26 − 22 = 4
         uint256 bobPhantom;
         {
             uint256 pool = SafeCast.toUint256(
@@ -638,12 +809,21 @@ contract ProtocolStakingInvariantTest is Test {
 
         assertEq(bobPhantom, 4, "Compound phantom: 4 wei on single account");
 
-        // On exit, _updateRewards credits the floored allocation; residual _paid == phantom.
+        // Bob unstakes 81: _updateRewards(bob, 9, 0):
+        //   virtualAmount = _allocation(9, 17) = floor(43 × 9 / 17) = floor(22.76) = 22
+        //   _paid[Bob] -= 22 → 26 - 22 = 4 = bobPhantom (stranded)
+        //   _totalVirtualPaid -= 22 → 14 - 22 = -8
+        //
+        // ── W = 8 | historicalReward = 29 | _totalVirtualPaid = -8 | Pool = 29 + (-8) = 21
+        // ── _paid: [Alice=0, Bob=4, D1..D7=2 each]
         vm.prank(bob);
         staking.unstake(81);
         assertEq(uint256(staking._harness_getPaid(bob)), bobPhantom, "Residual _paid equals phantom");
 
-        // Invariant still holds: truncation dust (5 wei down) partially cancels phantom (4 wei up).
+        // lhs = Σ(_paid[i] + earned[i]),  rhs = _totalVirtualPaid + historicalReward
+        // Phantom (4 wei) pulls lhs UP via Bob's stranded _paid.
+        // Truncation dust pulls lhs DOWN via floor division in each account's earned().
+        // Net: lhs − rhs = −1  (truncation of 5 dominates phantom of 4)
         {
             int256 rhs = staking._harness_getTotalVirtualPaid() +
                 SafeCast.toInt256(staking._harness_getHistoricalReward());
@@ -651,7 +831,6 @@ contract ProtocolStakingInvariantTest is Test {
             for (uint256 i = 0; i < totalUsers; i++) {
                 lhs += staking._harness_getPaid(users[i]) + SafeCast.toInt256(staking.earned(users[i]));
             }
-            // Net = −1: truncation dust (5↓) dominates phantom (4↑). Both forces within N+D tolerance.
             assertEq(lhs - rhs, -1, "Net divergence: truncation (5) vs phantom (4)");
         }
     }
