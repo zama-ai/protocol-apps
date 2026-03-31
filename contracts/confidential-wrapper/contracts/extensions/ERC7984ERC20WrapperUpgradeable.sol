@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/8089a269c541268dc8dc1e1e8e567f81980301a8/contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol
-// (0.3.1 version)
+// Ported from Ported from  https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/7ac7cee5fec408dc81b31121f90417dfd87f3d13/contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol (0.4.0 version)
+
 pragma solidity ^0.8.27;
 
 import {FHE, externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
