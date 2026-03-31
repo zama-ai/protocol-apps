@@ -229,9 +229,9 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking.
 
 ### Files
 
-- Handler: [`handlers/OperatorStakingHandler.sol`](/contracts/staking/test/foundry/handlers/OperatorStakingHandler.sol)
-- Test: [`OperatorStakingInvariantTest.t.sol`](/contracts/staking/test/foundry/OperatorStakingInvariantTest.t.sol)
-- Harness: [`harness/OperatorStakingHarness.sol`](/contracts/staking/test/foundry/harness/OperatorStakingHarness.sol)
+- Handler: [`handlers/OperatorStakingHandler.sol`](handlers/OperatorStakingHandler.sol)
+- Test: [`OperatorStaking.invariants.t.sol`](OperatorStaking.invariants.t.sol)
+- Harness: [`harness/OperatorStakingHarness.sol`](harness/OperatorStakingHarness.sol)
 
 ### Covered actions
 
@@ -373,7 +373,7 @@ Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.
 
 ### 1. Global Invariants
 
-Checked via `invariant_*` functions in [`OperatorStakingInvariantTest.t.sol`](OperatorStakingInvariantTest.t.sol) after every handler call.
+Checked via `invariant_*` functions in [`OperatorStaking.invariants.t.sol`](OperatorStaking.invariants.t.sol) after every handler call.
 
 #### Redeem at exact cooldown
 
