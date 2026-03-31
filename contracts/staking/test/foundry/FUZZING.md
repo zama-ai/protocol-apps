@@ -18,9 +18,9 @@ npm install
 forge install foundry-rs/forge-std --no-git
 ```
 
-## Test Structure
+## Protocol Staking
 
-Tests use a **handler pattern**: a handler contract wraps ProtocolStaking, bounds fuzzed inputs, and tracks ghost state. Invariants run after each handler call in a fuzz sequence.
+Uses a **handler pattern**: a handler contract wraps ProtocolStaking, bounds fuzzed inputs, and tracks ghost state. Invariants run after each handler call in a fuzz sequence.
 
 We separate our invariant rules into three distinct categories to handle EVM state constraints:
 
@@ -47,13 +47,13 @@ We separate our invariant rules into three distinct categories to handle EVM sta
 - Uses `targetContract` and `targetSender` to direct the fuzzer's actions
 - Invariants are checked after every handler call in the fuzz sequence
 
-### Tolerance bound proofs (unit tests)
+### Tolerance bound justification
 
 [`ProtocolStaking.tests.t.sol`](ProtocolStaking.tests.t.sol) (`ProtocolStakingTests`)
 
 - Isolated scenarios (`test_*`) that justify ghost terms and tolerances used by the handler and invariants
 
-## Invariants
+## Protocol Staking Invariants
 
 ### 1. Global Invariants
 
@@ -222,167 +222,7 @@ post_A(protocolStaking.weight(balance)) == post_B(protocolStaking.weight(balance
 post_A(protocolStaking.earned(account)) == post_B(protocolStaking.earned(account)) (within tolerance)
 ```
 
-## Running Tests
-
-### 0. Install dependencies
-
-From the repository root:
-
-```bash
-cd contracts/staking
-npm install
-forge install foundry-rs/forge-std --no-git
-```
-
-### 1. Run all invariant tests
-
-From `contracts/staking`:
-
-```bash
-npm test:fuzz
-```
-
-Or directly with forge:
-
-```bash
-forge test
-```
-
-### 2. Run with verbose output
-
-```bash
-npm test:fuzz:verbose
-```
-
-Or:
-
-```bash
-forge test -vvv
-```
-
-### 3. Run a single invariant
-
-```bash
-forge test --match-contract ProtocolStakingInvariantsTest --match-test invariant_TotalSupplyBoundedByRewardRate
-```
-
-Replace `invariant_TotalSupplyBoundedByRewardRate` with any invariant name (e.g. `invariant_RewardConservation`).
-
-### Configuration
-
-[`foundry.toml`](../../foundry.toml)
-
-## Coverage
-
-### 1. Generate coverage (Foundry)
-
-From `contracts/staking`:
-
-```bash
-forge coverage
-```
-
-### 2. Generate LCOV report
-
-```bash
-forge coverage --report lcov
-```
-
-This writes `lcov.info` in the current directory.
-
-### 3. Generate HTML coverage report
-
-Install `genhtml` (from `lcov` package):
-
-- **macOS:** `brew install lcov`
-- **Ubuntu/Debian:** `apt install lcov`
-
-Then:
-
-```bash
-forge coverage --report lcov
-genhtml lcov.info -o coverage
-```
-
-### 4. View coverage report
-
-Open the HTML report:
-
-```bash
-open coverage/index.html
-```
-
-The report is in `contracts/staking/coverage/index.html` when run from `contracts/staking`.
 ---
-
-## Test Structure
-
-Tests use a **handler pattern**: a handler contract wraps the target contract, bounds fuzz inputs, and maintains ghost state. After each handler call in a fuzz sequence, Foundry evaluates all `invariant_*` functions.
-
-Invariant checks fall into three categories:
-
-| Category | Where | Purpose |
-|---|---|---|
-| **Global invariants** | `invariant_*` in test contract | System-wide accounting rules checked after every step |
-| **Transition invariants** | `assertTransitionInvariants` modifier in handler | State A → State B checks (monotonicity, exact deltas) |
-| **Equivalence scenarios** | Handler functions using `vm.snapshotState()` | Two paths to same state must produce identical results |
-
-> Transition invariants live in the handler because Foundry reverts EVM state after `invariant_*` calls, which would destroy any pre/post comparison.
-
----
-
-## ProtocolStaking
-
-### Files
-
-- Handler: [`handlers/ProtocolStakingHandler.sol`](/contracts/staking/test/foundry/handlers/ProtocolStakingHandler.sol)
-- Test: [`ProtocolStakingInvariantTest.t.sol`](/contracts/staking/test/foundry/ProtocolStakingInvariantTest.t.sol)
-
-### Covered actions
-
-`stake`, `unstake`, `claimRewards`, `release`, `warp`, `setRewardRate`, `addEligibleAccount`, `removeEligibleAccount`, `setUnstakeCooldownPeriod`, `unstakeThenWarp`
-
-### Global invariants
-
-- **Total supply bounded by reward rate**
-  ```
-  totalSupply ≤ initialTotalSupply + Σ(δT_i × rewardRate_i)
-  ```
-
-- **Total staked weight**
-  ```
-  totalStakedWeight() == Σ weight(balanceOf(account))
-  ```
-
-- **Reward debt conservation**
-  ```
-  Σ _paid[account] + Σ earned(account) == _totalVirtualPaid + historicalRewards()
-  ```
-
-- **Pending withdrawals solvency**
-  ```
-  balanceOf(protocolStaking) ≥ Σ awaitingRelease(account)
-  ```
-
-- **Staked funds solvency**
-  ```
-  totalStaked == balanceOf(account) + awaitingRelease(account) + released
-  ```
-
-### Transition invariants
-
-- `claimed + earned` is non-decreasing per account across any action (with 1-wei tolerance for division rounding)
-- `awaitingRelease(account)` is non-decreasing until `release()` is explicitly called
-- `_unstakeRequests` checkpoints have non-decreasing timestamps and cumulative amounts
-- `earned(account) == 0` immediately after `claimRewards(account)`
-
-### Equivalence scenarios
-
-- **Stake equivalence**: `stake(a + b)` gives the same shares, weight, and earned as `stake(a)` then `stake(b)`
-- **Unstake equivalence**: partial unstake to target gives the same shares, weight, and earned as full unstake then restake to target
-
----
-
 ## OperatorStaking
 
 OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking.
@@ -528,6 +368,8 @@ When `redeem()` encounters a shortfall within `ghost_globalRedemptionBudget`, `_
 ### Rewarder-side expected revert logic
 
 Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within `ghost_rewarderDepositCount`, `_assertClaimRewardsRevertsForDust` explicitly asserts the expected `ERC20InsufficientBalance` revert.
+
+## Operator Staking Invariants
 
 ### 1. Global Invariants
 
@@ -698,8 +540,22 @@ Once a truncation shortfall exists in the vault, direct token donations cannot a
 
 ## Running Tests
 
+### Install dependencies
+
+From the repository root:
+
+```bash
+cd contracts/staking
+npm install
+forge install foundry-rs/forge-std --no-git
+```
+
+### Run the tests
+
 ```bash
 # All tests
+npm test:fuzz
+# or
 forge test
 
 # OperatorStaking invariants only
@@ -740,7 +596,10 @@ forge coverage
 # LCOV report
 forge coverage --report lcov
 
-# HTML report (requires lcov: brew install lcov / apt install lcov)
-forge coverage --report lcov && genhtml lcov.info -o coverage
+# HTML report — install the lcov package if necessary
+# macOS: brew install lcov 
+# Ubuntu/Debian: apt install lcov
+forge coverage --report lcov
+genhtml lcov.info -o coverage
 open coverage/index.html
 ```
