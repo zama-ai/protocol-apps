@@ -136,11 +136,11 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
     ) public virtual {
-        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        address to = $._unwrapRequests[unwrapRequestId];
+        address to = unwrapRequester(unwrapRequestId);
         require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
 
         euint64 unwrapAmount_ = unwrapAmount(unwrapRequestId);
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         delete $._unwrapRequests[unwrapRequestId];
 
         bytes32[] memory handles = new bytes32[](1);
@@ -244,8 +244,9 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         euint64 unwrapAmount_ = _burn(from, amount);
         FHE.makePubliclyDecryptable(unwrapAmount_);
 
+        assert(unwrapRequester(euint64.unwrap(unwrapAmount_)) == address(0));
+
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        assert($._unwrapRequests[euint64.unwrap(unwrapAmount_)] == address(0));
 
         // WARNING: Directly using the cipher-text as the unwrap request id assumes that
         // cipher-texts are unique--this holds here but is not always true. Be cautious when assuming
