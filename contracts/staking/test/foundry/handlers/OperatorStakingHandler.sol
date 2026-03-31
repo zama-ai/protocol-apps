@@ -28,18 +28,16 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         fractions. The fractional share that gets truncated (always less than 1 whole
 ///         share) is not minted to the depositor, but the corresponding assets still
 ///         enter the vault. Even though this leftover is less than 1 share, it maps to a
-///         real, nonzero amount of assets: up to (totalAssets / totalShares) - 1 wei.
+///         nonzero amount of assets, but strictly less than (totalAssets / totalShares).
 ///         Those unowned assets raise the exchange rate, which inflates previewRedeem for
-///         every outstanding share — including shares sitting in the redemption queue.
-///         The per-deposit obligation increase is strictly less than
-///         (totalAssets / totalShares), so ceil(totalAssets / totalShares) is a sound
-///         upper bound per deposit while redemptions are queued.
-
+///         every outstanding share, including shares in the redemption queue.
+///         The integer upper bound per deposit is ceil(totalAssets / totalShares).
+///
 ///         Budget:
 ///         --------------------------------
 ///         ghost_globalRedemptionBudget: running sum of ceil(totalAssets / totalShares)
-///         for each deposit made while redemptions are queued. Reset to 0 after stakeExcess,
-///         which proves the buffer is exact — all prior leakage is absorbed into ProtocolStaking.
+///         for each deposit made while redemptions are queued. Reset to 0 after stakeExcess when
+///         the buffer is exact and all prior truncation leaks have been absorbed into ProtocolStaking.
 ///         (See: test_GlobalRedemptionBudget_DonationTruncation)
 ///         --------------------------------
 ///         ghost_actorDepositBudget: Per-actor budget, running sum of ceil(totalAssets / totalShares)
@@ -318,16 +316,9 @@ contract OperatorStakingHandler is Test {
     }
 
     /// @dev If `claimRewards` would pay more than the rewarder can cover and
-    ///      `shortfall <= ghost_rewarderDepositCount`, asserts the call reverts with ERC20InsufficientBalance.
-    ///
-    ///      Root cause: when an actor makes multiple sequential deposits, each transferHook
-    ///      call independently rounds down its reward allocation and adds it to
-    ///      _rewardsPaid[actor]. Later, earned() computes a single combined allocation and
-    ///      rounds down once. Rounding down several small values individually can discard
-    ///      more total precision than rounding the combined value once, so earned() can
-    ///      report 1 phantom wei more than the sum credited via _rewardsPaid.
-    ///
-    ///      Returns true when that revert was asserted.
+    ///      `shortfall <= ghost_rewarderDepositCount`, asserts the call reverts with
+    ///      ERC20InsufficientBalance. Returns true when that revert was asserted.
+    ///      See contract-level NatSpec (Rewarder-side) for root cause.
     function _assertClaimRevertsWithinBudget(address actor, uint256 earnedAmount) internal returns (bool) {
         uint256 rewarderBalance = assetToken.balanceOf(address(rewarder));
         uint256 pendingFromProtocol = protocolStaking.earned(address(operatorStaking));
@@ -520,9 +511,8 @@ contract OperatorStakingHandler is Test {
         operatorStaking.stakeExcess();
         ghost_stakeExcessCalled = true;
 
-        // After stakeExcess the liquid buffer equals exactly previewRedeem(totalSharesInRedemption),
-        // meaning every wei of previously accumulated truncation leak has been absorbed into the
-        // ProtocolStaking stake. Future deposits start from a fresh base, so the
+        // After stakeExcess, the liquid buffer equals exactly previewRedeem(totalSharesInRedemption).
+        // All prior truncation leaks have been absorbed into ProtocolStaking, so the
         // running tolerance for in-flight redemptions resets to zero.
         ghost_globalRedemptionBudget = 0;
     }
@@ -545,10 +535,8 @@ contract OperatorStakingHandler is Test {
         rewarder.setFee(newFee);
     }
 
-    /// @dev Donations inflate totalAssets without minting shares, raising the exchange rate.
-    ///      When redemptions are in-flight, any subsequent deposit at the elevated rate incurs
-    ///      floor-rounding truncation, leaking up to ceil(totalAssets / totalShares) wei per
-    ///      deposit into the pool.
+    /// @dev Donations inflate totalAssets without minting shares, raising the exchange rate
+    ///      and amplifying per-deposit truncation leaks (see contract-level NatSpec).
     function donate(uint256 amount) external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 balance = assetToken.balanceOf(actor);
