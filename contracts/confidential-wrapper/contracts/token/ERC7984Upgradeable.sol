@@ -287,7 +287,7 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         return _update(from, address(0), amount);
     }
 
-    function _transfer(address from, address to, euint64 amount) internal virtual returns (euint64 transferred) {
+    function _transfer(address from, address to, euint64 amount) internal returns (euint64 transferred) {
         require(from != address(0), ERC7984InvalidSender(address(0)));
         require(to != address(0), ERC7984InvalidReceiver(address(0)));
         return _update(from, to, amount);
