@@ -185,6 +185,12 @@ Uses a dedicated hardhat config (`hardhat.config.fork.ts`) that omits `@fhevm/ha
 
 The deployed wrapper proxy contract addresses can be found in the [address directory](https://github.com/zama-ai/protocol-apps/tree/main/docs/addresses).
 
+**Optional environment variables:**
+
+| Variable | Description |
+| --- | --- |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER` | If set, the Hardhat fork pins to this block. If unset, Hardhat forks at the latest block returned by the RPC with a "safe block number" head offset of 32 blocks for Ethereum mainnet and 128 for unknown networks (testnet, L2s, etc.). |
+
 **Example:**
 
 ```bash
