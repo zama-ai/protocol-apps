@@ -130,7 +130,7 @@ contract OperatorStakingInvariantTest is Test {
     // -------------------------------------------------------------------
 
     /// @notice Every pending redemption can be claimed at its exact cooldown timestamp.
-    ///         Each iteration is isolated via snapshot/revertTo, so each gets the full
+    ///         Each iteration is isolated via snapshotState/revertToState, so each gets the full
     ///         unspent tolerance budget independently.
     ///
     ///         When a truncation-leak shortfall exists within the tolerance budget, the
@@ -145,7 +145,7 @@ contract OperatorStakingInvariantTest is Test {
             (address controller, uint48 releaseTime) = handler.getPendingRedeem(i);
             if (releaseTime <= originalTimestamp) continue;
 
-            uint256 snapshotId = vm.snapshot();
+            uint256 snapshotId = vm.snapshotState();
             vm.warp(releaseTime);
 
             uint256 claimableShares = operatorStaking.maxRedeem(controller);
@@ -171,7 +171,7 @@ contract OperatorStakingInvariantTest is Test {
                 assertEq(actualTransfer, assetsReturned, "Invariant: exact-cooldown redeem transfer mismatch");
             }
 
-            vm.revertTo(snapshotId);
+            vm.revertToState(snapshotId);
             vm.warp(originalTimestamp);
         }
     }
