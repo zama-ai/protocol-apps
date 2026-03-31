@@ -6,9 +6,9 @@
  *
  * Uses hardhat.config.fork.ts (no @fhevm/hardhat-plugin) to avoid genesis
  * storage overrides that conflict with hardhat's forking mode.
- * 
+ *
  * Performs best when using an archive node for the forked network.
- * 
+ *
  * NOTE: THIS SCRIPT IS ONLY FOR TESTING PURPOSES. DO NOT USE IT IN A PRODUCTION ENVIRONMENT.
  *
  * Usage:
@@ -149,9 +149,12 @@ async function assertReverts(fn: () => Promise<unknown>, message: string) {
     if (err instanceof Error && err.message.startsWith('ASSERTION FAILED')) throw err;
     // Verify this is actually a contract revert, not a network/infra error
     const errMsg = err instanceof Error ? err.message : String(err);
-    const isRevert = errMsg.includes('reverted') || errMsg.includes('CALL_EXCEPTION') || errMsg.includes('execution reverted');
+    const isRevert =
+      errMsg.includes('reverted') || errMsg.includes('CALL_EXCEPTION') || errMsg.includes('execution reverted');
     if (!isRevert) {
-      throw new Error(`ASSERTION FAILED: expected a revert but got unexpected error — ${message}\n  Original error: ${errMsg}`);
+      throw new Error(
+        `ASSERTION FAILED: expected a revert but got unexpected error — ${message}\n  Original error: ${errMsg}`,
+      );
     }
   }
 }
@@ -367,7 +370,11 @@ async function main() {
   assert(inferredResult !== undefined, 'inferredTotalSupply should be callable');
   console.log('  inferredTotalSupply() → uint256: OK');
 
-  const oldTotalSupplyContract = new Contract(address, ['function totalSupply() view returns (uint256)'], ethers.provider);
+  const oldTotalSupplyContract = new Contract(
+    address,
+    ['function totalSupply() view returns (uint256)'],
+    ethers.provider,
+  );
   await assertReverts(
     () => oldTotalSupplyContract.totalSupply(),
     'old totalSupply() selector should revert after upgrade',

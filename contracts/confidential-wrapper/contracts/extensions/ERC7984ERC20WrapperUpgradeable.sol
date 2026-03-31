@@ -200,7 +200,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return IERC20(underlying()).balanceOf(address(this)) / rate();
     }
 
-     /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
+    /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
     function maxTotalSupply() public view virtual returns (uint256) {
         return type(uint64).max;
     }
