@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/9b47bca0ff16655afa8fa972cd236291de23315a/contracts/interfaces/IERC7984ERC20Wrapper.sol
 
 pragma solidity ^0.8.24;
 
@@ -31,7 +32,7 @@ interface IERC7984ERC20Wrapper is IERC7984 {
      *
      * NOTE: The returned unwrap request id must never be zero.
      *
-     * @return unwrapRequestId The unwrap request ID.
+     * Returns the unwrap request id.
      */
     function unwrap(
         address from,
