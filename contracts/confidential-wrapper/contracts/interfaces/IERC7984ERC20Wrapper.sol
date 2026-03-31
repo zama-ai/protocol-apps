@@ -30,9 +30,9 @@ interface IERC7984ERC20Wrapper is IERC7984 {
      * @dev Unwraps tokens from `from` and sends the underlying tokens to `to`. The caller must be `from`
      * or be an approved operator for `from`.
      *
-     * NOTE: The returned unwrap request id must never be zero.
-     *
      * Returns the unwrap request id.
+     *
+     * NOTE: The returned unwrap request id must never be zero.
      */
     function unwrap(
         address from,

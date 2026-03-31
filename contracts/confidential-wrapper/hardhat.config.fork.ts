@@ -29,9 +29,7 @@ let forkBlockNumber: number | undefined;
 if (FORK_BLOCK_NUMBER != null && FORK_BLOCK_NUMBER.trim() !== '') {
   const parsed = Number.parseInt(FORK_BLOCK_NUMBER.trim(), 10);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(
-      'CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER must be a non-negative integer when set',
-    );
+    throw new Error('CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER must be a non-negative integer when set');
   }
   forkBlockNumber = parsed;
 }

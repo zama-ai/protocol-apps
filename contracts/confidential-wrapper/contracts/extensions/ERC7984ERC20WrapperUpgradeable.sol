@@ -227,6 +227,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         }
     }
 
+    /// @inheritdoc ERC7984Upgradeable
     function _update(address from, address to, euint64 amount) internal virtual override returns (euint64) {
         if (from == address(0)) {
             _checkConfidentialTotalSupply();
