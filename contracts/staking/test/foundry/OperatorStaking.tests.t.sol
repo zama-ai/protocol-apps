@@ -150,7 +150,7 @@ contract OperatorStakingTests is Test {
     ///
     ///      previewRedeem(x)  = ⌊x · (A+1) / (S + R + offset)⌋
     ///      previewDeposit(x) = ⌊x · (S + R + offset) / (A+1)⌋
-    function test_IlliquidityBug_TruncationLeak() public {
+    function test_GlobalRedemptionBudget_DonationTruncation() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
         address charlie = makeAddr("charlie");
@@ -193,7 +193,6 @@ contract OperatorStakingTests is Test {
         // ── S=0 R=100 | pShares=0 awaiting=1 liquid=10_000e18 | A=10_000e18+1
         // ── previewRedeem(100) = ⌊100·(10_000e18+2)/200⌋ = 5000e18+1
 
-        // stakeExcess: release() is no-op (cooldown not elapsed).
         // amountToRestake = 10_000e18 − (5000e18+1) = 5000e18−1 → protocol.stake(5000e18−1)
         _opStaking.stakeExcess();
 
@@ -205,7 +204,7 @@ contract OperatorStakingTests is Test {
 
         // Charlie deposits 10,005 tokens at the inflated rate.
         // shares = ⌊10_005e18 · 200 / (10_000e18+2)⌋ = 200  (exact 200.099… truncated)
-        // Truncation leaks ≈5e18 of value into pool; Alice's R=100 out of 400 effective
+        // Truncation leaks ≈5e18 of asset value into pool; Alice's R=100 out of 400 effective
         // shares (200 supply + 100 redemption + 100 virtual) captures 25% → +1.25e18 obligation.
         // Charlie's 10_005e18 are immediately staked; vault gains no liquidity.
         vm.prank(charlie);
@@ -238,7 +237,7 @@ contract OperatorStakingTests is Test {
         _opStaking.redeem(100, alice, alice);
     }
 
-    /// @notice Proves the floor-division remainder in _convertToShares leaks asset value
+    /// @notice Shows the floor-division remainder in _convertToShares leaks asset value
     ///   into the shared pool, and that a deposit can be completely voided (0 shares) when
     ///   the exchange rate is large enough.
     ///
@@ -265,7 +264,7 @@ contract OperatorStakingTests is Test {
     ///      shares(d)   = ⌊d · (S + R + offset) / (A + 1)⌋
     ///      leaked(d)   = d − previewRedeem(shares(d))
     ///      ceilRate    = ⌈(A + 1) / (S + R + offset)⌉
-    function test_TruncationRemainder_AssetLeakAndVoidedDeposit() public {
+    function test_StakingSideDepositBudget_RemainderLeak() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
         address charlie = makeAddr("charlie");
@@ -367,12 +366,12 @@ contract OperatorStakingTests is Test {
     ///      Pool        = historicalRewards + _totalVirtualPaid  (OperatorRewarder pool)
     ///      paid[x]     = rewarder._paid[x]        (virtual offset per account)
     ///      earned(x)   = ⌊Pool · shares(x) / S⌋ − paid[x]
-    ///      protoEarned = proto.earned(opStaking)  (ZAMA pending collection from protocol)
+    ///      protoEarned = protocolStaking.earned(opStaking)  (pending rewards from protocol)
     ///      rewarderBal = token.balanceOf(rewarder)
     ///
     ///   On each share mint, transferHook credits V = ⌊Pool · newShares / S_before⌋ to
     ///   paid[account] and raises _totalVirtualPaid by V, lifting Pool for all future earners.
-    function test_PhantomRewardBug_RewarderInsolvency() public {
+    function test_RewarderSideDepositBudget_PhantomInsolvency() public {
         address alice = makeAddr("alice");
         address bob = makeAddr("bob");
 

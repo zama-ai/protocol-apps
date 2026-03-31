@@ -21,7 +21,7 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///      budget are asserted to produce the expected ERC20InsufficientBalance revert
 ///      rather than failing the test.
 ///
-///      Staking-side (test_IlliquidityBug_TruncationLeak):
+///      Staking-side:
 ///         Shares and assets are related by an exchange rate: each share is worth
 ///         (totalAssets / totalShares) in assets. When a deposit converts assets into
 ///         shares, the result is rounded down to a whole number because Solidity has no
@@ -39,12 +39,14 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         --------------------------------
 ///         ghost_globalRedemptionBudget: running sum of ceil(totalAssets / totalShares)
 ///         for each deposit made while redemptions are queued.
+///         (See: test_GlobalRedemptionBudget_DonationTruncation)
 ///         --------------------------------
 ///         ghost_actorDepositBudget: Per-actor budget, running sum of ceil(totalAssets / totalShares)
 ///         for all deposits by that actor.
+///         (See: test_StakingSideDepositBudget_RemainderLeak)
 ///         --------------------------------
 ///
-///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency):
+///      Rewarder-side:
 ///         Sequential deposits each floor-divide independently in transferHook._allocation. Rounding down
 ///         multiple times individually can lose more total precision than rounding once on
 ///         the combined value, so earned() can return 1 phantom wei that the rewarder
@@ -53,6 +55,7 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         Budget:
 ///         --------------------------------
 ///         ghost_rewarderDepositCount: number of deposits while totalSupply > 0.
+///         (See: test_RewarderSideDepositBudget_PhantomInsolvency)
 ///         --------------------------------
 contract OperatorStakingHandler is Test {
     // -------------------------------------------------------------------

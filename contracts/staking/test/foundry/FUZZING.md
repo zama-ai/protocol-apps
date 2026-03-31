@@ -297,7 +297,7 @@ ceil(a / b) = floor((a + b - 1) / b)
 
 The handler captures this value **before each deposit** (when the pre-deposit exchange rate is known) and accumulates it into **`ghost_globalRedemptionBudget`** and **`ghost_actorDepositBudget`** according to the trigger rules in **Ghost state counters** below.
 
-See: `test_IlliquidityBug_TruncationLeak` for a detailed example.
+See: `test_StakingSideDepositBudget_RemainderLeak` and `test_GlobalRedemptionBudget_DonationTruncation` in [OperatorStaking.tests.t.sol](OperatorStaking.tests.t.sol).
 
 ### Rewarder-side: phantom reward from repeated rounding
 
@@ -346,7 +346,7 @@ Rounding down several small values individually can discard more total precision
 
 Deposit 1 rounded 0.857 down to 0, and that discarded fraction is never re-credited. When `earned()` later computes the combined allocation, the actor appears to be owed 1 wei more than ProtocolStaking ever emitted. The handler accounts for this shortfall with `ghost_rewarderDepositCount` (see **Ghost state counters**).
 
-See: `test_PhantomRewardBug_RewarderInsolvency` for a detailed example.
+See: `test_RewarderSideDepositBudget_PhantomInsolvency` for a detailed example.
 
 ### Ghost state counters
 
