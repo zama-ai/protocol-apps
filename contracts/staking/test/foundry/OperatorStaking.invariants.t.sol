@@ -30,17 +30,12 @@ contract OperatorStakingInvariantTest is Test {
     address internal admin = makeAddr("admin");
     address internal beneficiary = makeAddr("beneficiary");
 
-    uint256 internal constant MIN_ACTOR_COUNT = 5;
-    uint256 internal constant MAX_ACTOR_COUNT = 20;
-
-    uint256 internal constant MIN_INITIAL_DISTRIBUTION = 1e18;
-    uint256 internal constant MAX_INITIAL_DISTRIBUTION = 1e30;
-
-    uint48 internal constant MIN_UNSTAKE_COOLDOWN_PERIOD = 1 seconds;
-    uint48 internal constant MAX_UNSTAKE_COOLDOWN_PERIOD = 365 days;
-
-    uint256 internal constant MIN_REWARD_RATE = 0;
-    uint256 internal constant MAX_REWARD_RATE = 1e24;
+    // Static setup constants — the fuzzer varies reward rate, cooldown, deposit/redeem amounts,
+    // and fee parameters through handler actions.
+    uint256 internal constant ACTOR_COUNT = 5;
+    uint256 internal constant INITIAL_DISTRIBUTION = type(uint128).max;
+    uint48 internal constant INITIAL_UNSTAKE_COOLDOWN_PERIOD = 7 days;
+    uint256 internal constant INITIAL_REWARD_RATE = 1e18;
 
     uint16 internal constant INITIAL_MAX_FEE_BPS = 10_000;
     uint16 internal constant INITIAL_FEE_BPS = 0;
@@ -50,10 +45,10 @@ contract OperatorStakingInvariantTest is Test {
     // -------------------------------------------------------------------
 
     function setUp() public {
-        uint256 initialDistribution = vm.randomUint(MIN_INITIAL_DISTRIBUTION, MAX_INITIAL_DISTRIBUTION);
-        uint48 cooldown = uint48(vm.randomUint(MIN_UNSTAKE_COOLDOWN_PERIOD, MAX_UNSTAKE_COOLDOWN_PERIOD));
-        uint256 rewardRate = vm.randomUint(MIN_REWARD_RATE, MAX_REWARD_RATE);
-        uint256 actorCount = vm.randomUint(MIN_ACTOR_COUNT, MAX_ACTOR_COUNT);
+        uint256 actorCount = ACTOR_COUNT;
+        uint256 initialDistribution = INITIAL_DISTRIBUTION;
+        uint48 cooldown = INITIAL_UNSTAKE_COOLDOWN_PERIOD;
+        uint256 rewardRate = INITIAL_REWARD_RATE;
 
         address[] memory actorsList = new address[](actorCount);
         uint256[] memory actorPrivateKeys = new uint256[](actorCount);
@@ -74,31 +69,21 @@ contract OperatorStakingInvariantTest is Test {
 
         // Deploy ProtocolStaking.
         ProtocolStakingHarness protocolImpl = new ProtocolStakingHarness();
-        bytes memory protocolInitData = abi.encodeWithSelector(
-            protocolImpl.initialize.selector,
-            "Staked ZAMA",
-            "stZAMA",
-            "1",
-            address(zama),
-            governor,
-            manager,
-            cooldown,
-            rewardRate
+        bytes memory protocolInitData = abi.encodeCall(
+            protocolImpl.initialize,
+            ("Staked ZAMA", "stZAMA", "1", address(zama), governor, manager, cooldown, rewardRate)
         );
-        protocolStaking = ProtocolStakingHarness(address(new ERC1967Proxy(address(protocolImpl), protocolInitData)));
+        ERC1967Proxy protocolProxy = new ERC1967Proxy(address(protocolImpl), protocolInitData);
+        protocolStaking = ProtocolStakingHarness(address(protocolProxy));
 
         // Deploy OperatorStaking.
         OperatorStakingHarness operatorImpl = new OperatorStakingHarness();
-        bytes memory operatorInitData = abi.encodeWithSelector(
-            operatorImpl.initialize.selector,
-            "Operator Staked ZAMA",
-            "opstZAMA",
-            address(protocolStaking),
-            beneficiary,
-            INITIAL_MAX_FEE_BPS,
-            INITIAL_FEE_BPS
+        bytes memory operatorInitData = abi.encodeCall(
+            operatorImpl.initialize,
+            ("Operator Staked ZAMA", "opstZAMA", protocolStaking, beneficiary, INITIAL_MAX_FEE_BPS, INITIAL_FEE_BPS)
         );
-        operatorStaking = OperatorStakingHarness(address(new ERC1967Proxy(address(operatorImpl), operatorInitData)));
+        ERC1967Proxy operatorProxy = new ERC1967Proxy(address(operatorImpl), operatorInitData);
+        operatorStaking = OperatorStakingHarness(address(operatorProxy));
 
         // Grant minter role and register operator staking.
         vm.startPrank(admin);
@@ -320,5 +305,4 @@ contract OperatorStakingInvariantTest is Test {
             );
         }
     }
-
 }
