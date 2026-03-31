@@ -17,23 +17,43 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         with bounded fuzz inputs and per-transition invariant checks.
 ///
 /// @dev Two known floor-division phenomena each allow the system to diverge by at most
-///      ceil(A/S) wei per triggering deposit. Shortfalls within budget are asserted to
-///      produce the expected ERC20InsufficientBalance revert rather than failing the test.
+///      ceil(totalAssets / totalShares) wei per triggering deposit. Shortfalls within
+///      budget are asserted to produce the expected ERC20InsufficientBalance revert
+///      rather than failing the test.
 ///
-///      Staking-side (test_IlliquidityBug_TruncationLeak): when a deposit of `d` assets
-///      mints `n = floor(d × S/A)` shares, the truncated fractional share ε = d×S/A − n
-///      (ε ∈ [0,1)) remains in the vault as a value donation. Its asset equivalent
-///      ε × A/S < A/S inflates previewRedeem for all outstanding shares, including those
-///      in the redemption queue. The per-deposit obligation increase is strictly less than
-///      A/S, so ceil(A/S) is a sound upper bound per deposit while R > 0.
-///      Budget: ghost_globalRedemptionBudget (Σ ceil(A/S) for deposits while R > 0).
-///      Per-actor: ghost_actorDepositBudget (Σ ceil(A/S) for all deposits).
+///      Staking-side (test_IlliquidityBug_TruncationLeak):
+///         Shares and assets are related by an exchange rate: each share is worth
+///         (totalAssets / totalShares) in assets. When a deposit converts assets into
+///         shares, the result is rounded down to a whole number because Solidity has no
+///         fractions. The fractional share that gets truncated (always less than 1 whole
+///         share) is not minted to the depositor, but the corresponding assets still
+///         enter the vault. Even though this leftover is less than 1 share, it maps to a
+///         real, nonzero amount of assets: up to (totalAssets / totalShares) - 1 wei.
+///         Those unowned assets raise the exchange rate, which inflates previewRedeem for
+///         every outstanding share — including shares sitting in the redemption queue.
+///         The per-deposit obligation increase is strictly less than
+///         (totalAssets / totalShares), so ceil(totalAssets / totalShares) is a sound
+///         upper bound per deposit while redemptions are queued.
+
+///         Budget:
+///         --------------------------------
+///         ghost_globalRedemptionBudget: running sum of ceil(totalAssets / totalShares)
+///         for each deposit made while redemptions are queued.
+///         --------------------------------
+///         ghost_actorDepositBudget: Per-actor budget, running sum of ceil(totalAssets / totalShares)
+///         for all deposits by that actor.
+///         --------------------------------
 ///
-///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency): sequential deposits
-///      each floor-divide independently in transferHook._allocation. The sum of floors
-///      can be less than the floor of the sum, so earned() returns 1 phantom wei the
-///      rewarder cannot cover.
-///      Budget: ghost_rewarderDepositCount (deposits while totalSupply > 0).
+///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency): 
+///         Sequential deposits each floor-divide independently in transferHook._allocation. Rounding down
+///         multiple times individually can lose more total precision than rounding once on
+///         the combined value, so earned() can return 1 phantom wei that the rewarder
+///         cannot cover.
+///
+///         Budget:
+///         --------------------------------
+///         ghost_rewarderDepositCount: number of deposits while totalSupply > 0.
+///         --------------------------------
 contract OperatorStakingHandler is Test {
     // -------------------------------------------------------------------
     //  State
@@ -75,14 +95,15 @@ contract OperatorStakingHandler is Test {
     //  Ghost accounting — tolerance budgets
     // -------------------------------------------------------------------
 
-    /// @dev Staking-side budget: accumulates ceil(A/S) for deposits made while
-    ///      totalSharesInRedemption > 0. Bounds the total possible truncation leak.
+    /// @dev Staking-side budget: accumulates ceil(totalAssets / totalShares) for deposits
+    ///      made while totalSharesInRedemption > 0. Bounds the total possible truncation leak.
     uint256 public ghost_globalRedemptionBudget;
 
-    /// @dev Per-actor budget: accumulates ceil(A/S) for deposits made by each actor.
+    /// @dev Per-actor budget: accumulates ceil(totalAssets / totalShares) for deposits made
+    ///      by each actor.
     mapping(address => uint256) public ghost_actorDepositBudget;
 
-    /// @dev Rewarder-side budget: deposits while totalSupply > 0.
+    /// @dev Rewarder-side budget: counts deposits made while totalSupply > 0.
     uint256 public ghost_rewarderDepositCount;
 
     // -------------------------------------------------------------------
@@ -289,13 +310,12 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Check whether a claimRewards would hit a phantom-reward shortfall within budget.
     ///
-    ///      Root cause (sum-of-floors < floor-of-sum): when an actor makes N sequential
-    ///      deposits, each transferHook call independently computes floor(R * s_i / T_i)
-    ///      and adds it to _rewardsPaid[actor]. earned() later computes a single combined
-    ///      floor(R' * totalShares / totalSupply). Because the sum of individual floors can
-    ///      be strictly less than the floor of the combined allocation, earned() returns 1
-    ///      more wei than was credited via _rewardsPaid, creating a phantom the rewarder
-    ///      cannot cover.
+    ///      Root cause: when an actor makes multiple sequential deposits, each transferHook
+    ///      call independently rounds down its reward allocation and adds it to
+    ///      _rewardsPaid[actor]. Later, earned() computes a single combined allocation and
+    ///      rounds down once. Rounding down several small values individually can discard
+    ///      more total precision than rounding the combined value once, so earned() can
+    ///      report 1 phantom wei more than the sum credited via _rewardsPaid.
     ///
     ///      When a shortfall exists within the tolerance budget, the claim is
     ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
@@ -409,7 +429,7 @@ contract OperatorStakingHandler is Test {
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
-        // Capture ceil(A/S) before the deposit changes A.
+        // Capture ceil(totalAssets / totalShares) before the deposit changes totalAssets.
         uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
         uint256 A = operatorStaking.totalAssets() + 1;
         uint256 currentCeilAS = (A + S - 1) / S;
@@ -433,7 +453,7 @@ contract OperatorStakingHandler is Test {
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
-        // Capture ceil(A/S) BEFORE the deposit changes A.
+        // Capture ceil(totalAssets / totalShares) BEFORE the deposit changes totalAssets.
         uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
         uint256 A = operatorStaking.totalAssets() + 1;
         uint256 currentCeilAS = (A + S - 1) / S;
@@ -493,7 +513,8 @@ contract OperatorStakingHandler is Test {
 
     /// @dev Donations inflate totalAssets without minting shares, raising the exchange rate.
     ///      When redemptions are in-flight, any subsequent deposit at the elevated rate incurs
-    ///      floor-rounding truncation, leaking up to ceil(A/S) wei per deposit into the pool.
+    ///      floor-rounding truncation, leaking up to ceil(totalAssets / totalShares) wei per
+    ///      deposit into the pool.
     function donate(uint256 amount) external assertTransitionInvariants {
         address actor = msg.sender;
         uint256 balance = assetToken.balanceOf(actor);
@@ -527,12 +548,13 @@ contract OperatorStakingHandler is Test {
 
     /// @notice deposit(a) + deposit(b) must yield shares within a proven bound of deposit(a+b).
     ///
-    ///   After deposit(a), the exchange rate shifts by ε1/(A+a) where ε1 ∈ [0,1) is the
-    ///   fractional part of (a * S/A). deposit(b) at the new rate then yields
-    ///   floor(b * ε1/(A+a)) fewer shares than if b were deposited at the original rate.
-    ///   Combined with at most 1 unit of rounding from each floor operation:
+    ///   After deposit(a), the truncated fractional share shifts the exchange rate by a
+    ///   small amount proportional to 1 / (totalAssets + a). When deposit(b) executes at
+    ///   this slightly shifted rate, it can produce fewer shares than if both amounts were
+    ///   deposited together. Combined with up to 1 unit of rounding from each floor
+    ///   operation, the maximum share difference is:
     ///
-    ///     |sharesB - sharesA| ≤ floor(amount2 / (A + amount1)) + 2
+    ///     abs(sharesA - sharesB) <= floor(amount2 / (totalAssets + amount1)) + 2
     ///
     ///   earned() can differ by at most 2 due to floor division in transferHook._allocation.
     function depositEquivalenceScenario(uint256 amount1, uint256 amount2) external {

@@ -385,12 +385,7 @@ Invariant checks fall into three categories:
 
 ## OperatorStaking
 
-OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testing is more involved than ProtocolStaking because:
-
-- It has an internal redemption queue (`requestRedeem` → cooldown → `redeem`) backed by ProtocolStaking unstakes
-- Direct token transfers inflate `totalAssets` without minting shares, causing ERC4626 floor-rounding in `_convertToShares` to leak value into in-flight redemptions (staking-side illiquidity bug)
-- The `OperatorRewarder` adds a second reward accounting system where sequential deposits expose a sum-of-floors < floor-of-sum phantom (rewarder-side phantom bug)
-- Two contracts (vault + rewarder) can be independently affected by the same deposit event
+OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking.
 
 ### Files
 
@@ -406,56 +401,121 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking. Its testin
 
 ## Tolerance Budget System
 
-Two distinct floor-division phenomena can each cause bounded divergence per triggering deposit. The handler asserts that the expected `ERC20InsufficientBalance` revert occurs and verifies the shortfall is within the pre-computed budget.
+Two integer rounding effects can cause `previewRedeem` or `earned` to promise slightly more than the vault or rewarder can pay, causing `redeem` or `claimRewards` to revert with `ERC20InsufficientBalance`. The handler tracks a bounded budget for each effect and asserts the expected revert rather than failing the test when a shortfall falls within that budget.
 
 ### Staking-side: donation-triggered truncation leak
 
-When a user deposits `d` assets, the ERC4626 standard calculates the shares to mint (`n`) using floor division:
+When a user deposits `d` assets, shares are minted using floor division:
 
 ```
-n = floor(d × S/A)
+sharesMinted = floor(d * totalShares / totalAssets)
 ```
 
-Because it rounds down, there is a fractional, truncated share `ε` that the depositor paid for but did not receive, where `ε ∈ [0, 1)`:
+Because Solidity rounds down, the depositor pays for a fractional share they never receive. That fractional share's asset value stays in the vault as unowned value, inflating `previewRedeem` for all outstanding shares, including those in the redemption queue. This creates an obligation the vault cannot cover from liquid assets.
+
+#### Derivation of the per-deposit bound
+
+The exact number of shares before rounding is `d * totalShares / totalAssets`. After rounding down, the fractional remainder is:
 
 ```
-n = d × S/A − ε
+remainder = (d * totalShares / totalAssets) - sharesMinted
 ```
 
-The actual asset value of that truncated fraction `ε` remains in the vault, effectively donated to the pool. Its asset value is `ε × A/S`. Because `ε < 1`, the maximum possible value leaked per deposit is strictly bounded by:
+This remainder is always >= 0 and strictly less than 1 whole share (it is the part that got truncated). To find how much asset value this leftover represents, multiply it by the asset-per-share exchange rate:
 
 ```
-Max leak per deposit < A/S   →   ceil(A/S)
+leaked assets = remainder * (totalAssets / totalShares)
 ```
 
-This leaked value inflates `previewRedeem` for all outstanding shares, including those in the redemption queue — creating an obligation the vault cannot cover from liquid assets.
-
-The handler captures `ceil(A/S)` **before each deposit** (when the pre-deposit exchange rate is known) and accumulates it into the tolerance budget.
-
-See: `test_IlliquidityBug_TruncationLeak`.
-
-### Rewarder-side: sum-of-floors < floor-of-sum phantom
-
-When an actor makes N sequential deposits and `transferHook` fires on each, each call independently computes `floor(R × s_i / T_i)` and accumulates the result into `_rewardsPaid[actor]`. Later, `earned()` computes a single `floor(R' × totalShares / totalSupply)` — the floor of the combined allocation.
-
-By the sum-of-floors property, the sum of N individual floors can be strictly less than the floor of their combined value. Concretely, with totalSupply=500, R=7, and deposits of 200 then 300 shares:
+Since `0 ≤ remainder < 1` (share units), with exchange rate `totalAssets / totalShares`:
 
 ```
-V1 = floor(7 × 200 / 500)    = floor(2.8)   = 2
-V2 = floor(9 × 300 / 700)    = floor(3.857) = 3   [R' = 7+2 = 9]
-earned = floor(12 × 500 / 1000) − (2+3) = 6 − 5 = 1  ← phantom
+leaked assets = remainder * (totalAssets / totalShares) < totalAssets / totalShares
 ```
 
-The rewarder has 0 tokens after the preceding claim and protocolStaking has 0 pending, so `claimRewards` reverts with `ERC20InsufficientBalance(rewarder, 0, 1)`.
+`totalAssets / totalShares` is the upper bound in this model (approached as remainder → 1). Typical leaks are smaller (e.g. remainder ≈ 0.3 implies leaked ≈ 0.3 × rate, still **strictly less** than `totalAssets / totalShares`).
 
-See: `test_PhantomRewardBug_RewarderInsolvency`.
+To get a whole-number upper bound we round up (ceiling division):
+
+```
+upper bound = ceil(totalAssets / totalShares)
+```
+
+#### Implementation of `ceil(totalAssets / totalShares)`
+
+```solidity
+uint256 S = totalSupply + totalSharesInRedemption + 100;  // effective total shares
+uint256 A = totalAssets + 1;                               // +1 avoids division by zero
+uint256 currentCeilAS = (A + S - 1) / S;
+```
+
+The expression `(A + S - 1) / S` is the standard integer ceiling division identity: 
+
+```
+for any positive integers `a` and `b`: 
+
+ceil(a / b) = floor((a + b - 1) / b)
+```
+
+The handler captures this value **before each deposit** (when the pre-deposit exchange rate is known) and accumulates it into **`ghost_globalRedemptionBudget`** and **`ghost_actorDepositBudget`** according to the trigger rules in **Ghost state counters** below.
+
+See: `test_IlliquidityBug_TruncationLeak` for a detailed example.
+
+### Rewarder-side: phantom reward from repeated rounding
+
+When an actor makes N sequential deposits and `transferHook` fires on each, each call independently rounds down its reward allocation and accumulates the result into `_rewardsPaid[actor]`. Later, `earned()` computes a single combined allocation and rounds down once.
+
+Rounding down several small values individually can discard more total precision than rounding the combined value once. The sum of the individually rounded values can therefore be strictly less than the single rounded combined value. Concretely:
+
+```
+0. Setup / notation
+   - Other staker: 500 shares, held for the whole trace.
+   - rewardsPerToken: cumulative rewards distributed per share since deployment.
+   - _rewardsPaid[actor]: running total of reward debt for an actor
+
+1. Before deposit 1
+   - totalSupply: 500
+   - rewardsPerToken: 3
+
+2. Actor deposits 200 shares
+   - totalSupply: 500 -> 700
+   - transferHook credits floor(rewardsPerToken * newShares / totalSupply)
+   - Update 1 = floor(3 * 200 / 700) = floor(0.857) = 0
+   - _rewardsPaid[actor]: 0
+
+3. Rewards accrue
+   - rewardsPerToken: 3 -> 7
+
+4. Actor deposits 300 shares
+   - totalSupply: 700 -> 1000
+   - transferHook credits floor(rewardsPerToken * newShares / totalSupply)
+   - Update 2 = floor(7 * 300 / 1000) = floor(2.1) = 2
+   - _rewardsPaid[actor]: 0 + 2 = 2
+
+5. Rewards accrue
+   - rewardsPerToken: 7 -> 10
+
+6. Actor calls earned()
+   - actorShares: 500; totalSupply: 1000; rewardsPerToken: 10
+   - earned() = floor(rewardsPerToken * actorShares / totalSupply) - _rewardsPaid[actor]
+   - earned = floor(10 * 500 / 1000) - (0 + 2) = 5 - 2 = 3
+
+7. Actor calls claimRewards()
+   - available = rewarder.balanceOf(rewarder) + protocolStaking.earned(operatorStaking) = 2
+   - needed = earned() = 3
+   - ERC20InsufficientBalance(rewarder, balance=2, needed=3)
+```
+
+Deposit 1 rounded 0.857 down to 0, and that discarded fraction is never re-credited. When `earned()` later computes the combined allocation, the actor appears to be owed 1 wei more than ProtocolStaking ever emitted. The handler acccounts for this shortfall with `ghost_rewarderDepositCount` (see **Ghost state counters**).
+
+See: `test_PhantomRewardBug_RewarderInsolvency` for a detailed example.
 
 ### Ghost state counters
 
 | Budget counter | Accumulates | Trigger condition | Phenomenon |
 |---|---|---|---|
-| `ghost_globalRedemptionBudget` | `ceil(A/S)` per deposit | deposit while `totalSharesInRedemption > 0` | Staking-side liquidity shortfall |
-| `ghost_actorDepositBudget[actor]` | `ceil(A/S)` per deposit | every deposit | Per-actor recoverable value loss |
+| `ghost_globalRedemptionBudget` | `ceil(totalAssets / totalShares)` per deposit | deposit while `totalSharesInRedemption > 0` | Staking-side liquidity shortfall |
+| `ghost_actorDepositBudget[actor]` | `ceil(totalAssets / totalShares)` per deposit | every deposit | Per-actor recoverable value loss |
 | `ghost_rewarderDepositCount` | `1` per deposit | deposit while `totalSupply > 0` | Rewarder-side phantom reward |
 
 The trigger conditions differ because:
@@ -491,7 +551,7 @@ No actor ever loses funds without slashing:
 redeemed + previewRedeem(allShares) + acceptableLoss ≥ deposited
 ```
 
-`acceptableLoss = ghost_actorRedeemCount + ghost_actorDepositBudget` — the cumulative `ceil(A/S)` captured before each deposit (at the pre-deposit exchange rate) plus 1 wei per redeem for floor-rounding in `_convertToAssets`.
+`acceptableLoss = ghost_actorRedeemCount + ghost_actorDepositBudget`: the cumulative `ceil(totalAssets / totalShares)` captured before each deposit (at the pre-deposit exchange rate) plus 1 wei per redeem for floor-rounding in `_convertToAssets`.
 
 ### `invariant_canAlwaysRequestRedeem`
 
@@ -511,20 +571,20 @@ Each controller's `_redeemRequests` checkpoint trace has non-decreasing timestam
 
 Two consecutive preview conversions can only lose value, never create it. Each direction has its own tolerance:
 
-**shares → assets → shares** (`previewDeposit(previewRedeem(x)) ≤ x`):
+**shares → assets → shares** (`previewDeposit(previewRedeem(x)) <= x`):
 ```
-previewRedeem(x)  = floor(x × A/S) = x × A/S − ε,   ε ∈ [0, 1)
-previewDeposit(y) = floor(y × S/A)
-round-trip loss   = ceil(ε × S/A) ≤ ceil(S/A)
-tolerance         = (S + A − 1) / A
+step 1: assets = floor(x * totalAssets / totalShares)          -- rounds down, losing < 1 share of asset value
+step 2: result = floor(assets * totalShares / totalAssets)
+loss   = x - result <= ceil(totalShares / totalAssets)
+tolerance = (S + A - 1) / A
 ```
 
-**assets → shares → assets** (`previewRedeem(previewDeposit(x)) ≤ x`):
+**assets → shares → assets** (`previewRedeem(previewDeposit(x)) <= x`):
 ```
-previewDeposit(x) = floor(x × S/A) = x × S/A − ε',  ε' ∈ [0, 1)
-previewRedeem(y)  = floor(y × A/S)
-round-trip loss   = ceil(ε' × A/S) ≤ ceil(A/S)
-tolerance         = (A + S − 1) / S
+step 1: shares = floor(x * totalShares / totalAssets)          -- rounds down, losing < 1 share worth of assets
+step 2: result = floor(shares * totalAssets / totalShares)
+loss   = x - result <= ceil(totalAssets / totalShares)
+tolerance = (A + S - 1) / S
 ```
 
 Where `S = totalSupply + totalSharesInRedemption + 100` and `A = totalAssets + 1`. At a 1:1 exchange rate both tolerances equal 1; they widen only when the rate diverges.
@@ -535,7 +595,7 @@ Where `S = totalSupply + totalSharesInRedemption + 100` and `A = totalAssets + 1
 balanceOf(operatorStaking) + awaitingRelease(operatorStaking) + tolerance ≥ previewRedeem(totalSharesInRedemption())
 ```
 
-`tolerance = ghost_globalRedemptionBudget` — the cumulative `ceil(A/S)` captured before each deposit made while `totalSharesInRedemption > 0`.
+`tolerance = ghost_globalRedemptionBudget` — the cumulative `ceil(totalAssets / totalShares)` captured before each deposit made while `totalSharesInRedemption > 0`.
 
 ---
 
@@ -571,13 +631,13 @@ Checks 2 and 3 are gated on `assets > 0`. `OperatorStaking.redeem` only runs the
 
 `deposit(a) + deposit(b)` vs `deposit(a + b)` using snapshot/revertTo.
 
-**Shares**: not asserted equal. After `deposit(a)`, the exchange rate shifts by `ε/(A + a)` where `ε ∈ [0, 1)` is the fractional part of `a × S/A`. The second deposit uses this new rate, yielding `floor(b × ε / (A + a))` fewer shares. The proven bound is:
+**Shares**: not asserted equal. After `deposit(a)`, the truncated fractional share stays in the vault, shifting the exchange rate slightly. `deposit(b)` at the new rate yields fewer shares. The fractional part is always less than 1 share, so the rate shift is always less than `1 / totalShares`. The proven bound on the share difference is:
 
 ```
-|sharesB − sharesA| ≤ floor(amount2 / (A + amount1)) + 2
+abs(sharesA - sharesB) <= floor(amount2 / (totalAssets + amount1)) + 2
 ```
 
-This is computed dynamically from pre-deposit state and used as the assertion tolerance.
+This is computed dynamically from pre-deposit state (`A = totalAssets + 1`) and used as the assertion tolerance.
 
 **Earned**: asserted within 2 wei. Two floor calls in `transferHook._allocation` (path A) vs one (path B) introduces at most 2 wei divergence.
 
@@ -627,12 +687,10 @@ Fuzz parameters are in [`foundry.toml`](/contracts/staking/foundry.toml):
 
 ```toml
 [invariant]
-runs  = 256
-depth = 100
 fail_on_revert = true
 ```
 
-`fail_on_revert = true` ensures unexpected reverts in handler actions are treated as failures rather than discards.
+`fail_on_revert = true` ensures unexpected reverts in handler actions are treated as failures rather than discards. `runs` and `depth` use Foundry defaults.
 
 ---
 
