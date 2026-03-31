@@ -19,9 +19,19 @@ import { resolve } from 'path';
 dotenv.config({ path: resolve(__dirname, '.env') });
 
 const FORK_RPC_URL = process.env.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL;
+const FORK_BLOCK_NUMBER = process.env.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER;
 
 if (!FORK_RPC_URL) {
   throw new Error('CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL must be set in .env to run fork-based upgrade tests');
+}
+
+let forkBlockNumber: number | undefined;
+if (FORK_BLOCK_NUMBER != null && FORK_BLOCK_NUMBER.trim() !== '') {
+  const parsed = Number.parseInt(FORK_BLOCK_NUMBER.trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error('CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER must be a non-negative integer when set');
+  }
+  forkBlockNumber = parsed;
 }
 
 const config: HardhatUserConfig = {
@@ -39,6 +49,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: FORK_RPC_URL,
+        ...(forkBlockNumber !== undefined ? { blockNumber: forkBlockNumber } : {}),
       },
     },
   },

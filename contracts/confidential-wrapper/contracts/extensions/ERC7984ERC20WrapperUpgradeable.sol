@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-// Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/f0914b66f9f3766915403587b1ef1432d53054d3/contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol
-// (0.3.0 version)
+// Ported from  https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/7ac7cee5fec408dc81b31121f90417dfd87f3d13/contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol (0.4.0 version)
+
 pragma solidity ^0.8.27;
 
 import {FHE, externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {IERC1363Receiver} from "@openzeppelin/contracts/interfaces/IERC1363Receiver.sol";
-import {ContextUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -77,7 +76,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         bytes calldata data
     ) public virtual returns (bytes4) {
         // check caller is the token contract
-        require(address(underlying()) == msg.sender, ERC7984UnauthorizedCaller(msg.sender));
+        require(underlying() == msg.sender, ERC7984UnauthorizedCaller(msg.sender));
 
         // mint confidential token
         address to = data.length < 20 ? from : address(bytes20(data));
@@ -127,7 +126,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         address to,
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
-    ) public virtual override returns (bytes32) {
+    ) public virtual returns (bytes32) {
         return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
@@ -136,12 +135,12 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         bytes32 unwrapRequestId,
         uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
-    ) public virtual override {
-        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        address to = $._unwrapRequests[unwrapRequestId];
+    ) public virtual {
+        address to = unwrapRequester(unwrapRequestId);
         require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
 
         euint64 unwrapAmount_ = unwrapAmount(unwrapRequestId);
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         delete $._unwrapRequests[unwrapRequestId];
 
         bytes32[] memory handles = new bytes32[](1);
@@ -169,23 +168,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
-    function unwrapAmount(bytes32 unwrapRequestId) public view virtual returns (euint64) {
-        return euint64.wrap(unwrapRequestId);
-    }
-
-    /**
-     * @dev Get the address that has a pending unwrap request for the given `unwrapRequestId`. Returns `address(0)` if no pending
-     * unwrap request for the `unwrapRequestId` exists.
-     */
-    function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
-        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        return $._unwrapRequests[unwrapRequestId];
-    }
-
-    /// @inheritdoc IERC7984ERC20Wrapper
     function underlying() public view virtual override returns (address) {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         return address($._underlying);
+    }
+
+    /// @inheritdoc IERC7984ERC20Wrapper
+    function unwrapAmount(bytes32 unwrapRequestId) public view virtual returns (euint64) {
+        return euint64.wrap(unwrapRequestId);
     }
 
     /// @inheritdoc IERC165
@@ -206,13 +196,22 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * Reductions will lag compared to {confidentialTotalSupply} since it is updated on {unwrap} while this function updates
      * on {finalizeUnwrap}.
      */
-    function totalSupply() public view virtual returns (uint256) {
+    function inferredTotalSupply() public view virtual returns (uint256) {
         return IERC20(underlying()).balanceOf(address(this)) / rate();
     }
 
     /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
     function maxTotalSupply() public view virtual returns (uint256) {
         return type(uint64).max;
+    }
+
+    /**
+     * @dev Get the address that has a pending unwrap request for the given `unwrapRequestId`. Returns `address(0)` if no pending
+     * unwrap request for the `unwrapRequestId` exists.
+     */
+    function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
+        return $._unwrapRequests[unwrapRequestId];
     }
 
     /**
@@ -223,11 +222,12 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * not overflow.
      */
     function _checkConfidentialTotalSupply() internal virtual {
-        if (totalSupply() > maxTotalSupply()) {
+        if (inferredTotalSupply() > maxTotalSupply()) {
             revert ERC7984TotalSupplyOverflow();
         }
     }
 
+    /// @inheritdoc ERC7984Upgradeable
     function _update(address from, address to, euint64 amount) internal virtual override returns (euint64) {
         if (from == address(0)) {
             _checkConfidentialTotalSupply();
@@ -244,8 +244,9 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         euint64 unwrapAmount_ = _burn(from, amount);
         FHE.makePubliclyDecryptable(unwrapAmount_);
 
+        assert(unwrapRequester(euint64.unwrap(unwrapAmount_)) == address(0));
+
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        assert($._unwrapRequests[euint64.unwrap(unwrapAmount_)] == address(0));
 
         // WARNING: Directly using the cipher-text as the unwrap request id assumes that
         // cipher-texts are unique--this holds here but is not always true. Be cautious when assuming

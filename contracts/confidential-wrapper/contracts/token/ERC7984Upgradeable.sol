@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 // Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/f0914b66f9f3766915403587b1ef1432d53054d3/contracts/token/ERC7984/ERC7984.sol
 // (0.3.0 version)
-pragma solidity 0.8.27;
+pragma solidity ^0.8.27;
 
 import {FHE, externalEuint64, ebool, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMath.sol";
@@ -287,7 +287,7 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         return _update(from, address(0), amount);
     }
 
-    function _transfer(address from, address to, euint64 amount) internal virtual returns (euint64 transferred) {
+    function _transfer(address from, address to, euint64 amount) internal returns (euint64 transferred) {
         require(from != address(0), ERC7984InvalidSender(address(0)));
         require(to != address(0), ERC7984InvalidReceiver(address(0)));
         return _update(from, to, amount);

@@ -41,7 +41,12 @@ async function deployWrapperImplementation(name: string, label: string, hre: Har
 // npx hardhat task:deployWrapperImplementation --name "ZAMA" --label "v2" --network testnet
 task('task:deployWrapperImplementation')
   .addParam('name', 'The name of the wrapper this implementation is for', undefined, types.string)
-  .addParam('label', 'A version label for this implementation (e.g. "v2"), appended to the artifact name', undefined, types.string)
+  .addParam(
+    'label',
+    'A version label for this implementation (e.g. "v2"), appended to the artifact name',
+    undefined,
+    types.string,
+  )
   .setAction(async function ({ name, label }, hre) {
     await deployWrapperImplementation(name, label, hre);
   });
