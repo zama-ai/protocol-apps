@@ -38,11 +38,12 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         Budget:
 ///         --------------------------------
 ///         ghost_globalRedemptionBudget: running sum of ceil(totalAssets / totalShares)
-///         for each deposit made while redemptions are queued.
+///         for each deposit made while redemptions are queued. Reset to 0 after stakeExcess,
+///         which proves the buffer is exact — all prior leakage is absorbed into ProtocolStaking.
 ///         (See: test_GlobalRedemptionBudget_DonationTruncation)
 ///         --------------------------------
 ///         ghost_actorDepositBudget: Per-actor budget, running sum of ceil(totalAssets / totalShares)
-///         for all deposits by that actor.
+///         for all deposits by that actor. 
 ///         (See: test_StakingSideDepositBudget_RemainderLeak)
 ///         --------------------------------
 ///
@@ -99,7 +100,10 @@ contract OperatorStakingHandler is Test {
     // -------------------------------------------------------------------
 
     /// @dev Staking-side budget: accumulates ceil(totalAssets / totalShares) for deposits
-    ///      made while totalSharesInRedemption > 0. Bounds the total possible truncation leak.
+    ///      made while totalSharesInRedemption > 0. Reset to 0 after stakeExcess because
+    ///      stakeExcess proves the buffer is exact at that moment and all prior leakage has
+    ///      been absorbed into ProtocolStaking. Bounds the total possible truncation leak
+    ///      since the last stakeExcess (or since inception).
     uint256 public ghost_globalRedemptionBudget;
 
     /// @dev Per-actor budget: accumulates ceil(totalAssets / totalShares) for deposits made
@@ -433,6 +437,7 @@ contract OperatorStakingHandler is Test {
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
         // Capture ceil(totalAssets / totalShares) before the deposit changes totalAssets.
+        // (See: test_StakingSideDepositBudget_RemainderLeak)
         uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
         uint256 A = operatorStaking.totalAssets() + 1;
         uint256 currentCeilAS = (A + S - 1) / S;
@@ -457,6 +462,7 @@ contract OperatorStakingHandler is Test {
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
         // Capture ceil(totalAssets / totalShares) BEFORE the deposit changes totalAssets.
+        // (See: test_StakingSideDepositBudget_RemainderLeak)
         uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
         uint256 A = operatorStaking.totalAssets() + 1;
         uint256 currentCeilAS = (A + S - 1) / S;
@@ -512,6 +518,30 @@ contract OperatorStakingHandler is Test {
 
         operatorStaking.stakeExcess();
         ghost_stakeExcessCalled = true;
+
+        // After stakeExcess the liquid buffer equals exactly previewRedeem(totalSharesInRedemption),
+        // meaning every wei of previously accumulated truncation leak has been absorbed into the
+        // ProtocolStaking stake. Future deposits start from a fresh base, so the
+        // running tolerance for in-flight redemptions resets to zero.
+        ghost_globalRedemptionBudget = 0;
+    }
+
+    /// @dev Exercises non-zero fee paths in OperatorRewarder. Called as the beneficiary
+    ///      and bounded to [0, maxFeeBasisPoints] to avoid no-ops.
+    function setFee(uint256 feeSeed) external assertTransitionInvariants {
+        uint16 maxFee = rewarder.maxFeeBasisPoints();
+        if (maxFee == 0) return;
+
+        uint16 currentFee = rewarder.feeBasisPoints();
+        // Derive a fee in [0, maxFee] that differs from the current fee.
+        uint16 newFee = uint16(bound(feeSeed, 0, maxFee));
+        if (newFee == currentFee) {
+            // Nudge to the nearest valid value to avoid the FeeAlreadySet revert.
+            newFee = newFee < maxFee ? newFee + 1 : newFee - 1;
+        }
+
+        vm.prank(rewarder.beneficiary());
+        rewarder.setFee(newFee);
     }
 
     /// @dev Donations inflate totalAssets without minting shares, raising the exchange rate.
