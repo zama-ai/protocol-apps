@@ -105,7 +105,7 @@ contract OperatorStakingInvariantTest is Test {
             targetSender(actorsList[i]);
         }
         bytes4[] memory selectors = new bytes4[](1);
-        selectors[0] = handler.assertRedeemRevertsForDust.selector;
+        selectors[0] = handler.assertRedeemRevertsWithinBudget.selector;
         excludeSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -137,7 +137,7 @@ contract OperatorStakingInvariantTest is Test {
 
             if (expectedAssets > availableAssets) {
                 // Shortfall exists — assert it will revert with ERC20InsufficientBalance and is within the tolerance budget.
-                bool reverted = handler.assertRedeemRevertsForDust(
+                bool reverted = handler.assertRedeemRevertsWithinBudget(
                     controller,
                     claimableShares,
                     expectedAssets,

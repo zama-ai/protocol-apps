@@ -256,13 +256,15 @@ contract OperatorStakingHandler is Test {
         availableAssets = assetToken.balanceOf(address(operatorStaking)) + pendingRelease;
     }
 
-    function assertRedeemRevertsForDust(
+    /// @dev Public entrypoint for invariants: if `expectedAssets > availableAssets` and the shortfall is
+    ///      within `ghost_globalRedemptionBudget`, asserts `redeem` reverts with ERC20InsufficientBalance.
+    function assertRedeemRevertsWithinBudget(
         address actor,
         uint256 shares,
         uint256 expectedAssets,
         uint256 availableAssets
     ) public returns (bool) {
-        return _assertRedeemRevertsForDust(actor, shares, expectedAssets, availableAssets);
+        return _assertRedeemRevertsWithinBudget(actor, shares, expectedAssets, availableAssets);
     }
 
     // -------------------------------------------------------------------
@@ -287,9 +289,9 @@ contract OperatorStakingHandler is Test {
         ghost_pendingRedeems.pop();
     }
 
-    /// @dev Check whether a redeem would hit a truncation-leak shortfall within budget.
-    ///      Returns true if the shortfall was within budget and the expected revert was asserted.
-    function _assertRedeemRevertsForDust(
+    /// @dev If a truncation-leak shortfall exists and `shortfall <= ghost_globalRedemptionBudget`, asserts
+    ///      `redeem` reverts with ERC20InsufficientBalance. Returns true when that revert was asserted.
+    function _assertRedeemRevertsWithinBudget(
         address actor,
         uint256 shares,
         uint256 expectedAssets,
@@ -315,7 +317,8 @@ contract OperatorStakingHandler is Test {
         return false;
     }
 
-    /// @dev Check whether a claimRewards would hit a phantom-reward shortfall within budget.
+    /// @dev If `claimRewards` would pay more than the rewarder can cover and
+    ///      `shortfall <= ghost_rewarderDepositCount`, asserts the call reverts with ERC20InsufficientBalance.
     ///
     ///      Root cause: when an actor makes multiple sequential deposits, each transferHook
     ///      call independently rounds down its reward allocation and adds it to
@@ -324,10 +327,8 @@ contract OperatorStakingHandler is Test {
     ///      more total precision than rounding the combined value once, so earned() can
     ///      report 1 phantom wei more than the sum credited via _rewardsPaid.
     ///
-    ///      When a shortfall exists within the tolerance budget, the claim is
-    ///      asserted to revert with ERC20InsufficientBalance and the budget is debited.
-    ///      Returns true if the claim was handled (reverted as expected).
-    function _assertClaimRewardsRevertsForDust(address actor, uint256 earnedAmount) internal returns (bool) {
+    ///      Returns true when that revert was asserted.
+    function _assertClaimRevertsWithinBudget(address actor, uint256 earnedAmount) internal returns (bool) {
         uint256 rewarderBalance = assetToken.balanceOf(address(rewarder));
         uint256 pendingFromProtocol = protocolStaking.earned(address(operatorStaking));
 
@@ -367,7 +368,7 @@ contract OperatorStakingHandler is Test {
         if (effectiveShares == 0) return 0;
 
         (uint256 expectedAssets, uint256 availableAssets) = getExpectedAssets(effectiveShares);
-        if (_assertRedeemRevertsForDust(actor, shares, expectedAssets, availableAssets)) return 0;
+        if (_assertRedeemRevertsWithinBudget(actor, shares, expectedAssets, availableAssets)) return 0;
 
         uint256 balanceBefore = assetToken.balanceOf(actor);
         ghost_lastRedeemPreTotalInRedemption = operatorStaking.totalSharesInRedemption();
@@ -461,7 +462,7 @@ contract OperatorStakingHandler is Test {
         bool hasPendingRedemptions = operatorStaking.totalSharesInRedemption() > 0;
         bool transferHookFires = operatorStaking.totalSupply() > 0;
 
-        // Capture ceil(totalAssets / totalShares) BEFORE the deposit changes totalAssets.
+        // Capture ceil(totalAssets / totalShares) before the deposit changes totalAssets.
         // (See: test_StakingSideDepositBudget_RemainderLeak)
         uint256 S = operatorStaking.totalSupply() + operatorStaking.totalSharesInRedemption() + 100;
         uint256 A = operatorStaking.totalAssets() + 1;
@@ -527,13 +528,13 @@ contract OperatorStakingHandler is Test {
     }
 
     /// @dev Exercises non-zero fee paths in OperatorRewarder. Called as the beneficiary
-    ///      and bounded to [0, maxFeeBasisPoints] to avoid no-ops.
+    ///      and bounded to [0, maxFeeBasisPoints] to avoid no-ops. For coverage.
     function setFee(uint256 feeSeed) external assertTransitionInvariants {
         uint16 maxFee = rewarder.maxFeeBasisPoints();
         if (maxFee == 0) return;
 
         uint16 currentFee = rewarder.feeBasisPoints();
-        // Derive a fee in [0, maxFee] that differs from the current fee.
+        // Derive a fee that differs from the current fee.
         uint16 newFee = uint16(bound(feeSeed, 0, maxFee));
         if (newFee == currentFee) {
             // Nudge to the nearest valid value to avoid the FeeAlreadySet revert.
@@ -568,7 +569,7 @@ contract OperatorStakingHandler is Test {
         if (earnedAmount == 0) return;
 
         // If the phantom bug is triggered, assert the revert and exit cleanly
-        if (_assertClaimRewardsRevertsForDust(actor, earnedAmount)) return;
+        if (_assertClaimRevertsWithinBudget(actor, earnedAmount)) return;
 
         vm.prank(actor);
         rewarder.claimRewards(actor);

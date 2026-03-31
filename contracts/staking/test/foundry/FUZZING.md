@@ -235,7 +235,7 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking.
 
 ### Covered actions
 
-`deposit`, `depositWithPermit`, `requestRedeem`, `redeem`, `redeemMax`, `stakeExcess`, `donate`, `claimRewards`
+`deposit`, `depositWithPermit`, `requestRedeem`, `redeem`, `redeemMax`, `stakeExcess`, `donate`, `claimRewards`, `setFee`
 
 ### Tolerance Budget System
 
@@ -341,11 +341,11 @@ The trigger conditions differ because:
 
 ### Staking-side expected revert logic
 
-When `redeem()` encounters a shortfall within `ghost_globalRedemptionBudget`, `_assertRedeemRevertsForDust` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state. If the shortfall exceeds the budget, it falls through and surfaces as a real failure.
+When `redeem()` encounters a shortfall within `ghost_globalRedemptionBudget`, `_assertRedeemRevertsWithinBudget` executes the call wrapped in `vm.expectRevert(ERC20InsufficientBalance)`. This actively proves the bug's signature without breaking the fuzzer's execution state. If the shortfall exceeds the budget, it falls through and surfaces as a real failure.
 
 ### Rewarder-side expected revert logic
 
-Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within `ghost_rewarderDepositCount`, `_assertClaimRewardsRevertsForDust` explicitly asserts the expected `ERC20InsufficientBalance` revert.
+Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within `ghost_rewarderDepositCount`, `_assertClaimRevertsWithinBudget` explicitly asserts the expected `ERC20InsufficientBalance` revert.
 
 ## Operator Staking Invariants
 
@@ -357,7 +357,7 @@ Checked via `invariant_*` functions in [`OperatorStaking.invariants.t.sol`](Oper
 
 `invariant_redeemAtExactCooldown`: every pending redemption is claimable at its exact cooldown timestamp. Each queue entry is isolated via `vm.snapshot` / `vm.revertTo`.
 
-- **Shortfall within budget**: asserts `ERC20InsufficientBalance` via [`assertRedeemRevertsForDust`](handlers/OperatorStakingHandler.sol).
+- **Shortfall within budget**: asserts `ERC20InsufficientBalance` via [`assertRedeemRevertsWithinBudget`](handlers/OperatorStakingHandler.sol).
 - **No shortfall**: executes `redeem`, asserts tokens transfered == `assetsReturned`.
 
 #### Total recoverable value
