@@ -397,9 +397,7 @@ OperatorStaking is an ERC4626 vault that stakes into ProtocolStaking.
 
 `deposit`, `depositWithPermit`, `requestRedeem`, `redeem`, `redeemMax`, `stakeExcess`, `donate`, `claimRewards`
 
----
-
-## Tolerance Budget System
+### Tolerance Budget System
 
 Two integer rounding effects can cause `previewRedeem` or `earned` to promise slightly more than the vault or rewarder can pay, causing `redeem` or `claimRewards` to revert with `ERC20InsufficientBalance`. The handler tracks a bounded budget for each effect and asserts the expected revert rather than failing the test when a shortfall falls within that budget.
 
@@ -411,7 +409,7 @@ When a user deposits `d` assets, shares are minted using floor division:
 sharesMinted = floor(d * totalShares / totalAssets)
 ```
 
-Because Solidity rounds down, the depositor pays for a fractional share they never receive. That fractional share's asset value stays in the vault as unowned value, inflating `previewRedeem` for all outstanding shares, including those in the redemption queue. This creates an obligation the vault cannot cover from liquid assets.
+Because Solidity rounds down, the depositor pays for a fractional share they never receive. That fractional share's asset value stays in the vault as unowned value, inflating `previewRedeem` for all outstanding shares, including those in the redemption queue. This can create an obligation the vault cannot cover from liquid assets.
 
 #### Derivation of the per-deposit bound
 
@@ -506,7 +504,7 @@ Rounding down several small values individually can discard more total precision
    - ERC20InsufficientBalance(rewarder, balance=2, needed=3)
 ```
 
-Deposit 1 rounded 0.857 down to 0, and that discarded fraction is never re-credited. When `earned()` later computes the combined allocation, the actor appears to be owed 1 wei more than ProtocolStaking ever emitted. The handler acccounts for this shortfall with `ghost_rewarderDepositCount` (see **Ghost state counters**).
+Deposit 1 rounded 0.857 down to 0, and that discarded fraction is never re-credited. When `earned()` later computes the combined allocation, the actor appears to be owed 1 wei more than ProtocolStaking ever emitted. The handler accounts for this shortfall with `ghost_rewarderDepositCount` (see **Ghost state counters**).
 
 See: `test_PhantomRewardBug_RewarderInsolvency` for a detailed example.
 
@@ -531,121 +529,160 @@ When `redeem()` encounters a shortfall within `ghost_globalRedemptionBudget`, `_
 
 Using the same pattern, when `earned(actor) > rewarderBalance + protocolStaking.earned(operatorStaking)` and the shortfall is within `ghost_rewarderDepositCount`, `_assertClaimRewardsRevertsForDust` explicitly asserts the expected `ERC20InsufficientBalance` revert.
 
----
+### 1. Global Invariants
 
-## Global Invariants
+Checked via `invariant_*` functions in [`OperatorStakingInvariantTest.t.sol`](OperatorStakingInvariantTest.t.sol) after every handler call.
 
-### `invariant_redeemAtExactCooldown`
+#### Redeem at exact cooldown
 
-Every pending redemption can be claimed at exactly its cooldown timestamp. Each iteration is isolated via snapshot/revertTo, so each gets the full unspent tolerance budget independently.
+`invariant_redeemAtExactCooldown`: every pending redemption is claimable at its exact cooldown timestamp. Each queue entry is isolated via `vm.snapshot` / `vm.revertTo`.
 
-When a truncation-leak shortfall exists within the tolerance budget, the invariant asserts the shortfall is bounded rather than executing the redeem.
+- **Shortfall within budget**: asserts `ERC20InsufficientBalance` via [`assertRedeemRevertsForDust`](handlers/OperatorStakingHandler.sol).
+- **No shortfall**: executes `redeem`, asserts tokens transfered == `assetsReturned`.
 
-The invariant explicitly asserts the expected `ERC20InsufficientBalance` revert occurs via the handler. If no shortfall exists, it executes the redeem and strictly verifies the exact ERC20 transfer matches the assets returned.
+#### Total recoverable value
 
-### `invariant_totalRecoverableValue`
-
-No actor ever loses funds without slashing:
+`invariant_totalRecoverableValue`: no actor loses deposited principal without slashing.
 
 ```
-redeemed + previewRedeem(allShares) + acceptableLoss ≥ deposited
+redeemed + previewRedeem(totalSharesActor) + acceptableLoss ≥ deposited
 ```
 
-`acceptableLoss = ghost_actorRedeemCount + ghost_actorDepositBudget`: the cumulative `ceil(totalAssets / totalShares)` captured before each deposit (at the pre-deposit exchange rate) plus 1 wei per redeem for floor-rounding in `_convertToAssets`.
+- **`acceptableLoss`**: ghost_actorRedeemCount(actor) + ghost_actorDepositBudget(actor)
+- **`totalSharesActor`** — balance + pendingRedeemRequest + claimableRedeemRequest
+- **`redeemed`**: ghost_redeemed
 
-### `invariant_canAlwaysRequestRedeem`
+- **`deposited`**: ghost_deposited
 
-Any account with a non-zero balance can always call `requestRedeem(balance)` without reverting, and the share balance decreases by exactly the requested amount.
+See [Ghost state counters](#ghost-state-counters) for additional information.
 
-### `invariant_redemptionQueueCompleteness`
+#### Can always request redeem
+
+`invariant_canAlwaysRequestRedeem`: any actor with non-zero shares can call `requestRedeem()` and their wallet share balance is reduced by exactly `amount`.
+
+```
+amount = min(balanceOf(actor), type(uint208).max)
+
+requestRedeem(amount, actor, actor)
+
+balanceOf(actor) before − balanceOf(actor) after == amount
+```
+
+#### Redemption queue completeness
+
+`invariant_redemptionQueueCompleteness`: pending + claimable shares for each actor sum to global queued shares.
 
 ```
 Σ (pendingRedeemRequest(actor) + claimableRedeemRequest(actor)) == totalSharesInRedemption()
 ```
 
-### `invariant_unstakeQueueMonotonicity`
+#### Unstake (redeem) queue monotonicity
 
-Each controller's `_redeemRequests` checkpoint trace has non-decreasing timestamps and non-decreasing cumulative share amounts.
-
-### `invariant_sharesConversionRoundTrip`
-
-Two consecutive preview conversions can only lose value, never create it. Each direction has its own tolerance:
-
-**shares → assets → shares** (`previewDeposit(previewRedeem(x)) <= x`):
-```
-step 1: assets = floor(x * totalAssets / totalShares)          -- rounds down, losing < 1 share of asset value
-step 2: result = floor(assets * totalShares / totalAssets)
-loss   = x - result <= ceil(totalShares / totalAssets)
-tolerance = (S + A - 1) / A
-```
-
-**assets → shares → assets** (`previewRedeem(previewDeposit(x)) <= x`):
-```
-step 1: shares = floor(x * totalShares / totalAssets)          -- rounds down, losing < 1 share worth of assets
-step 2: result = floor(shares * totalAssets / totalShares)
-loss   = x - result <= ceil(totalAssets / totalShares)
-tolerance = (A + S - 1) / S
-```
-
-Where `S = totalSupply + totalSharesInRedemption + 100` and `A = totalAssets + 1`. At a 1:1 exchange rate both tolerances equal 1; they widen only when the rate diverges.
-
-### `invariant_liquidityBufferSufficiency`
+`invariant_unstakeQueueMonotonicity`: for each controller, `_redeemRequests` checkpoint keys and cumulative share values are strictly increasing.
 
 ```
-balanceOf(operatorStaking) + awaitingRelease(operatorStaking) + tolerance ≥ previewRedeem(totalSharesInRedemption())
+key[j] ≥ key[j−1]
+value[j] ≥ value[j−1]     // consecutive checkpoints j
 ```
 
-`tolerance = ghost_globalRedemptionBudget` — the cumulative `ceil(totalAssets / totalShares)` captured before each deposit made while `totalSharesInRedemption > 0`.
+Read via [`OperatorStakingHarness`](harness/OperatorStakingHarness.sol): `_harness_getRedeemRequestCheckpointCount`, `_harness_getRedeemRequestCheckpointAt`.
 
----
+#### Liquidity buffer sufficiency
 
-## Transition Invariants
-
-### Reward monotonicity
-
-`ghost_claimedRewards[actor] + rewarder.earned(actor)` is non-decreasing across every action, with a 1-wei tolerance for division rounding in `_allocation`.
-
-### stakeExcess exact buffer
-
-After `stakeExcess()`:
+`invariant_liquidityBufferSufficiency`: liquid balance plus `awaitingRelease(operatorStaking)` covers all in-flight redemptions.
 
 ```
-IERC20(asset).balanceOf(operatorStaking) == previewRedeem(totalSharesInRedemption())
+IERC20(asset).balanceOf(operatorStaking)
+  + protocolStaking.awaitingRelease(operatorStaking)
+  + ghost_globalRedemptionBudget
+  ≥ previewRedeem(totalSharesInRedemption())
 ```
 
-### Redeem exact transfer + shares accounting
+#### Shares conversion round trip
 
-After `redeem(shares)`:
+`invariant_sharesConversionRoundTrip`: two composed preview conversions never gain value, loss per direction is bounded by `ceil(totalShares/totalAssets)` or `ceil(totalAssets/totalShares)`.
 
-1. Actual ERC20 transfer equals the pre-call `previewRedeem(effectiveShares)` snapshot
-2. `totalSharesInRedemption` decreased by `effectiveShares`
-3. `_sharesReleased[controller]` increased by `effectiveShares`
-
-Checks 2 and 3 are gated on `assets > 0`. `OperatorStaking.redeem` only runs the accounting block inside `if (assets > 0)` — if `previewRedeem(effectiveShares)` rounds to zero (very small share count), the call succeeds but neither field changes.
-
----
-
-## Equivalence Scenarios
-
-### `depositEquivalenceScenario`
-
-`deposit(a) + deposit(b)` vs `deposit(a + b)` using snapshot/revertTo.
-
-**Shares**: not asserted equal. After `deposit(a)`, the truncated fractional share stays in the vault, shifting the exchange rate slightly. `deposit(b)` at the new rate yields fewer shares. The fractional part is always less than 1 share, so the rate shift is always less than `1 / totalShares`. The proven bound on the share difference is:
+**Shares → assets → shares** (`previewDeposit(previewRedeem(x))`):
 
 ```
-abs(sharesA - sharesB) <= floor(amount2 / (totalAssets + amount1)) + 2
+assets = previewRedeem(totalShares)   // floor(x · A / S)
+sharesBack = previewDeposit(assets)
+sharesBack ≤ totalShares
+|totalShares − sharesBack| ≤ (S + A − 1) / A    // ceil(S/A)
 ```
 
-This is computed dynamically from pre-deposit state (`A = totalAssets + 1`) and used as the assertion tolerance.
+**Assets → shares → assets** (`previewRedeem(previewDeposit(x))`), for `assets > 0`:
 
-**Earned**: asserted within 2 wei. Two floor calls in `transferHook._allocation` (path A) vs one (path B) introduces at most 2 wei divergence.
+```
+sharesFromAssets = previewDeposit(assets)
+assetsBack = previewRedeem(sharesFromAssets)
+assetsBack ≤ assets
+|assets − assetsBack| ≤ (A + S − 1) / S    // ceil(A/S)
+```
 
-### `requestRedeemEquivalenceScenario`
+### 2. Transition invariants
 
-`requestRedeem(a) + requestRedeem(b)` vs `requestRedeem(a + b)` using snapshot/revertTo.
+#### Claimed + earned never decreases
 
-Both requests happen at the same timestamp, so the contract accumulates them into the same checkpoint window. `pendingRedeemRequest` is asserted exactly equal between paths — no tolerance needed.
+**`_assertActorTotalRewardsMonotonicity`**: `ghost_claimedRewards[actor] + rewarder.earned(actor)` must not decrease across any step, within `REWARD_ROUNDING_TOLERANCE` (1 wei) for `_allocation` flooring.
+
+```
+post ≥ pre − REWARD_ROUNDING_TOLERANCE
+```
+
+#### stakeExcess exact buffer
+
+**`_assertStakeExcessExactBufferInvariant`**: after `stakeExcess`, liquid asset balance equals exact redemption obligation.
+
+```
+IERC20(asset).balanceOf(operatorStaking) == operatorStaking.previewRedeem(operatorStaking.totalSharesInRedemption())
+```
+
+#### Redeem transfer and accounting
+
+**`_assertRedeemTransitionInvariants`**: after `redeem(shares)`:
+
+```
+effectiveShares = (shares == type(uint256).max) ? maxRedeem(actor) : shares
+
+expectedAssets = previewRedeem(effectiveShares)                    // before redeem()
+
+balance_actor_after − balance_actor_before == expectedAssets
+
+totalSharesInRedemption_before − totalSharesInRedemption_after == effectiveShares
+
+_sharesReleased(controller)_after − _sharesReleased(controller)_before == effectiveShares
+```
+
+### 3. Equivalence scenarios
+
+#### Deposit equivalence — `depositEquivalenceScenario`
+
+**Intent:** `deposit(a) + deposit(b)` ≡ `deposit(a + b)`.
+
+```
+Path A:  deposit(amount1) -> deposit(amount2) -> read state -> revert state
+Path B:  deposit(amount1 + amount2) -> read state
+```
+
+**Shares**: not asserted equal because the rate shift after `deposit(a)` yields fewer shares on `deposit(b)`:
+
+```
+abs(shares_A − shares_B) ≤ amount2 / (totalAssets + 1 + amount1) + 2
+```
+
+**Earned**: assert within **2 wei** (two `transferHook` floors on path A vs one on path B).
+
+#### Request-redeem equivalence — `requestRedeemEquivalenceScenario`
+
+**Intent:** `requestRedeem(a) + requestRedeem(b)` ≡ `requestRedeem(a + b)`.
+
+```
+Path A:  requestRedeem(a) -> requestRedeem(b) -> read state -> revert state
+Path B:  requestRedeem(a + b) -> read state
+```
+
+Same timestamp `pendingRedeemRequest` must match exactly.
 
 ---
 
@@ -653,9 +690,9 @@ Both requests happen at the same timestamp, so the contract accumulates them int
 
 ### `ghost_claimedRewards` drift
 
-Because phantom rewards are caught via expected reverts, the underlying phantom debt remains on the rewarder's books. This permanently blocks the affected actor from successfully executing `claimRewards()` until their shares burn via `requestRedeem` (which adjust `_rewardsPaid` in the transferHook). During this period, `ghost_claimedRewards[actor]` under-counts actual accrued rewards.
+Because phantom rewards are caught via expected reverts, the underlying phantom debt remains on the rewarder's books. This permanently blocks the affected actor from successfully executing `claimRewards()` until their shares burn via `requestRedeem` (which adjusts `_rewardsPaid` in the transferHook). During this period, `ghost_claimedRewards[actor]` under-counts actual accrued rewards.
 
-Once a truncation shortfall exists in the vault, direct token donations cannot close it. The dominant redeemer's floating shares absorb any injected value proportionally — `previewRedeem` rises in lockstep with the bailout. To close a 1-wei gap requires donating approximately `totalAssets / 100` (TVL-proportional, not shortfall-proportional).
+Once a truncation shortfall exists in the vault, direct token donations cannot always close it. A dominant redeemer's floating shares absorb any injected value proportionally, meaning `previewRedeem` rises in lockstep with the bailout. Closing a 1-wei gap requires donating approximately `totalAssets / 100` (TVL-proportional, not shortfall-proportional).
 
 ---
 

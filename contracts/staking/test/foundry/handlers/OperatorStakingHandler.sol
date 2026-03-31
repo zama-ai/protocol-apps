@@ -44,7 +44,7 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         for all deposits by that actor.
 ///         --------------------------------
 ///
-///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency): 
+///      Rewarder-side (test_PhantomRewardBug_RewarderInsolvency):
 ///         Sequential deposits each floor-divide independently in transferHook._allocation. Rounding down
 ///         multiple times individually can lose more total precision than rounding once on
 ///         the combined value, so earned() can return 1 phantom wei that the rewarder

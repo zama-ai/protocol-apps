@@ -183,7 +183,6 @@ contract OperatorStakingInvariantTest is Test {
         for (uint256 i = 0; i < actorCount; i++) {
             address actor = handler.actorAt(i);
 
-            // Each deposit and redeem incurs up to 1 wei of floor-rounding loss.
             uint256 acceptableLoss = handler.ghost_actorRedeemCount(actor) + handler.ghost_actorDepositBudget(actor);
 
             uint256 deposited = handler.ghost_deposited(actor);
