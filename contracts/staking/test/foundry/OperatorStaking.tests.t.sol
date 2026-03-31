@@ -5,7 +5,7 @@ pragma solidity ^0.8.27;
 /* solhint-disable func-name-mixedcase */
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {ZamaERC20} from "token/contracts/ZamaERC20.sol";
 import {OperatorRewarder} from "./../../contracts/OperatorRewarder.sol";
 import {OperatorStakingHarness} from "./harness/OperatorStakingHarness.sol";
@@ -236,6 +236,112 @@ contract OperatorStakingTests is Test {
             )
         );
         _opStaking.redeem(100, alice, alice);
+    }
+
+    /// @notice Proves the floor-division remainder in _convertToShares leaks asset value
+    ///   into the shared pool, and that a deposit can be completely voided (0 shares) when
+    ///   the exchange rate is large enough.
+    ///
+    ///   Part 1 — Remainder leak:
+    ///   1. Alice seeds the vault with 1 wei (100 shares).
+    ///   2. Bob donates 1M tokens, inflating the exchange rate to ~5000e18 per share.
+    ///   3. Charlie deposits 7777 tokens at the inflated rate. Floor-rounding truncates
+    ///      his exact 1.5554 shares to 1, leaking ~2764 tokens of value into the pool.
+    ///   4. Assert: leaked > 0 and leaked < ceil(totalAssets / totalShares).
+    ///
+    ///   Part 2 — Zero-share (voided) deposit:
+    ///   5. Dave deposits 1 token, which is far below one share's asset-equivalent.
+    ///   6. previewDeposit returns 0; deposit goes through but mints 0 shares.
+    ///   7. Dave owns nothing; totalAssets increased by his deposit.
+    ///
+    ///   Notation:
+    ///      S       = opStaking.totalSupply()
+    ///      R       = opStaking.totalSharesInRedemption()
+    ///      pShares = protocolStaking.balanceOf(opStaking)
+    ///      liquid  = token.balanceOf(opStaking)
+    ///      A       = totalAssets = liquid + pShares + awaiting
+    ///      offset  = 10^DECIMALS_OFFSET = 100
+    ///
+    ///      shares(d)   = ⌊d · (S + R + offset) / (A + 1)⌋
+    ///      leaked(d)   = d − previewRedeem(shares(d))
+    ///      ceilRate    = ⌈(A + 1) / (S + R + offset)⌉
+    function test_TruncationRemainder_AssetLeakAndVoidedDeposit() public {
+        address alice = makeAddr("alice");
+        address bob = makeAddr("bob");
+        address charlie = makeAddr("charlie");
+        address dave = makeAddr("dave");
+
+        address[] memory users = new address[](4);
+        users[0] = alice;
+        users[1] = bob;
+        users[2] = charlie;
+        users[3] = dave;
+
+        uint256[] memory amounts = new uint256[](4);
+        amounts[0] = 1e18;
+        amounts[1] = 1_000_000e18;
+        amounts[2] = 10_000e18;
+        amounts[3] = 10_000e18;
+
+        (ZamaERC20 _token, , OperatorStakingHarness _opStaking) = _setupIsolatedOperatorStaking(users, amounts);
+
+        // ── S=0 R=0 | pShares=0 liquid=0 | A=0
+
+        // Seed: Alice deposits 1 wei → 100 shares.
+        // shares = ⌊1·(0+0+100)/(0+1)⌋ = 100; 1 ZAMA staked 1:1 → pShares=1
+        vm.prank(alice);
+        assertEq(_opStaking.deposit(1, alice), 100, "Alice seed: 100 shares");
+
+        // ── S=100 R=0 | pShares=1 liquid=0 | A=1
+
+        // Bob donates 1M tokens directly — inflates exchange rate without minting shares.
+        vm.prank(bob);
+        _token.transfer(address(_opStaking), 1_000_000e18);
+
+        // ── S=100 R=0 | pShares=1 liquid=1_000_000e18 | A=1_000_000e18+1
+        // ── effectiveShares = S + R + offset = 200
+        // ── ceilRate = ⌈(1_000_000e18+2)/200⌉ = 5000e18+1
+
+        // ── Part 1: Charlie deposits at inflated rate → truncation remainder leaks value.
+        {
+            // Capture pre-deposit exchange rate ceiling for the bound check.
+            uint256 effectiveShares = _opStaking.totalSupply() + _opStaking.totalSharesInRedemption() + 100;
+            uint256 ceilRate = (_opStaking.totalAssets() + effectiveShares) / effectiveShares;
+
+            // exactShares = 7777e18·200 / (1_000_000e18+2) = 1.5554… → sharesMinted = 1
+            vm.prank(charlie);
+            uint256 sharesMinted = _opStaking.deposit(7777e18, charlie);
+
+            // ── S=101 R=0 | pShares=7777e18+1 liquid=1_000_000e18 | A=1_007_777e18+1
+            // ── previewRedeem(1) = ⌊(1_007_777e18+2)/201⌋ ≈ 5013.3e18
+
+            assertGt(sharesMinted, 0, "Charlie must receive > 0 shares");
+
+            uint256 leaked = 7777e18 - _opStaking.previewRedeem(sharesMinted);
+
+            // The truncated remainder leaked value into the pool: deposit > shares' redemption value.
+            assertGt(leaked, 0, "Truncation must leak value into the pool");
+            // Bounded by the per-deposit ceiling from FUZZING.md § Tolerance Budget System.
+            assertLt(leaked, ceilRate, "Leak must be bounded by ceilRate = ceil(A/S)");
+        }
+
+        // ── Part 2: Dave deposits below one-share threshold → 0 shares (voided deposit).
+        {
+            uint256 totalAssetsBefore = _opStaking.totalAssets();
+
+            // ── effectiveShares = 101 + 0 + 100 = 201
+            // ── shares(1e18) = ⌊1e18·201/(1_007_777e18+2)⌋ = 0  (deposit < ceilRate ≈ 5013e18)
+            assertEq(_opStaking.previewDeposit(1e18), 0, "Preview: 0 shares for sub-threshold deposit");
+
+            vm.prank(dave);
+            uint256 daveShares = _opStaking.deposit(1e18, dave);
+
+            // Dave's tokens are consumed but he owns nothing.
+            assertEq(daveShares, 0, "Dave receives 0 shares");
+            assertEq(_opStaking.balanceOf(dave), 0, "Dave's balance is 0");
+            // totalAssets increased by the full deposit — the tokens are in the vault but unowned.
+            assertEq(_opStaking.totalAssets(), totalAssetsBefore + 1e18, "totalAssets absorbs voided deposit");
+        }
     }
 
     /// @notice Demonstrates the rewarder-side phantom reward bug.
