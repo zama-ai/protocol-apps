@@ -64,7 +64,7 @@ async function deployConfidentialWrapper(
   await save(getConfidentialWrapperImplName(name), { address: implementationAddress, abi: artifact.abi });
 }
 
-// Deploy a confidential wrapper contract 
+// Deploy a confidential wrapper contract
 // Example usage:
 // npx hardhat task:deployConfidentialWrapper \
 // --name "ZAMA" \
@@ -77,7 +77,12 @@ task('task:deployConfidentialWrapper')
   .addParam('name', 'The name of the confidential wrapper contract to deploy', undefined, types.string)
   .addParam('symbol', 'The symbol of the confidential wrapper contract to deploy', undefined, types.string)
   .addParam('contractUri', 'The contract URI of the confidential wrapper contract to deploy', undefined, types.string)
-  .addParam('underlying', 'The underlying token address of the confidential wrapper contract to deploy', undefined, types.string)
+  .addParam(
+    'underlying',
+    'The underlying token address of the confidential wrapper contract to deploy',
+    undefined,
+    types.string,
+  )
   .addParam('owner', 'The owner address of the confidential wrapper contract to deploy', undefined, types.string)
   .setAction(async function ({ name, symbol, contractUri, underlying, owner }, hre) {
     await deployConfidentialWrapper(name, symbol, contractUri, underlying, owner, hre);
