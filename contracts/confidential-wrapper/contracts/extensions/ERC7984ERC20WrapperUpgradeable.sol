@@ -169,23 +169,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
-    function unwrapAmount(bytes32 unwrapRequestId) public view virtual returns (euint64) {
-        return euint64.wrap(unwrapRequestId);
-    }
-
-    /**
-     * @dev Get the address that has a pending unwrap request for the given `unwrapRequestId`. Returns `address(0)` if no pending
-     * unwrap request for the `unwrapRequestId` exists.
-     */
-    function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
-        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
-        return $._unwrapRequests[unwrapRequestId];
-    }
-
-    /// @inheritdoc IERC7984ERC20Wrapper
     function underlying() public view virtual override returns (address) {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         return address($._underlying);
+    }
+
+    /// @inheritdoc IERC7984ERC20Wrapper
+    function unwrapAmount(bytes32 unwrapRequestId) public view virtual returns (euint64) {
+        return euint64.wrap(unwrapRequestId);
     }
 
     /// @inheritdoc IERC165
@@ -210,9 +201,18 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return IERC20(underlying()).balanceOf(address(this)) / rate();
     }
 
-    /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
+     /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
     function maxTotalSupply() public view virtual returns (uint256) {
         return type(uint64).max;
+    }
+
+    /**
+     * @dev Get the address that has a pending unwrap request for the given `unwrapRequestId`. Returns `address(0)` if no pending
+     * unwrap request for the `unwrapRequestId` exists.
+     */
+    function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
+        return $._unwrapRequests[unwrapRequestId];
     }
 
     /**
