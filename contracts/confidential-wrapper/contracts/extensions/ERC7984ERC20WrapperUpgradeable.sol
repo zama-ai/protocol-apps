@@ -206,7 +206,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * Reductions will lag compared to {confidentialTotalSupply} since it is updated on {unwrap} while this function updates
      * on {finalizeUnwrap}.
      */
-    function totalSupply() public view virtual returns (uint256) {
+    function inferredTotalSupply() public view virtual returns (uint256) {
         return IERC20(underlying()).balanceOf(address(this)) / rate();
     }
 
@@ -223,7 +223,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * not overflow.
      */
     function _checkConfidentialTotalSupply() internal virtual {
-        if (totalSupply() > maxTotalSupply()) {
+        if (inferredTotalSupply() > maxTotalSupply()) {
             revert ERC7984TotalSupplyOverflow();
         }
     }

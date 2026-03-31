@@ -15,7 +15,7 @@
  *   npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
  */
 
-import { Log } from 'ethers';
+import { Contract, Log } from 'ethers';
 import { ethers } from 'hardhat';
 import { impersonateAccount, setBalance } from '@nomicfoundation/hardhat-network-helpers';
 import { CONTRACT_NAME } from '../tasks/deploy';
@@ -32,6 +32,12 @@ const IMPLEMENTATION_SLOT = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a92
 const FINALIZED_SAMPLE_SIZE = 3;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Call the old `totalSupply()` selector on the pre-upgrade deployed contract.
+async function readTotalSupplyPreUpgrade(address: string): Promise<bigint> {
+  const old = new Contract(address, ['function totalSupply() view returns (uint256)'], ethers.provider);
+  return (await old.totalSupply()) as bigint;
+}
 
 function getMappingSlot(key: string, baseSlot: bigint): string {
   const encoded = ethers.AbiCoder.defaultAbiCoder().encode(['bytes32', 'uint256'], [key, baseSlot]);
@@ -171,7 +177,7 @@ async function main() {
     decimals: await wrapper.decimals(),
     underlying: await wrapper.underlying(),
     rate: await wrapper.rate(),
-    totalSupply: await wrapper.totalSupply(),
+    totalSupply: await readTotalSupplyPreUpgrade(address),
     maxTotalSupply: await wrapper.maxTotalSupply(),
     owner: await wrapper.owner(),
     implementation: await getImplementationAddress(address),
@@ -236,7 +242,7 @@ async function main() {
     decimals: await upgraded.decimals(),
     underlying: await upgraded.underlying(),
     rate: await upgraded.rate(),
-    totalSupply: await upgraded.totalSupply(),
+    totalSupply: await upgraded.inferredTotalSupply(),
     maxTotalSupply: await upgraded.maxTotalSupply(),
     owner: await upgraded.owner(),
     erc7984Slots: await readStorageSlots(address, BigInt(ERC7984_BASE), 6),
@@ -355,6 +361,18 @@ async function main() {
   const unwrapAmountResult = await upgraded.unwrapAmount(ethers.id('test'));
   assert(unwrapAmountResult !== undefined, 'unwrapAmount should be callable');
   console.log('  unwrapAmount(bytes32) → euint64: OK');
+
+  // totalSupply() was renamed to inferredTotalSupply() — verify the old selector reverts
+  const inferredResult = await upgraded.inferredTotalSupply();
+  assert(inferredResult !== undefined, 'inferredTotalSupply should be callable');
+  console.log('  inferredTotalSupply() → uint256: OK');
+
+  const oldTotalSupplyContract = new Contract(address, ['function totalSupply() view returns (uint256)'], ethers.provider);
+  await assertReverts(
+    () => oldTotalSupplyContract.totalSupply(),
+    'old totalSupply() selector should revert after upgrade',
+  );
+  console.log('  totalSupply() reverts (selector removed): OK');
 
   // ── 6. Verify security invariants ──
 
