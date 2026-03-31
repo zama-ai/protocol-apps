@@ -127,7 +127,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         address to,
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
-    ) public virtual override returns (bytes32) {
+    ) public virtual returns (bytes32) {
         return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
@@ -136,7 +136,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         bytes32 unwrapRequestId,
         uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
-    ) public virtual override {
+    ) public virtual {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
         address to = $._unwrapRequests[unwrapRequestId];
         require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
