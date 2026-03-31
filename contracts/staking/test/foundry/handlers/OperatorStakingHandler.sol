@@ -43,7 +43,7 @@ import {ProtocolStakingHarness} from "./../harness/ProtocolStakingHarness.sol";
 ///         (See: test_GlobalRedemptionBudget_DonationTruncation)
 ///         --------------------------------
 ///         ghost_actorDepositBudget: Per-actor budget, running sum of ceil(totalAssets / totalShares)
-///         for all deposits by that actor. 
+///         for all deposits by that actor.
 ///         (See: test_StakingSideDepositBudget_RemainderLeak)
 ///         --------------------------------
 ///

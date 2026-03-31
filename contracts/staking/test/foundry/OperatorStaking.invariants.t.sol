@@ -14,7 +14,7 @@ import {ProtocolStakingHarness} from "./harness/ProtocolStakingHarness.sol";
 
 /// @title OperatorStakingInvariantTest
 /// @notice Invariant fuzzing suite for OperatorStaking. Exercises deposit, redeem,
-///         donate, stakeExcess, and reward paths through a randomized handler.
+///         donate, stakeExcess, and reward paths through a handler.
 contract OperatorStakingInvariantTest is Test {
     // -------------------------------------------------------------------
     //  State

@@ -282,8 +282,8 @@ upper bound = ceil(totalAssets / totalShares)
 #### Implementation of `ceil(totalAssets / totalShares)`
 
 ```solidity
-uint256 S = totalSupply + totalSharesInRedemption + 100;  // effective total shares
-uint256 A = totalAssets + 1;                               // +1 avoids division by zero
+uint256 S = totalSupply + totalSharesInRedemption + 100;
+uint256 A = totalAssets + 1;
 uint256 currentCeilAS = (A + S - 1) / S;
 ```
 
@@ -295,7 +295,26 @@ for any positive integers `a` and `b`:
 ceil(a / b) = floor((a + b - 1) / b)
 ```
 
-The handler captures this value **before each deposit** (when the pre-deposit exchange rate is known) and accumulates it into **`ghost_globalRedemptionBudget`** and **`ghost_actorDepositBudget`** according to the trigger rules in **Ghost state counters** below.
+#### Why `ceil(A/S) = 1` in normal operation
+
+The decimals offset of 2 creates 100 virtual shares, which anchors the effective share supply at roughly 100× the asset balance. After any deposit of `d` assets the vault mints proportional shares, so the ratio stays close to 100:1 making `ceil(totalAssets / totalShares)` evaluate to exactly 1.
+
+No normal flow breaks this:
+
+- **Deposits** mint shares proportionally via `_convertToShares`, preserving the 100:1 ratio.
+- **Redemption requests** shuffle shares between `totalSupply` and `totalSharesInRedemption` without touching total assets.
+- **Redeems** reduce total assets and effective shares proportionally, so the ratio holds.
+- **Rewards** are routed to `OperatorRewarder`, not to the staking pool's token balance, so they never inflate `totalAssets`.
+
+#### When `ceil(A/S)` can exceed 1
+
+The only path is a direct token transfer (donation) to the staking contract, which inflates `totalAssets` while shares stay fixed. Because shares outnumber assets ~100:1, the donation must be large before the ceiling rounds up to 2. Concretely, a donation `D` pushes `ceil` above 1 only when `D` exceeds roughly 99× the current TVL. Past that threshold `ceil` grows approximately linearly with donation size.
+
+#### Impact on the rounding budgets
+
+With `ceil = 1` the per-deposit rounding error is at most **1 wei**, so `ghost_globalRedemptionBudget` and `ghost_actorDepositBudget` grow very slowly under normal operation. Large budget accumulation requires a donation *before* a deposit inflates the exchange rate. Calling `stakeExcess` resets `ghost_globalRedemptionBudget` to 0 by restoring the exact-buffer condition, after which `ceil` returns to 1 for subsequent deposits.
+
+The handler captures this value before each deposit (when the pre-deposit exchange rate is known) and accumulates it into `ghost_globalRedemptionBudget` and `ghost_actorDepositBudget` according to the trigger rules in **Ghost state counters** below.
 
 See: `test_StakingSideDepositBudget_RemainderLeak` and `test_GlobalRedemptionBudget_DonationTruncation` in [OperatorStaking.tests.t.sol](OperatorStaking.tests.t.sol).
 
@@ -303,50 +322,9 @@ See: `test_StakingSideDepositBudget_RemainderLeak` and `test_GlobalRedemptionBud
 
 When an actor makes N sequential deposits and `transferHook` fires on each, each call independently rounds down its reward allocation and accumulates the result into `_rewardsPaid[actor]`. Later, `earned()` computes a single combined allocation and rounds down once.
 
-Rounding down several small values individually can discard more total precision than rounding the combined value once. The sum of the individually rounded values can therefore be strictly less than the single rounded combined value. Concretely:
+Rounding down several small values individually can discard more total precision than rounding the combined value once. The sum of the individually rounded values can therefore be strictly less than the single rounded combined value.
 
-```
-0. Setup / notation
-   - Other staker: 500 shares, held for the whole trace.
-   - rewardsPerToken: cumulative rewards distributed per share since deployment.
-   - _rewardsPaid[actor]: running total of reward debt for an actor
-
-1. Before deposit 1
-   - totalSupply: 500
-   - rewardsPerToken: 3
-
-2. Actor deposits 200 shares
-   - totalSupply: 500 -> 700
-   - transferHook credits floor(rewardsPerToken * newShares / totalSupply)
-   - Update 1 = floor(3 * 200 / 700) = floor(0.857) = 0
-   - _rewardsPaid[actor]: 0
-
-3. Rewards accrue
-   - rewardsPerToken: 3 -> 7
-
-4. Actor deposits 300 shares
-   - totalSupply: 700 -> 1000
-   - transferHook credits floor(rewardsPerToken * newShares / totalSupply)
-   - Update 2 = floor(7 * 300 / 1000) = floor(2.1) = 2
-   - _rewardsPaid[actor]: 0 + 2 = 2
-
-5. Rewards accrue
-   - rewardsPerToken: 7 -> 10
-
-6. Actor calls earned()
-   - actorShares: 500; totalSupply: 1000; rewardsPerToken: 10
-   - earned() = floor(rewardsPerToken * actorShares / totalSupply) - _rewardsPaid[actor]
-   - earned = floor(10 * 500 / 1000) - (0 + 2) = 5 - 2 = 3
-
-7. Actor calls claimRewards()
-   - available = rewarder.balanceOf(rewarder) + protocolStaking.earned(operatorStaking) = 2
-   - needed = earned() = 3
-   - ERC20InsufficientBalance(rewarder, balance=2, needed=3)
-```
-
-Deposit 1 rounded 0.857 down to 0, and that discarded fraction is never re-credited. When `earned()` later computes the combined allocation, the actor appears to be owed 1 wei more than ProtocolStaking ever emitted. The handler accounts for this shortfall with `ghost_rewarderDepositCount` (see **Ghost state counters**).
-
-See: `test_RewarderSideDepositBudget_PhantomInsolvency` for a detailed example.
+See: `test_RewarderSideDepositBudget_PhantomInsolvency` in [`OperatorStaking.tests.t.sol`](OperatorStaking.tests.t.sol) for a detailed example.
 
 ### Ghost state counters
 
