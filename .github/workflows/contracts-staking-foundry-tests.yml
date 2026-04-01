@@ -1,0 +1,119 @@
+# Run Foundry invariant tests
+# - tests:       ci profile (500 runs, depth 15)  — triggered on PR and push to main
+# - tests-heavy: ciheavy profile (10k runs, depth 15) — triggered on workflow_dispatch only
+name: contracts-staking-foundry-tests
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-contracts-staking-foundry-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check-changes:
+    name: contracts-staking-foundry-tests/check-changes
+    permissions:
+      actions: 'read'
+      contents: 'read'
+      pull-requests: 'read'
+    runs-on: ubuntu-latest
+    outputs:
+      changes-contracts-staking-foundry: ${{ steps.filter.outputs.contracts-staking-foundry }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: 'false'
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            contracts-staking-foundry:
+              - .github/workflows/contracts-staking-foundry-tests.yml
+              - contracts/staking/**
+
+  tests:
+    name: contracts-staking-foundry-tests/tests
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.changes-contracts-staking-foundry == 'true' && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: 'false'
+
+      - name: Install Node dependencies
+        working-directory: contracts/staking
+        run: npm ci
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1.7.0
+
+      - name: Install forge-std
+        working-directory: contracts/staking
+        run: forge install foundry-rs/forge-std --no-git
+
+      - name: Run Foundry invariant tests
+        working-directory: contracts/staking
+        shell: bash
+        run: |
+          set -o pipefail
+          make test-fuzz-ci 2>&1 | tee foundry-test-output.log
+
+      - name: Upload Foundry test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: foundry-test-output
+          path: contracts/staking/foundry-test-output.log
+          retention-days: 7
+
+  tests-heavy:
+    name: contracts-staking-foundry-tests/tests-heavy
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: 'read'
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: 'false'
+
+      - name: Install Node dependencies
+        working-directory: contracts/staking
+        run: npm ci
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1.7.0
+
+      - name: Install forge-std
+        working-directory: contracts/staking
+        run: forge install foundry-rs/forge-std --no-git
+
+      - name: Run Foundry invariant tests (heavy)
+        working-directory: contracts/staking
+        shell: bash
+        run: |
+          set -o pipefail
+          make test-fuzz-heavy 2>&1 | tee foundry-test-output.log
+
+      - name: Upload Foundry test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: foundry-test-output-heavy
+          path: contracts/staking/foundry-test-output.log
+          retention-days: 7
