@@ -213,4 +213,4 @@ npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
      - open the wrapper proxy address
      - go to "Contract" > "Code" > "More Options" > "Is this a proxy?" > "Verify" > "Save"
      - go back to the wrapper page and refresh
-4. Register the wrapper in the registry (see the [registry documentation](../../docs/registry-contract.md)).
+4. Register the wrapper in the registry (see the [registry documentation](../../docs/wrapper-registry.md)).

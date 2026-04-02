@@ -1,4 +1,4 @@
-# Registry contract
+# Confidential Token Wrappers Registry
 
 This document explains the **Confidential Token Wrappers Registry,** an onchain directory that maps ERC-20 tokens to their corresponding ERC-7984 confidential token wrappers. Use it to discover, validate, and integrate confidential wrappers within the FHEVM ecosystem.
 

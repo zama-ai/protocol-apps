@@ -18,13 +18,9 @@ Otherwise:
 
 🟨 Go to [**Governance**](governance.md) to learn how operators vote on proposals, manage upgrades, and participate in DAO decisions.
 
-🟨 Go to [**Pausing**](pausing.md) to learn about emergency pausing mechanisms in the protocol.
-
 🟨 Go to [**Staking**](staking.md) to understand the two-tier staking system and how fees and rewards are distributed.
 
-🟨 Go to [**Registry contract**](registry-contract.md) to learn how to find and validate confidential token wrappers for ERC-20 tokens through the onchain registry directory.
-
-🟨 Go to [**Confidential wrapper**](confidential-wrapper.md) to learn how to wrap standard ERC-20 tokens into confidential ERC-7984 tokens.
+🟨 Go to [**Confidential wrapper**](confidential-wrapper.md) to learn how to wrap standard ERC-20 tokens into confidential ERC-7984 tokens. Go to [**Registry**](wrapper-registry.md) to learn how confidential wrappers are registered onchain.
 
 ## Help center
 
