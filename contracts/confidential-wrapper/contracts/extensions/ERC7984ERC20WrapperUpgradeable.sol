@@ -12,7 +12,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ERC7984Upgradeable} from "../token/ERC7984Upgradeable.sol";
 import {IERC7984} from "@openzeppelin/confidential-contracts/interfaces/IERC7984.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {IERC7984ERC20Wrapper} from "../interfaces/IERC7984ERC20Wrapper.sol";
+import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfaces/IERC7984ERC20Wrapper.sol";
 
 /**
  * @title ERC7984ERC20WrapperUpgradeable
