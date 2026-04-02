@@ -12,7 +12,13 @@ Otherwise:
 
 🟨 Go to [**Apps**](apps.md) to explore all the official Zama Protocol web applications.
 
+🟨 Go to [**Addresses**](addresses/README.md) to find all deployed contract addresses for the Zama protocol.
+
+🟨 Go to [**$ZAMA Token**](zama-token.md) to learn about the protocol's utility token, its OFT architecture, and how to bridge it.
+
 🟨 Go to [**Governance**](governance.md) to learn how operators vote on proposals, manage upgrades, and participate in DAO decisions.
+
+🟨 Go to [**Pausing**](pausing.md) to learn about emergency pausing mechanisms in the protocol.
 
 🟨 Go to [**Staking**](staking.md) to understand the two-tier staking system and how fees and rewards are distributed.
 
