@@ -206,8 +206,8 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /**
-     * @dev Get the address that has a pending unwrap request for the given `unwrapRequestId`. Returns `address(0)` if no pending
-     * unwrap request for the `unwrapRequestId` exists.
+     * @dev Gets the address that will receive the ERC-20 tokens associated with a pending unwrap request identified by
+     * `unwrapRequestId`. Returns `address(0)` if there is no pending unwrap request with id `unwrapRequestId`.
      */
     function unwrapRequester(bytes32 unwrapRequestId) public view virtual returns (address) {
         ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
