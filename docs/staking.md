@@ -107,7 +107,7 @@ Many common staking operations can be performed through the Zama staking dashboa
 
 {% endhint %}
 
-<a id="delegate-zama"></a>
+<a id="delegate-usdzama"></a>
 
 ### Delegate $ZAMA
 
@@ -406,7 +406,7 @@ operatorStaking.setOperator(operatorAddress, true);
 
 Delegates $ZAMA tokens to the operator pool, minting staking shares proportional to the deposit. 
 
-See [Delegate $ZAMA](#delegate-zama) in the Quick Start guide.
+See [Delegate $ZAMA](#delegate-usdzama) in the Quick Start guide.
 
 #### Delegate with permit
 
