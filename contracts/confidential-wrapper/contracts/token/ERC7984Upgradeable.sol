@@ -65,9 +65,6 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
     /// @dev The given caller `caller` is not authorized for the current operation.
     error ERC7984UnauthorizedCaller(address caller);
 
-    /// @dev The given gateway request ID `requestId` is invalid.
-    error ERC7984InvalidGatewayRequest(uint256 requestId);
-
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ERC7984Upgradeable")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant ERC7984StorageLocation =
         0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
