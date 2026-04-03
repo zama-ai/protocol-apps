@@ -20,7 +20,7 @@ Otherwise:
 
 🟨 Go to [**Staking**](staking.md) to understand the two-tier staking system and how fees and rewards are distributed.
 
-🟨 Go to [**Confidential wrapper**](confidential-wrapper.md) to learn how to wrap standard ERC-20 tokens into confidential ERC-7984 tokens. Go to [**Registry**](wrapper-registry.md) to learn how confidential wrappers are registered onchain.
+🟨 Go to [**Confidential wrapper**](confidential-wrapper.md) to learn how to wrap standard ERC-20 tokens into confidential ERC-7984 tokens, and [**Registry**](wrapper-registry.md) to learn how to to register them onchain.
 
 ## Help center
 
