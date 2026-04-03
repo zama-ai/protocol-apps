@@ -18,8 +18,7 @@ The Zama Protocol secures itself by allowing $ZAMA token holders to delegate on 
 
 | Resource | Link |
 | --- | --- |
-| Mainnet addresses | [Ethereum addresses](addresses/mainnet/ethereum.md) |
-| Testnet addresses | [Sepolia addresses](addresses/testnet/sepolia.md) |
+| Deployed addresses | [Addresses directory](addresses/README.md) |
 | `ProtocolStaking` source | [ProtocolStaking.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/ProtocolStaking.sol) |
 | `OperatorStaking` source | [OperatorStaking.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/OperatorStaking.sol) |
 | `OperatorRewarder` source | [OperatorRewarder.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/staking/contracts/OperatorRewarder.sol) |
