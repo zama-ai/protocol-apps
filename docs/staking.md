@@ -113,6 +113,8 @@ Many common staking operations can be performed through the Zama staking dashboa
 
 {% endhint %}
 
+<a id="delegate-usdzama"></a>
+
 ### Delegate $ZAMA
 
 Delegating $ZAMA to an operator is a two-step process. First, you must approve the `OperatorStaking` contract to spend your tokens, and then you call the `deposit` function to mint operator staking shares.
@@ -410,7 +412,7 @@ operatorStaking.setOperator(operatorAddress, true);
 
 Delegates $ZAMA tokens to the operator pool, minting staking shares proportional to the deposit. 
 
-See [Delegate $ZAMA](#delegate-zama) in the Quick Start guide.
+See [Delegate $ZAMA](#delegate-usdzama) in the Quick Start guide.
 
 #### Delegate with permit
 
@@ -607,7 +609,7 @@ The following functions are callable only by the [beneficiary](#operatorrewarder
 
 #### Claim commission fee
 
-See [Claim commission fee](#claim-commission-fee) in the Quick Start guide for full details.
+See [Claim commission fees](#claim-commission-fees) in the Quick Start guide for full details.
 
 #### Set commission fee
 
