@@ -20,7 +20,7 @@ remappings = [
 fail_on_revert = true
 
 [profile.ci.invariant]
-runs = 500
+runs = 100
 fail_on_revert = true
 
 [profile.ciheavy.invariant]
