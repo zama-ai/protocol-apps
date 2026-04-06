@@ -36,7 +36,7 @@ The wrapper enforces a maximum number of decimals for the confidential token. Wh
 
 **Shielded Zama protocol staking shares do not earn rewards**
 
-Operator staking shares issued by the Zama [staking protocol](staking.md) are ERC4626-style vault shares whose redemption value increases as staking rewards accumulate. Wrapping these shares transfers their custody to the confidential wrapper contract, which becomes the effective recipient of all future rewards. Holders of the shielded shares do not earn staking rewards as long as the underlying shares remain shielded.
+Operator staking shares issued by the Zama [staking protocol](staking.md) are vault-style shares that represent a proportional claim on the underlying staked assets. Staking rewards are accrued to the active holder of the shares. Wrapping these shares transfers their custody to the confidential wrapper contract, which becomes the address of record and the effective recipient of all future rewards. Consequently, holders of shielded shares do not earn staking rewards as long as their underlying shares remain shielded.
 
 Non-standard tokens are not supported. This includes fee-on-transfer, deflationary, and rebasing tokens. See [Non-standard token types](#non-standard-token-types) for a full breakdown.
 {% endhint %}
