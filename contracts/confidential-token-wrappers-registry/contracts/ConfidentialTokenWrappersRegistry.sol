@@ -49,6 +49,9 @@ contract ConfidentialTokenWrappersRegistry is Ownable2StepUpgradeable, UUPSUpgra
     /// @notice Error thrown when the confidential token address is zero.
     error ConfidentialTokenZeroAddress();
 
+    /// @notice Error thrown when the token address and confidential token address are the same.
+    error TokenAddressIsConfidentialTokenAddress(address tokenAddress);
+
     /// @notice Error thrown when a confidential token is not a valid ERC7984 confidential token
     /// because it does not support the ERC7984 interface (0x4958f2a4).
     error NotERC7984(address confidentialTokenAddress);
@@ -100,6 +103,9 @@ contract ConfidentialTokenWrappersRegistry is Ownable2StepUpgradeable, UUPSUpgra
         }
         if (confidentialTokenAddress == address(0)) {
             revert ConfidentialTokenZeroAddress();
+        }
+        if (tokenAddress == confidentialTokenAddress) {
+            revert TokenAddressIsConfidentialTokenAddress(tokenAddress);
         }
 
         // The confidential token must support the ERC7984 interface (0x4958f2a4) via
