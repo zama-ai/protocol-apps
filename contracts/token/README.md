@@ -109,7 +109,10 @@ Two NPM scripts are available to send ZAMA tokens between Ethereum Sepolia and G
 - `npm run zama:oft:send:ethToGateway -- <address> <amount>`
 - `npm run zama:oft:send:gatewayToEth -- <address> <amount>`
 
-The provided address is verified to be a proper Ethereum address, then tokens are sent using `lz:oft:send` task.
+The provided address is verified to be a proper Ethereum address, then tokens are sent using `lz:oft:send` task. These scripts resolve the OFT contract address from local deployment artifacts. If you haven't deployed the contracts yourself and want to use the canonical testnet deployments, use the `:testnet` variants instead:
+
+- `npm run zama:oft:send:ethToGateway:testnet -- <address> <amount>`
+- `npm run zama:oft:send:gatewayToEth:testnet -- <address> <amount>`
 
 If you want to send tokens from/to other chains, you can directly use `lz:oft:send`, as described in the following section.
 
