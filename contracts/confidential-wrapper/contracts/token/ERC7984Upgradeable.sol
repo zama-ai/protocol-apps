@@ -65,9 +65,6 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
     /// @dev The given caller `caller` is not authorized for the current operation.
     error ERC7984UnauthorizedCaller(address caller);
 
-    /// @dev The given gateway request ID `requestId` is invalid.
-    error ERC7984InvalidGatewayRequest(uint256 requestId);
-
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ERC7984Upgradeable")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant ERC7984StorageLocation =
         0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
@@ -97,6 +94,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         $._contractURI = contractURI_;
     }
 
+    /// @inheritdoc ERC165Upgradeable
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(IERC165, ERC165Upgradeable) returns (bool) {
+        return interfaceId == type(IERC7984).interfaceId || super.supportsInterface(interfaceId);
+    }
+
     /// @inheritdoc IERC7984
     function name() public view virtual returns (string memory) {
         ERC7984Storage storage $ = _getERC7984Storage();
@@ -124,11 +128,6 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
     function confidentialTotalSupply() public view virtual returns (euint64) {
         ERC7984Storage storage $ = _getERC7984Storage();
         return $._totalSupply;
-    }
-
-    function _setTotalSupply(euint64 totalSupply) internal virtual {
-        ERC7984Storage storage $ = _getERC7984Storage();
-        $._totalSupply = totalSupply;
     }
 
     /// @inheritdoc IERC7984
@@ -319,7 +318,7 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         if (from == address(0)) {
             (success, ptr) = FHESafeMath.tryIncrease($._totalSupply, amount);
             FHE.allowThis(ptr);
-            _setTotalSupply(ptr);
+            $._totalSupply = ptr;
         } else {
             euint64 fromBalance = $._balances[from];
             require(FHE.isInitialized(fromBalance), ERC7984ZeroBalance(from));
@@ -334,7 +333,7 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         if (to == address(0)) {
             ptr = FHE.sub($._totalSupply, transferred);
             FHE.allowThis(ptr);
-            _setTotalSupply(ptr);
+            $._totalSupply = ptr;
         } else {
             ptr = FHE.add($._balances[to], transferred);
             FHE.allowThis(ptr);
@@ -346,12 +345,5 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         if (to != address(0)) FHE.allow(transferred, to);
         FHE.allowThis(transferred);
         emit ConfidentialTransfer(from, to, transferred);
-    }
-
-    /// @inheritdoc ERC165Upgradeable
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(IERC165, ERC165Upgradeable) returns (bool) {
-        return interfaceId == type(IERC7984).interfaceId || super.supportsInterface(interfaceId);
     }
 }
