@@ -57,7 +57,7 @@ contract ConfidentialTokenWrappersRegistry is Ownable2StepUpgradeable, UUPSUpgra
     error ConfidentialTokenDoesNotSupportERC165(address confidentialTokenAddress);
 
     /// @notice Error thrown when a confidential token is already associated with a token.
-    error ConfidentialTokenAlreadyAssociatedWithToken(address tokenAddress, address existingConfidentialTokenAddress);
+    error ConfidentialTokenAlreadyAssociatedWithToken(address confidentialTokenAddress, address existingTokenAddress);
 
     /// @notice Error thrown when a token is already associated with a confidential token.
     error TokenAlreadyAssociatedWithConfidentialToken(address tokenAddress, address existingConfidentialTokenAddress);
