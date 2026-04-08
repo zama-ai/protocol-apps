@@ -34,7 +34,11 @@ The wrapper enforces a maximum number of decimals for the confidential token. Wh
 {% hint style="warning" %}
 ### **Unsupported tokens**
 
-Non-standard tokens such as fee-on-transfer or any deflationary-type tokens are NOT supported.
+**Shielded Zama protocol staking shares do not earn rewards**
+
+Operator staking shares issued by the Zama [staking protocol](staking.md) are vault-style shares that represent a proportional claim on the underlying staked assets. Staking rewards are accrued to the active holder of the shares. Wrapping these shares transfers their custody to the confidential wrapper contract, which becomes the address of record and the effective recipient of all future rewards. Consequently, holders of shielded shares do not earn staking rewards as long as their underlying shares remain shielded.
+
+Non-standard tokens are not supported. This includes fee-on-transfer, deflationary, and rebasing tokens. See [Non-standard token types](#non-standard-token-types) for a full breakdown.
 {% endhint %}
 
 ### Get the confidential wrapper address of an ERC-20 token
@@ -342,6 +346,25 @@ wrapper.decimals();
 ### Maximum total supply
 
 The maximum total supply for the confidential token is currently set to `type(uint64).max` (`2^64 - 1`) due to FHE limitations.
+
+### Non-standard token types
+
+The wrapper assumes the full transfer amount is received when minting. Tokens that deviate from this assumption, or whose supply changes independently of wrap/unwrap operations, are not supported and may result in undercollateralization or loss of yield.
+
+| Type | Behavior | Example | Wrapper impact |
+| --- | --- | --- | --- |
+| **Fee-on-transfer** | A fee is deducted from the transferred amount | SafeMoon, PAXG | The wrapper mints more shares than the underlying balance it receives, leading to undercollateralization |
+| **Deflationary** | Token supply decreases over time via burns on transfer or scheduled reductions | BOMB | Equivalent to fee-on-transfer; the same undercollateralization risk applies |
+| **Inflationary** | New tokens are minted over time to addresses other than existing holders | Governance tokens with scheduled emissions | **Supported**: The wrapper is not directly impacted, but holders of the confidential token are subject to the same dilution as holders of the underlying token |
+| **Rebasing (up)** | Holder balances increase automatically over time to distribute yield | aUSDC, stETH | Yield accrues to the wrapper contract rather than to individual holders; wrapped positions do not earn rewards |
+| **Rebasing (down)** | Holder balances decrease automatically, for example due to slashing | stETH (slashing) | The wrapper holds fewer underlying tokens than shares outstanding, resulting in undercollateralization |
+| **Pausable** | A privileged account can suspend all token transfers | USDC, USDT | Wrap and unwrap operations revert for the duration of the pause |
+| **Blocklist/allowlist** | A privileged account can restrict transfers to or from specific addresses | USDC, USDT | The wrapper contract address may be blocked, preventing all wrap and unwrap operations |
+| **Upgradeable** | The token implementation can be replaced after deployment | USDC (proxy) | A logic upgrade may alter token behavior in ways that are incompatible with the wrapper |
+| **Multiple entry points** | Two contract addresses share the same underlying balance | Old Synthetix SNX/ProxyERC20 | The same underlying balance can be wrapped twice, inflating the confidential supply |
+| **Flash-mintable** | Tokens can be minted without collateral within a single transaction | DAI (flash mint) | Transient supply spikes may interfere with `totalSupply()` based checks |
+| **ERC-777 hooks** | Transfers invoke callbacks on the sender and receiver | imBTC | Callbacks introduce reentrancy vectors during wrap and unwrap operations |
+| **Non-standard decimals** | The token uses fewer than 18 decimals | USDC (6), WBTC (8), GUSD (2) | **Supported**: The wrapper normalizes precision automatically via `rate()` -- See the section on [decimal conversion](#check-the-conversion-rate-and-decimals) | 
 
 ## Interface Support (ERC-165)
 
