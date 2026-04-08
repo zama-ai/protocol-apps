@@ -3,10 +3,15 @@ name: contracts-fees-burner-tests
 
 on:
   pull_request:
-
+    paths:
+      - '.github/workflows/contracts-fees-burner-tests.yml'
+      - 'contracts/feesBurner/**'
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/contracts-fees-burner-tests.yml'
+      - 'contracts/feesBurner/**'
   workflow_dispatch:
 
 permissions: {}
@@ -16,31 +21,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  check-changes:
-    name: contracts-fees-burner-tests/check-changes
-    permissions:
-      actions: 'read' # Required to read workflow run information
-      contents: 'read' # Required to checkout repository code
-      pull-requests: 'read' # Required to read pull request information
-    runs-on: ubuntu-latest
-    outputs:
-      changes-contracts-fees-burner: ${{ steps.filter.outputs.contracts-fees-burner }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: 'false'
-          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3.0.2
-        id: filter
-        with:
-          filters: |
-            contracts-fees-burner:
-              - .github/workflows/contracts-fees-burner-tests.yml
-              - contracts/feesBurner/**
   tests:
     name: contracts-fees-burner-tests/tests (bpr)
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.changes-contracts-fees-burner == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code

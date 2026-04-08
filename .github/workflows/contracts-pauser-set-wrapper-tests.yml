@@ -3,10 +3,15 @@ name: contracts-pauser-set-wrapper-tests
 
 on:
   pull_request:
-
+    paths:
+      - '.github/workflows/contracts-pauser-set-wrapper-tests.yml'
+      - 'contracts/pauserSetWrapper/**'
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/contracts-pauser-set-wrapper-tests.yml'
+      - 'contracts/pauserSetWrapper/**'
   workflow_dispatch:
 
 permissions: {}
@@ -16,31 +21,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  check-changes:
-    name: contracts-pauser-set-wrapper-tests/check-changes
-    permissions:
-      actions: 'read' # Required to read workflow run information
-      contents: 'read' # Required to checkout repository code
-      pull-requests: 'read' # Required to read pull request information
-    runs-on: ubuntu-latest
-    outputs:
-      changes-contracts-pauser-set-wrapper: ${{ steps.filter.outputs.contracts-pauser-set-wrapper }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: 'false'
-          fetch-depth: ${{ github.event_name == 'push' && 0 || 1 }}
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3.0.2
-        id: filter
-        with:
-          filters: |
-            contracts-pauser-set-wrapper:
-              - .github/workflows/contracts-pauser-set-wrapper-tests.yml
-              - contracts/pauserSetWrapper/**
   tests:
     name: contracts-pauser-set-wrapper-tests/tests (bpr)
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.changes-contracts-pauser-set-wrapper == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code
