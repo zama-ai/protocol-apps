@@ -161,13 +161,19 @@ Considerations:
 
 #### Transfer with callback
 
-The callback can be used along an ERC-7984 receiver contract.
+The callback can be used along an ERC-7984 receiver contract. After the transfer, the receiver's `onTransferReceived` callback is invoked. If the callback returns an encrypted `false`, the contract attempts to refund the transferred amount back to the sender.
 
 ```solidity
 wrapper.confidentialTransferAndCall(to, encryptedAmount, inputProof, callbackData);
 
 wrapper.confidentialTransferAndCall(to, encryptedAmount, callbackData);
 ```
+
+{% hint style="warning" %}
+### **Best-effort refund**
+
+The refund is best-effort only. A receiver that transfers, burns, or otherwise reduces its balance during the callback can still return `false`, in which case the refund transfers zero tokens. The sender's tokens end up with the recipient rather than being refunded.
+{% endhint %}
 
 #### Operator-based transfer with callback
 
