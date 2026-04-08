@@ -53,7 +53,15 @@ Zama provides a registry contract that maps ERC-20 tokens to their corresponding
 wrapper.wrap(to, amount);
 ```
 
-The wrapper will mint the corresponding confidential token to the `to` address and refund the excess tokens to the `msg.sender` (due to decimal conversion). Considerations:
+The wrapper will mint the corresponding confidential token to the `to` address and refund the excess tokens to the `msg.sender` (due to decimal conversion).
+
+It emits a `Wrap` event where `roundedAmount` is the actual amount of underlying tokens wrapped (i.e. `amount` rounded down to the nearest multiple of `rate()`):
+
+```solidity
+event Wrap(address indexed to, uint256 roundedAmount, euint64 encryptedWrappedAmount);
+```
+
+Considerations:
 
 * `amount` must be a value using the same decimal precision as the underlying token.
 * `to` must not be the zero address.
@@ -316,6 +324,7 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 
 | Event                                                                          | Description                                     |
 | ------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `Wrap(to, roundedAmount, encryptedWrappedAmount)`                              | Emitted when tokens are wrapped                 |
 | `ConfidentialTransfer(from, to, encryptedAmount)`                              | Emitted on every transfer (including mint/burn) |
 | `OperatorSet(holder, operator, until)`                                         | Emitted when operator permissions change        |
 | `UnwrapRequested(receiver, unwrapRequestId, encryptedAmount)`                  | Emitted when unwrap is initiated                |
