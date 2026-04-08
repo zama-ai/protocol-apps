@@ -132,13 +132,13 @@ This finalizes the unwrap request by sending the corresponding amount of underly
 ### Transfer confidential tokens
 
 {% hint style="info" %}
-### **Transfer with input proof**
+#### **Transfer with input proof**
 
 Similarly to the unwrap process, transfers can be made with or without an input proof and the encrypted amount must be approved by the ACL for the `msg.sender`.
 {% endhint %}
 
 {% hint style="warning" %}
-### **Unsupported `from`**
+#### **Unsupported `from`**
 
 Accounts with a zero balance that have never held tokens cannot be the `from` address in confidential transfers.
 {% endhint %}
