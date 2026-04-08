@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-confidential-wrapper-tests.yml'
-      - 'contracts/confidential-wrapper/**'
   workflow_dispatch:
 
 permissions: {}

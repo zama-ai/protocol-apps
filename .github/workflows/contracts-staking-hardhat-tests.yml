@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-staking-hardhat-tests.yml'
-      - 'contracts/staking/**'
   workflow_dispatch:
 
 permissions: {}

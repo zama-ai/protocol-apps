@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-token-tests.yml'
-      - 'contracts/token/**'
   workflow_dispatch:
 
 permissions: {}

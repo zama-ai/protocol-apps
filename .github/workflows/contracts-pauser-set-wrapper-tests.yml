@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-pauser-set-wrapper-tests.yml'
-      - 'contracts/pauserSetWrapper/**'
   workflow_dispatch:
 
 permissions: {}

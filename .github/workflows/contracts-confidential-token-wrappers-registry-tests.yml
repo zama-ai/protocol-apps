@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-confidential-token-wrappers-registry-tests.yml'
-      - 'contracts/confidential-token-wrappers-registry/**'
   workflow_dispatch:
 
 permissions: {}

@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-solana-oft-tests.yml'
-      - 'contracts/solanaOFT/**'
   workflow_dispatch:
 
 permissions: {}

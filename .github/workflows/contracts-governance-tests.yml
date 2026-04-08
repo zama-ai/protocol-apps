@@ -9,9 +9,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/contracts-governance-tests.yml'
-      - 'contracts/governance/**'
   workflow_dispatch:
 
 permissions: {}
