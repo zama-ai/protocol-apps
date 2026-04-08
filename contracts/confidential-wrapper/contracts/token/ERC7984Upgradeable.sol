@@ -309,6 +309,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         transferred = FHE.sub(sent, refund);
     }
 
+    /**
+     * @dev Safely moves up to `amount` from `from` to `to`, or mints/burns if `from`/`to` is the zero address.
+     * Emits a {ConfidentialTransfer} event with the successfully transferred amount.
+     *
+     * NOTE: If the `from` account has never received tokens, it will revert with {ERC7984ZeroBalance}
+     * because their balance handle is uninitialized.
+     */
     function _update(address from, address to, euint64 amount) internal virtual returns (euint64 transferred) {
         ERC7984Storage storage $ = _getERC7984Storage();
 
