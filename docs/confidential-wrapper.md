@@ -368,10 +368,18 @@ The wrapper assumes the full transfer amount is received when minting. Tokens th
 
 ## Interface Support (ERC-165)
 
+| Interface | Interface ID |
+| --- | --- |
+| `IERC7984` | `0x4958f2a4` |
+| `IERC7984ERC20Wrapper` | `0x1f1c62b2` |
+| `IERC1363Receiver` | `0x88a7ca5c` |
+| `IERC165` | `0x01ffc9a7` |
+
 ```solidity
-wrapper.supportsInterface(type(IERC7984).interfaceId);
-wrapper.supportsInterface(type(IERC7984ERC20Wrapper).interfaceId);
-wrapper.supportsInterface(type(IERC165).interfaceId);
+wrapper.supportsInterface(type(IERC7984).interfaceId) == true; // 0x4958f2a4
+wrapper.supportsInterface(type(IERC7984ERC20Wrapper).interfaceId) == true; // 0x1f1c62b2
+wrapper.supportsInterface(type(IERC1363Receiver).interfaceId) == true; // 0x88a7ca5c
+wrapper.supportsInterface(type(IERC165).interfaceId) == true; // 0x01ffc9a7
 ```
 
 ## Upgradeability

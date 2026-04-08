@@ -1,12 +1,7 @@
 // Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/f0914b66f9f3766915403587b1ef1432d53054d3/test/token/ERC7984/extensions/ERC7984Wrapper.test.ts
 // (0.3.0 version)
 
-import {
-  ConfidentialWrapper,
-  IERC1363Receiver__factory,
-  IERC7984__factory,
-  IERC7984ERC20Wrapper__factory,
-} from '../types';
+import { ConfidentialWrapper } from '../types';
 import { FhevmType } from '@fhevm/hardhat-plugin';
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
@@ -16,7 +11,6 @@ import { getRequiredEnvVar } from '../tasks/utils/loadVariables';
 import { Addressable } from 'ethers';
 import { CONTRACT_NAME } from '../tasks/deploy';
 import { createRandomAddress } from './utils/inputs';
-import { getFunctions, getInterfaceId } from './utils/interface';
 
 // Get values of the first confidential wrapper from the environment variables
 const name = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_NAME_0');
@@ -72,12 +66,17 @@ describe('ERC7984Wrapper', function () {
 
   describe('supportsInterface', function () {
     it('supports IERC7984ERC20Wrapper', async function () {
-      const interfaceId = getInterfaceId([IERC7984ERC20Wrapper__factory, IERC7984__factory].flatMap(getFunctions));
+      const interfaceId = "0x1f1c62b2"; // type(IERC7984ERC20Wrapper).interfaceId
       await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
 
     it('supports IERC1363Receiver', async function () {
-      const interfaceId = getInterfaceId(getFunctions(IERC1363Receiver__factory));
+      const interfaceId = "0x88a7ca5c"; // type(IERC1363Receiver).interfaceId
+      await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
+    });
+
+    it('supports IERC7984', async function () {
+      const interfaceId = "0x4958f2a4"; // type(IERC7984).interfaceId
       await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
   });
