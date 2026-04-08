@@ -37,7 +37,10 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
 
     error InvalidUnwrapRequest(bytes32 unwrapRequestId);
+    error UnauthorizedCancelUnwrap(bytes32 unwrapRequestId, address caller);
     error ERC7984TotalSupplyOverflow();
+
+    event UnwrapCanceled(address indexed receiver, bytes32 indexed unwrapRequestId);
 
     function _getERC7984ERC20WrapperStorage() internal pure returns (ERC7984ERC20WrapperStorage storage $) {
         assembly {
@@ -153,6 +156,32 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         SafeERC20.safeTransfer(IERC20(underlying()), to, unwrapAmountCleartext * rate());
 
         emit UnwrapFinalized(to, unwrapRequestId, unwrapAmount_, unwrapAmountCleartext);
+    }
+
+    /**
+     * @dev Cancels a pending unwrap request identified by `requestId`. The confidential tokens that were burned
+     * during the unwrap are re-minted to the original requester. The original requester or an approved operator
+     * of the requester can cancel the unwrap request.
+     *
+     * Requirements:
+     *
+     * - `requestId` must correspond to a valid pending unwrap request.
+     * - `msg.sender` must be the original requester or an operator of the requester.
+     */
+    function cancelUnwrap(bytes32 requestId) external virtual {
+        address requester = unwrapRequester(requestId);
+        require(requester != address(0), InvalidUnwrapRequest(requestId));
+        require(
+            requester == msg.sender || isOperator(requester, msg.sender),
+            UnauthorizedCancelUnwrap(requestId, msg.sender)
+        );
+
+        ERC7984ERC20WrapperStorage storage $ = _getERC7984ERC20WrapperStorage();
+        delete $._unwrapRequests[requestId];
+
+        _mint(requester, unwrapAmount(requestId));
+
+        emit UnwrapCanceled(requester, requestId);
     }
 
     /// @inheritdoc ERC7984Upgradeable

@@ -351,6 +351,265 @@ describe('ERC7984Wrapper', function () {
     });
   });
 
+  describe('Cancel Unwrap', async function () {
+    beforeEach(async function () {
+      const amountToWrap = ethers.parseUnits('100', 18);
+      await this.token.connect(this.holder).transferAndCall(this.wrapper, amountToWrap);
+    });
+
+    it('emits UnwrapCanceled event', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      // Cancel the unwrap and verify event
+      await expect(this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId))
+        .to.emit(this.wrapper, 'UnwrapCanceled')
+        .withArgs(this.holder.address, unwrapRequestId);
+    });
+
+    it('cancels an unwrap request and re-mints tokens', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      // Cancel the unwrap
+      await this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId);
+
+      // Verify tokens were re-minted to the holder
+      const wrappedBalanceHandle = await this.wrapper.confidentialBalanceOf(this.holder.address);
+      await expect(
+        fhevm.userDecryptEuint(FhevmType.euint64, wrappedBalanceHandle, this.wrapper.target, this.holder),
+      ).to.eventually.equal(ethers.parseUnits('100', 6));
+
+      // Verify the unwrap request was deleted
+      await expect(this.wrapper.unwrapRequester(unwrapRequestId)).to.eventually.equal(ethers.ZeroAddress);
+    });
+
+    it('reverts when caller is not the requester or operator', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      await expect(this.wrapper.connect(this.anyone).cancelUnwrap(unwrapRequestId))
+        .to.be.revertedWithCustomError(this.wrapper, 'UnauthorizedCancelUnwrap')
+        .withArgs(unwrapRequestId, this.anyone.address);
+    });
+
+    it('reverts for non-existent unwrap request', async function () {
+      await expect(this.wrapper.connect(this.holder).cancelUnwrap(ethers.ZeroHash))
+        .to.be.revertedWithCustomError(this.wrapper, 'InvalidUnwrapRequest')
+        .withArgs(ethers.ZeroHash);
+    });
+
+    it('requester unwraps, operator cancels on their behalf', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper.connect(this.holder).setOperator(this.operator.address, (await time.latest()) + 1000);
+
+      // Holder initiates the unwrap themselves
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      // Operator cancels on behalf of the holder
+      await this.wrapper.connect(this.operator).cancelUnwrap(unwrapRequestId);
+
+      // Tokens are re-minted to the requester (holder), not the operator
+      const wrappedBalanceHandle = await this.wrapper.confidentialBalanceOf(this.holder.address);
+      await expect(
+        fhevm.userDecryptEuint(FhevmType.euint64, wrappedBalanceHandle, this.wrapper.target, this.holder),
+      ).to.eventually.equal(ethers.parseUnits('100', 6));
+
+      // Verify the unwrap request was deleted
+      await expect(this.wrapper.unwrapRequester(unwrapRequestId)).to.eventually.equal(ethers.ZeroAddress);
+    });
+
+    it('operator unwraps for holder, operator cancels', async function () {
+      const withdrawalAmount = ethers.parseUnits('100', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.operator.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper.connect(this.holder).setOperator(this.operator.address, (await time.latest()) + 1000);
+
+      // Operator initiates unwrap on behalf of holder
+      await this.wrapper
+        .connect(this.operator)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      // Operator cancels
+      await this.wrapper.connect(this.operator).cancelUnwrap(unwrapRequestId);
+
+      // Tokens are re-minted to the requester (holder), not the operator
+      const wrappedBalanceHandle = await this.wrapper.confidentialBalanceOf(this.holder.address);
+      await expect(
+        fhevm.userDecryptEuint(FhevmType.euint64, wrappedBalanceHandle, this.wrapper.target, this.holder),
+      ).to.eventually.equal(ethers.parseUnits('100', 6));
+
+      // Verify the unwrap request was deleted
+      await expect(this.wrapper.unwrapRequester(unwrapRequestId)).to.eventually.equal(ethers.ZeroAddress);
+    });
+
+    it('operator unwraps for holder, holder cancels', async function () {
+      const withdrawalAmount = ethers.parseUnits('100', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.operator.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper.connect(this.holder).setOperator(this.operator.address, (await time.latest()) + 1000);
+
+      // Operator initiates unwrap on behalf of holder
+      await this.wrapper
+        .connect(this.operator)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      // Holder cancels their own request
+      await this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId);
+
+      // Tokens are re-minted to the holder
+      const wrappedBalanceHandle = await this.wrapper.confidentialBalanceOf(this.holder.address);
+      await expect(
+        fhevm.userDecryptEuint(FhevmType.euint64, wrappedBalanceHandle, this.wrapper.target, this.holder),
+      ).to.eventually.equal(ethers.parseUnits('100', 6));
+
+      // Verify the unwrap request was deleted
+      await expect(this.wrapper.unwrapRequester(unwrapRequestId)).to.eventually.equal(ethers.ZeroAddress);
+    });
+
+    it('non-operator cannot cancel for the requester', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      await expect(this.wrapper.connect(this.anyone).cancelUnwrap(unwrapRequestId))
+        .to.be.revertedWithCustomError(this.wrapper, 'UnauthorizedCancelUnwrap')
+        .withArgs(unwrapRequestId, this.anyone.address);
+    });
+
+    it('reverts when cancelling the same request twice', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+
+      await this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId);
+
+      await expect(this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId))
+        .to.be.revertedWithCustomError(this.wrapper, 'InvalidUnwrapRequest')
+        .withArgs(unwrapRequestId);
+    });
+
+    it('finalize reverts after cancel', async function () {
+      const withdrawalAmount = ethers.parseUnits('10', 6);
+      const encryptedInput = await fhevm
+        .createEncryptedInput(this.wrapper.target, this.holder.address)
+        .add64(withdrawalAmount)
+        .encrypt();
+
+      await this.wrapper
+        .connect(this.holder)
+        [
+          'unwrap(address,address,bytes32,bytes)'
+        ](this.holder, this.holder, encryptedInput.handles[0], encryptedInput.inputProof);
+
+      const event = (await this.wrapper.queryFilter(this.wrapper.filters.UnwrapRequested()))[0];
+      const unwrapRequestId = event.args[1];
+      const unwrapAmount = event.args[2];
+
+      await this.wrapper.connect(this.holder).cancelUnwrap(unwrapRequestId);
+
+      const publicDecryptResults = await fhevm.publicDecrypt([unwrapAmount]);
+
+      await expect(
+        this.wrapper
+          .connect(this.holder)
+          .finalizeUnwrap(
+            unwrapRequestId,
+            publicDecryptResults.abiEncodedClearValues,
+            publicDecryptResults.decryptionProof,
+          ),
+      )
+        .to.be.revertedWithCustomError(this.wrapper, 'InvalidUnwrapRequest')
+        .withArgs(unwrapRequestId);
+    });
+  });
+
   describe('Initialization', function () {
     describe('decimals', function () {
       it('when underlying has 6 decimals', async function () {

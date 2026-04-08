@@ -142,6 +142,26 @@ event UnwrapFinalized(
 );
 ```
 
+#### 3) Cancel unwrap
+
+A pending unwrap request can be cancelled, which re-mints the burned confidential tokens back to the original requester.
+
+```solidity
+wrapper.cancelUnwrap(unwrapRequestId);
+```
+
+Considerations:
+
+* `msg.sender` must be the original requester or an approved operator for the requester.
+* The burned confidential tokens are re-minted to the requester.
+* The unwrap request is deleted and cannot be finalized after cancellation.
+
+It emits an `UnwrapCanceled` event:
+
+```solidity
+event UnwrapCanceled(address indexed receiver, bytes32 indexed unwrapRequestId);
+```
+
 ### Transfer confidential tokens
 
 {% hint style="info" %}
@@ -320,6 +340,7 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `OperatorSet(holder, operator, until)`                                         | Emitted when operator permissions change        |
 | `UnwrapRequested(receiver, unwrapRequestId, encryptedAmount)`                  | Emitted when unwrap is initiated                |
 | `UnwrapFinalized(receiver, unwrapRequestId, encryptedAmount, cleartextAmount)` | Emitted when unwrap completes                   |
+| `UnwrapCanceled(receiver, unwrapRequestId)`                                    | Emitted when unwrap is cancelled                |
 | `AmountDiscloseRequested(encryptedAmount, requester)`                          | Emitted when disclosure is requested            |
 | `AmountDisclosed(encryptedAmount, cleartextAmount)`                            | Emitted when amount is publicly disclosed       |
 
