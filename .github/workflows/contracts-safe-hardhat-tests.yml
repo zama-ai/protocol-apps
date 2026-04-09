@@ -1,11 +1,11 @@
 # Run tests
-name: contracts-confidential-wrapper-tests
+name: contracts-safe-tests
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/contracts-confidential-wrapper-tests.yml'
-      - 'contracts/confidential-wrapper/**'
+      - '.github/workflows/contracts-safe-hardhat-tests.yml'
+      - 'contracts/safe/**'
   push:
     branches:
       - main
@@ -14,12 +14,12 @@ on:
 permissions: {}
 
 concurrency:
-  group: ci-contracts-confidential-wrapper-tests-${{ github.ref }}
+  group: ci-contracts-safe-tests-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   tests:
-    name: contracts-confidential-wrapper-tests/tests (bpr)
+    name: contracts-safe-tests/tests (bpr)
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code
@@ -29,14 +29,14 @@ jobs:
         with:
           persist-credentials: 'false'
 
+      - name: Setup env
+        working-directory: contracts/safe
+        run: cp .env.example.test .env.example
+
       - name: Install dependencies
-        working-directory: contracts/confidential-wrapper
+        working-directory: contracts/safe
         run: npm ci
-      
-      - name: Run lint
-        working-directory: contracts/confidential-wrapper
-        run: make conformance
 
       - name: Run unit tests
-        working-directory: contracts/confidential-wrapper
+        working-directory: contracts/safe
         run: make test
