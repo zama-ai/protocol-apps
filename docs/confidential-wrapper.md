@@ -334,8 +334,8 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984ZeroBalance(holder)`                            | Sender has never held tokens               |
 | `ERC7984UnauthorizedUseOfEncryptedAmount(amount, user)` | Caller lacks ACL permission for ciphertext |
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
-| `InvalidUnwrapRequest(unwrapRequestId)`                       | Finalizing or cancelling a non-existent unwrap request |
-| `UnauthorizedCancelUnwrap(unwrapRequestId, caller)`           | Caller is not the requester or an approved operator    |
+| `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing or cancelling a non-existent unwrap request |
+| `UnauthorizedCancelUnwrap(unwrapRequestId, caller)`     | Caller is not the requester or an approved operator    |
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
 
 ## Important Considerations
