@@ -135,7 +135,7 @@ If you haven't deployed the contracts yourself and want to use the canonical tes
 - `npm run zama:oft:send:ethToGateway:testnet -- <address> <amount>`
 - `npm run zama:oft:send:gatewayToEth:testnet -- <address> <amount>`
 
-Where `<address>` is the receiver's Ethereum address and `<amount>` is the number of ZAMA tokens to send. These commands use the canonical contract addresses and do not require local deployment artifacts.
+Where `<address>` is the receiver's address and `<amount>` is the number of ZAMA tokens to send. These commands use the canonical contract addresses and do not require local deployment artifacts.
 
 ## Step 8 : Administrative tasks
 
