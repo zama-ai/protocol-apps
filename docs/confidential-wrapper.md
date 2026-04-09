@@ -66,7 +66,7 @@ If the amount is less than the rate, the wrapping will succeed but the recipient
 
 ### Unwrap confidential token → ERC-20
 
-Unwrapping is a **two-step asynchronous process**: an `unwrap` must be first made and then finalized with `finalizeUnwrap`. The `unwrap` function can be called with or without an input proof.
+Unwrapping is a **two-step asynchronous process**: an `unwrap` must be first made and then finalized with `finalizeUnwrap`. The `unwrap` function can be called with or without an input proof. Pending requests can also be [cancelled](#cancel-unwrap) before finalization.
 
 #### 1) Unwrap request
 
@@ -140,26 +140,6 @@ event UnwrapFinalized(
     euint64 encryptedAmount,
     uint64 cleartextAmount
 );
-```
-
-#### 3) Cancel unwrap
-
-A pending unwrap request can be cancelled, which re-mints the burned confidential tokens back to the original requester.
-
-```solidity
-wrapper.cancelUnwrap(unwrapRequestId);
-```
-
-Considerations:
-
-* `msg.sender` must be the original requester or an approved operator for the requester.
-* The burned confidential tokens are re-minted to the requester.
-* The unwrap request is deleted and cannot be finalized after cancellation.
-
-It emits an `UnwrapCanceled` event:
-
-```solidity
-event UnwrapCanceled(address indexed receiver, bytes32 indexed unwrapRequestId);
 ```
 
 ### Transfer confidential tokens
@@ -359,6 +339,26 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
 
 ## Important Considerations
+
+### Cancel unwrap
+
+A pending unwrap request can be cancelled before finalization, which re-mints the burned confidential tokens back to the original requester.
+
+```solidity
+wrapper.cancelUnwrap(unwrapRequestId);
+```
+
+Considerations:
+
+* `msg.sender` must be the original requester or an approved operator for the requester.
+* The burned confidential tokens are re-minted to the requester.
+* The unwrap request is deleted and cannot be finalized after cancellation.
+
+It emits an `UnwrapCanceled` event:
+
+```solidity
+event UnwrapCanceled(address indexed receiver, bytes32 indexed unwrapRequestId);
+```
 
 ### Ciphertext uniqueness assumption
 
