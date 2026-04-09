@@ -117,14 +117,16 @@ On top of the above unwrap request considerations:
 
 #### 2) Finalize unwrap
 
+The unwrap request must be finalized with `finalizeUnwrap`. The `unwrapRequestId` is the identifier emitted by the `UnwrapRequested` event in the `unwrap` function.
+
 {% hint style="info" %}
 ### **Public decryption**
 
-The encrypted burned amount `burntAmount` emitted by the `UnwrapRequested` event must be publicly decrypted to get the `cleartextAmount` along its `decryptionProof`. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
+The encrypted amount `unwrapAmount_` emitted by the `UnwrapRequested` event must be publicly decrypted to get the `unwrapAmountCleartext` along its `decryptionProof`. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
 {% endhint %}
 
 ```solidity
-wrapper.finalizeUnwrap(burntAmount, cleartextAmount, decryptionProof);
+wrapper.finalizeUnwrap(unwrapRequestId, unwrapAmountCleartext, decryptionProof);
 ```
 
 This finalizes the unwrap request by sending the corresponding amount of underlying tokens to the `to` defined in the `unwrap` request.
@@ -331,7 +333,7 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984ZeroBalance(holder)`                            | Sender has never held tokens               |
 | `ERC7984UnauthorizedUseOfEncryptedAmount(amount, user)` | Caller lacks ACL permission for ciphertext |
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
-| `InvalidUnwrapRequest(amount)`                          | Finalizing non-existent unwrap request     |
+| `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing non-existent unwrap request     |
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
 
 ## Important Considerations
