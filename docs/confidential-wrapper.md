@@ -100,7 +100,7 @@ This requests an unwrap request of `encryptedAmount` confidential tokens from `f
 It emits an `UnwrapRequested` event:
 
 ```solidity
-event UnwrapRequested(address indexed receiver, euint64 amount);
+event UnwrapRequested(address indexed receiver, bytes32 indexed unwrapRequestId, euint64 amount);
 ```
 
 **Without input proof**
@@ -128,6 +128,17 @@ wrapper.finalizeUnwrap(burntAmount, cleartextAmount, decryptionProof);
 ```
 
 This finalizes the unwrap request by sending the corresponding amount of underlying tokens to the `to` defined in the `unwrap` request.
+
+It emits an `UnwrapFinalized` event:
+
+```solidity
+event UnwrapFinalized(
+    address indexed receiver,
+    bytes32 indexed unwrapRequestId,
+    euint64 encryptedAmount,
+    uint64 cleartextAmount
+);
+```
 
 ### Transfer confidential tokens
 
@@ -215,7 +226,7 @@ This view function is useful for getting a good approximation of the wrapper's T
 {% endhint %}
 
 ```solidity
-uint256 nonConfidentialSupply = wrapper.totalSupply();
+uint256 nonConfidentialSupply = wrapper.inferredTotalSupply();
 ```
 
 #### Encrypted (confidential) total supply
@@ -246,6 +257,17 @@ wrapper.setOperator(operatorAddress, validUntilTimestamp);
 
 // Check if an address is an authorized operator
 bool isAuthorized = wrapper.isOperator(holder, spender);
+```
+
+### Query ongoing unwrap request details
+
+```solidity
+// Get the encrypted amount associated with an ongoing unwrap request
+euint64 encryptedAmount = wrapper.unwrapAmount(unwrapRequestId);
+
+// Get the receiver address of an ongoing unwrap request 
+// Returns address(0) if the ID is not associated with an ongoing request
+address receiver = wrapper.unwrapRequester(unwrapRequestId);
 ```
 
 ### Amount disclosure
@@ -290,21 +312,21 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 
 ## Events
 
-| Event                                                         | Description                                     |
-| ------------------------------------------------------------- | ----------------------------------------------- |
-| `ConfidentialTransfer(from, to, encryptedAmount)`             | Emitted on every transfer (including mint/burn) |
-| `OperatorSet(holder, operator, until)`                        | Emitted when operator permissions change        |
-| `UnwrapRequested(receiver, encryptedAmount)`                  | Emitted when unwrap is initiated                |
-| `UnwrapFinalized(receiver, encryptedAmount, cleartextAmount)` | Emitted when unwrap completes                   |
-| `AmountDiscloseRequested(encryptedAmount, requester)`         | Emitted when disclosure is requested            |
-| `AmountDisclosed(encryptedAmount, cleartextAmount)`           | Emitted when amount is publicly disclosed       |
+| Event                                                                          | Description                                     |
+| ------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `ConfidentialTransfer(from, to, encryptedAmount)`                              | Emitted on every transfer (including mint/burn) |
+| `OperatorSet(holder, operator, until)`                                         | Emitted when operator permissions change        |
+| `UnwrapRequested(receiver, unwrapRequestId, encryptedAmount)`                  | Emitted when unwrap is initiated                |
+| `UnwrapFinalized(receiver, unwrapRequestId, encryptedAmount, cleartextAmount)` | Emitted when unwrap completes                   |
+| `AmountDiscloseRequested(encryptedAmount, requester)`                          | Emitted when disclosure is requested            |
+| `AmountDisclosed(encryptedAmount, cleartextAmount)`                            | Emitted when amount is publicly disclosed       |
 
 ## Errors
 
 | Error                                                   | Cause                                      |
 | ------------------------------------------------------- | ------------------------------------------ |
-| `ERC7984InvalidReceiver(address)`                       | Transfer to zero address                   |
-| `ERC7984InvalidSender(address)`                         | Transfer from zero address                 |
+| `ERC7984InvalidReceiver(receiver)`                      | Transfer to zero address                   |
+| `ERC7984InvalidSender(sender)`                          | Transfer from zero address                 |
 | `ERC7984UnauthorizedSpender(holder, spender)`           | Caller not authorized as operator          |
 | `ERC7984ZeroBalance(holder)`                            | Sender has never held tokens               |
 | `ERC7984UnauthorizedUseOfEncryptedAmount(amount, user)` | Caller lacks ACL permission for ciphertext |
@@ -362,7 +384,7 @@ The wrapper assumes the full transfer amount is received when minting. Tokens th
 | **Blocklist/allowlist** | A privileged account can restrict transfers to or from specific addresses | USDC, USDT | The wrapper contract address may be blocked, preventing all wrap and unwrap operations |
 | **Upgradeable** | The token implementation can be replaced after deployment | USDC (proxy) | A logic upgrade may alter token behavior in ways that are incompatible with the wrapper |
 | **Multiple entry points** | Two contract addresses share the same underlying balance | Old Synthetix SNX/ProxyERC20 | The same underlying balance can be wrapped twice, inflating the confidential supply |
-| **Flash-mintable** | Tokens can be minted without collateral within a single transaction | DAI (flash mint) | Transient supply spikes may interfere with `totalSupply()` based checks |
+| **Flash-mintable** | Tokens can be minted without collateral within a single transaction | DAI (flash mint) | Transient supply spikes may interfere with `inferredTotalSupply()` based checks |
 | **ERC-777 hooks** | Transfers invoke callbacks on the sender and receiver | imBTC | Callbacks introduce reentrancy vectors during wrap and unwrap operations |
 | **Non-standard decimals** | The token uses fewer than 18 decimals | USDC (6), WBTC (8), GUSD (2) | **Supported**: The wrapper normalizes precision automatically via `rate()` -- See the section on [decimal conversion](#check-the-conversion-rate-and-decimals) | 
 
