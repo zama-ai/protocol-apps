@@ -7,6 +7,9 @@ cp .env.example .env
 ```
 
 Then fill the `PRIVATE_KEY` and `SEPOLIA_RPC_URL` in `.env` with your own values.
+
+> **Note:** If you don't need to deploy your own contracts and want to use the canonical testnet deployments, you only need `PRIVATE_KEY` and the relevant RPC URLs (e.g. `SEPOLIA_RPC_URL`) for the chains you intend to use. Skip ahead to [Using canonical testnet deployments](#using-canonical-testnet-deployments) in Step 7.
+
 The values of `INITIAL_SUPPLY_RECEIVER` (account receiving initially minted supply of 1 billion tokens) and `INITIAL_ADMIN` (first admin role, responsible of adding minters and other admins) should also be filled. For easy testing purpose, they could be both set to be the address of the account corresponding to `PRIVATE_KEY` (i.e the deployer).
 Also, if you want to do Step 5 (Etherscan verification) which is optional but recommended for easier debugging, get an Etherscan free API key in order to set the value of `ETHERSCAN_API`.
 
@@ -109,10 +112,7 @@ Two NPM scripts are available to send ZAMA tokens between Ethereum Sepolia and G
 - `npm run zama:oft:send:ethToGateway -- <address> <amount>`
 - `npm run zama:oft:send:gatewayToEth -- <address> <amount>`
 
-The provided address is verified to be a proper Ethereum address, then tokens are sent using `lz:oft:send` task. These scripts resolve the OFT contract address from local deployment artifacts. If you haven't deployed the contracts yourself and want to use the canonical testnet deployments, use the `:testnet` variants instead:
-
-- `npm run zama:oft:send:ethToGateway:testnet -- <address> <amount>`
-- `npm run zama:oft:send:gatewayToEth:testnet -- <address> <amount>`
+The provided address is verified to be a proper Ethereum address, then tokens are sent using `lz:oft:send` task. These scripts resolve the OFT contract address from local deployment artifacts.
 
 If you want to send tokens from/to other chains, you can directly use `lz:oft:send`, as described in the following section.
 
@@ -127,6 +127,15 @@ npx hardhat lz:oft:send --src-eid 40161 --dst-eid 40424 --amount 1.5 --to <RECEI
 Once these transactions are sent, wait around 2 minutes and check the receiver's account on the Gateway Testnet block explorer that the receiver indeed received `1.5` ZAMA token on Gateway Testnet by clicking on `Token Holdings` there.
 
 You could then also send back the tokens from Gateway Testnet to Ethereum Sepolia chain, by swapping the values of `--src-eid` and `--dst-eid` flags from previous command.
+
+### Using canonical testnet deployments
+
+If you haven't deployed the contracts yourself and want to use the canonical testnet deployments, use the `:testnet` variants instead:
+
+- `npm run zama:oft:send:ethToGateway:testnet -- <address> <amount>`
+- `npm run zama:oft:send:gatewayToEth:testnet -- <address> <amount>`
+
+Where `<address>` is the receiver's Ethereum address and `<amount>` is the number of ZAMA tokens to send. These commands use the canonical contract addresses and do not require local deployment artifacts.
 
 ## Step 8 : Administrative tasks
 
