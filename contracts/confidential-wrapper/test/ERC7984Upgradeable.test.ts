@@ -1,9 +1,7 @@
 // Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/f0914b66f9f3766915403587b1ef1432d53054d3/test/token/ERC7984/ERC7984.test.ts
 // (0.3.0 version)
 
-import { IERC165__factory, IERC7984__factory } from '../types';
 import { allowHandle } from './utils/accounts';
-import { getFunctions, getInterfaceId } from './utils/interface';
 import { FhevmType } from '@fhevm/hardhat-plugin';
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
@@ -66,14 +64,13 @@ describe('ERC7984', function () {
   });
 
   describe('ERC165', async function () {
-    it('should support interface', async function () {
-      const erc7984Functions = [IERC7984__factory, IERC165__factory].flatMap(interfaceFactory =>
-        getFunctions(interfaceFactory),
-      );
-      const erc165Functions = getFunctions(IERC165__factory);
-      for (let functions of [erc7984Functions, erc165Functions]) {
-        expect(await this.token.supportsInterface(getInterfaceId(functions))).is.true;
-      }
+    it('should support IERC7984', async function () {
+      const interfaceId = "0x4958f2a4"; // type(IERC7984).interfaceId
+      await expect(this.token.supportsInterface(interfaceId)).to.eventually.equal(true);
+    });
+    it('should support IERC165', async function () {
+      const interfaceId = "0x01ffc9a7"; // type(IERC165).interfaceId
+      await expect(this.token.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
     it('should not support interface', async function () {
       expect(await this.token.supportsInterface('0xbadbadba')).is.false;
