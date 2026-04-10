@@ -7,29 +7,25 @@ const { Connection, PublicKey } = require('@solana/web3.js');
 const multisig = require('@sqds/multisig');
 const { Multisig } = multisig.accounts;
 
-// ── Safe multisig addresses (from docs/addresses/mainnet) ──────────────────
+// Safe multisigs
 const SAFE_CHAINS = {
   gateway: {
     name: 'Gateway',
     rpcEnv: 'RPC_GATEWAY',
-    safeAddress: '0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE',
+    safeAddressEnv: 'ZAMA_SAFE_GATEWAY',
   },
   bsc: {
     name: 'BSC',
     rpcEnv: 'RPC_BSC',
-    safeAddress: '0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B',
+    safeAddressEnv: 'ZAMA_SAFE_BSC',
   },
   hyperEvm: {
     name: 'HyperEVM',
     rpcEnv: 'RPC_HYPEREVM',
-    safeAddress: '0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827',
+    safeAddressEnv: 'ZAMA_SAFE_HYPEREVM',
   },
 };
 
-// ── Aragon DAO on Ethereum ─────────────────────────────────────────────────
-const ARAGON_DAO = '0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3';
-
-// ── ABIs ───────────────────────────────────────────────────────────────────
 const SAFE_ABI = [
   'function getOwners() view returns (address[])',
   'function getThreshold() view returns (uint256)',
@@ -42,8 +38,6 @@ const PERMISSION_MANAGER_ABI = [
 ];
 
 const MAX_BLOCK_RANGE = 49999;
-
-// ── Helpers ────────────────────────────────────────────────────────────────
 
 async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) {
   const events = [];
@@ -64,14 +58,17 @@ async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) 
   return events;
 }
 
-// ── Safe multisig info ─────────────────────────────────────────────────────
-
 async function getSafeInfo(chainConfig) {
-  const { name, rpcEnv, safeAddress } = chainConfig;
+  const { name, rpcEnv, safeAddressEnv } = chainConfig;
   const rpcUrl = process.env[rpcEnv];
+  const safeAddress = process.env[safeAddressEnv];
 
   if (!rpcUrl) {
     console.log(`  Skipping ${name}: ${rpcEnv} not configured`);
+    return null;
+  }
+  if (!safeAddress) {
+    console.log(`  Skipping ${name}: ${safeAddressEnv} not configured`);
     return null;
   }
 
@@ -91,16 +88,14 @@ async function getSafeInfo(chainConfig) {
   };
 }
 
-// ── Aragon DAO plugin detection ────────────────────────────────────────────
-
-async function getAragonPlugins(rpcUrl) {
+async function getAragonPlugins(rpcUrl, daoAddress) {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const dao = new ethers.Contract(ARAGON_DAO, PERMISSION_MANAGER_ABI, provider);
+  const dao = new ethers.Contract(daoAddress, PERMISSION_MANAGER_ABI, provider);
 
   const EXECUTE_PERMISSION_ID = ethers.keccak256(ethers.toUtf8Bytes('EXECUTE_PERMISSION'));
 
-  console.log(`  Finding deployment block for DAO ${ARAGON_DAO}...`);
-  const fromBlock = await findDeploymentBlock(ARAGON_DAO, { rpcUrl, silent: true });
+  console.log(`  Finding deployment block for DAO ${daoAddress}...`);
+  const fromBlock = await findDeploymentBlock(daoAddress, { rpcUrl, silent: true });
   const toBlock = await provider.getBlockNumber();
   console.log(`  Deployment block: ${fromBlock}, current block: ${toBlock}`);
 
@@ -112,10 +107,9 @@ async function getAragonPlugins(rpcUrl) {
   const grantEvents = await queryEventsInChunks(dao, grantFilter, fromBlock, toBlock, 'Granted');
   const revokeEvents = await queryEventsInChunks(dao, revokeFilter, fromBlock, toBlock, 'Revoked');
 
-  // Combine and sort chronologically
   const allEvents = [
     ...grantEvents
-      .filter((e) => e.args.where.toLowerCase() === ARAGON_DAO.toLowerCase())
+      .filter((e) => e.args.where.toLowerCase() === daoAddress.toLowerCase())
       .map((e) => ({
         type: 'grant',
         who: e.args.who,
@@ -123,7 +117,7 @@ async function getAragonPlugins(rpcUrl) {
         logIndex: e.index,
       })),
     ...revokeEvents
-      .filter((e) => e.args.where.toLowerCase() === ARAGON_DAO.toLowerCase())
+      .filter((e) => e.args.where.toLowerCase() === daoAddress.toLowerCase())
       .map((e) => ({
         type: 'revoke',
         who: e.args.who,
@@ -152,28 +146,17 @@ async function getAragonPlugins(rpcUrl) {
 
   for (const whoAddress of allUniqueAddresses) {
     // Call the live mapping. _data is "0x" because we are just checking standard permissions without conditional data.
-    const isActuallyActive = await dao.hasPermission(ARAGON_DAO, whoAddress, EXECUTE_PERMISSION_ID, "0x");
+    const isActuallyActive = await dao.hasPermission(daoAddress, whoAddress, EXECUTE_PERMISSION_ID, "0x");
     const isExpectedActive = activePlugins.has(whoAddress);
 
     if (isActuallyActive !== isExpectedActive) {
-      console.log(`  [WARNING] State mismatch for ${whoAddress}!`);
-      console.log(`    Events expected: ${isExpectedActive}`);
-      console.log(`    On-chain reality: ${isActuallyActive}`);
-      
-      // Correct the Set based on the source of truth (the on-chain state)
-      if (isActuallyActive) {
-        activePlugins.add(whoAddress);
-      } else {
-        activePlugins.delete(whoAddress);
-      }
+      throw new Error(`On-chain permission state mismatch for ${whoAddress}`);
     }
   }
-  console.log('  Sanity check verified.');
+  console.log('  Sanity check passed.');
 
   return Array.from(activePlugins).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 }
-
-// ── Solana Squads Info ─────────────────────────────────────────────────────
 
 async function getSolanaSquadsInfo() {
   const rpcUrl = process.env.SOLANA_RPC_URL;
@@ -197,10 +180,8 @@ async function getSolanaSquadsInfo() {
   };
 }
 
-// ── Output ─────────────────────────────────────────────────────────────────
-
 function printSafeInfo(info) {
-  console.log(`\n  [${info.name}]`);
+  console.log(`\n[${info.name}]`);
   console.log(`  Safe address : ${info.safeAddress}`);
   console.log(`  Threshold    : ${info.threshold} of ${info.owners.length}`);
   console.log('  Owners:');
@@ -212,7 +193,7 @@ function printSafeInfo(info) {
 function printAragonPluginAddresses(addresses) {
   const base = 'https://etherscan.io/address';
   for (const addr of addresses) {
-    console.log(`  ${base}/${addr.toLowerCase()}`);
+    console.log(`    ${base}/${addr.toLowerCase()}`);
   }
 }
 
@@ -220,12 +201,11 @@ function printAragonPluginAddresses(addresses) {
 
 async function main() {
   const ethRpc = process.env.RPC_ETHEREUM;
+  const aragonDao = process.env.ZAMA_ARAGON_DAO;
   let hadError = false;
 
-  // ── Part 1: Safe multisigs ───────────────────────────────────────────────
-  console.log('\n' + '='.repeat(60));
-  console.log('SAFE MULTISIG WALLETS');
-  console.log('='.repeat(60));
+  // Part 1: Safe multisigs
+  console.log('\n=== Safe Multisig Wallets ===');
 
   const safeResults = [];
   for (const [, chainConfig] of Object.entries(SAFE_CHAINS)) {
@@ -243,7 +223,6 @@ async function main() {
 
   // Cross-check: owners and threshold should match across all Safes
   if (safeResults.length > 1) {
-    console.log('\n  ' + '-'.repeat(50));
     const refOwners = new Set(safeResults[0].owners);
     const refThreshold = safeResults[0].threshold;
     let allMatch = true;
@@ -256,62 +235,56 @@ async function main() {
       if (!ownersMatch || !thresholdMatch) {
         allMatch = false;
         if (!ownersMatch) {
-          console.log(`  WARNING: Owners DIFFER between ${safeResults[0].name} and ${safeResults[i].name}`);
+          console.log(`\nWARNING: Owners DIFFER between ${safeResults[0].name} and ${safeResults[i].name}`);
         }
         if (!thresholdMatch) {
-          console.log(`  WARNING: Threshold DIFFERS between ${safeResults[0].name} (${refThreshold}) and ${safeResults[i].name} (${safeResults[i].threshold})`);
+          console.log(`\nWARNING: Threshold DIFFERS between ${safeResults[0].name} (${refThreshold}) and ${safeResults[i].name} (${safeResults[i].threshold})`);
         }
       }
     }
 
     if (allMatch) {
-      console.log(`  All Safe wallets have IDENTICAL owners and threshold (${refThreshold} of ${refOwners.size})`);
+      console.log(`\nAll Safe wallets have IDENTICAL owners and threshold (${refThreshold} of ${refOwners.size})`);
     }
   }
 
-  // ── Part 2: Aragon DAO plugins ───────────────────────────────────────────
-  console.log('\n' + '='.repeat(60));
-  console.log('ARAGON DAO PLUGINS');
-  console.log(`DAO: ${ARAGON_DAO}`);
-  console.log('='.repeat(60));
+  // Part 2: Aragon DAO plugins
+  console.log('\n=== Aragon DAO Plugins ===');
+  console.log(`  DAO: ${aragonDao || '(not set)'}`);
 
-  if (!ethRpc) {
-    console.error('  Error: RPC_ETHEREUM not configured');
-    process.exit(1);
-  }
-
-  try {
-    const pluginAddresses = await getAragonPlugins(ethRpc);
+  if (!ethRpc || !aragonDao) {
+    if (!ethRpc) console.log('  Skipping: RPC_ETHEREUM not configured');
+    if (!aragonDao) console.log('  Skipping: ZAMA_ARAGON_DAO not configured');
+  } else try {
+    const pluginAddresses = await getAragonPlugins(ethRpc, aragonDao);
 
     if (pluginAddresses.length === 0) {
-      console.log('\n  No plugins detected with EXECUTE_PERMISSION');
+      console.log('\nNo plugins detected with EXECUTE_PERMISSION');
     } else {
-      console.log(`\n  Detected ${pluginAddresses.length} active plugin address(es):`);
+      console.log(`\nDetected ${pluginAddresses.length} active plugin address(es):`);
       printAragonPluginAddresses(pluginAddresses);
     }
   } catch (error) {
-    console.error(`\n  Error fetching Aragon plugins: ${error.message}`);
+    console.error(`\n[Aragon] Error: ${error.message}`);
     hadError = true;
   }
 
-  // ── Part 3: Solana Squads ────────────────────────────────────────────────
-  console.log('\n' + '='.repeat(60));
-  console.log('SOLANA SQUADS MULTISIG');
-  console.log('='.repeat(60));
+  // Part 3: Solana Squads
+  console.log('\n=== Solana Squads Multisig ===');
 
   try {
     const squadsInfo = await getSolanaSquadsInfo();
     if (squadsInfo) {
-      console.log(`\n  [Solana Squads]`);
-      console.log(`  Multisig account address : ${squadsInfo.address}`);
-      console.log(`  Threshold    : ${squadsInfo.threshold} of ${squadsInfo.owners.length}`);
+      console.log(`\n[Solana Squads]`);
+      console.log(`  Multisig account : ${squadsInfo.address}`);
+      console.log(`  Threshold        : ${squadsInfo.threshold} of ${squadsInfo.owners.length}`);
       console.log('  Members:');
-      for (let i = 0; i < squadsInfo.members.length; i++) {
-        console.log(`    ${i + 1}. ${squadsInfo.members[i]}`);
+      for (let i = 0; i < squadsInfo.owners.length; i++) {
+        console.log(`    ${i + 1}. ${squadsInfo.owners[i]}`);
       }
     }
   } catch (error) {
-    console.error(`\n  Error fetching Solana Squads: ${error.message}`);
+    console.error(`\n[Solana Squads] Error: ${error.message}`);
     hadError = true;
   }
 

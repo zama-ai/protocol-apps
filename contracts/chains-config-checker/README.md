@@ -29,6 +29,7 @@ Currently, most useful scripts are:
 [*] get-current-pausers
 [*] get-token-roles
 [*] get-oft-owners
+[*] get-multisig-info
 ```
 ### getCurrentPausers
 
@@ -224,4 +225,76 @@ Example output:
 
 Admin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,
 and it should be a Squads multisig wallet owned by Zama FB_i operators
+```
+
+### getMultisigInfo
+
+Reports owners and thresholds for all deployed multisig wallets (EVM Safes, Aragon DAO plugins, Solana Squads).
+
+#### Usage
+
+```bash
+npm run get-multisig-info
+```
+
+The script will:
+1. Query each configured **Gnosis Safe** (Gateway, BSC, HyperEVM) for `getOwners()` and `getThreshold()`, then cross-check that owners and threshold are identical across all chains.
+2. Detect active **Aragon DAO plugins** by scanning `Granted`/`Revoked` events for `EXECUTE_PERMISSION` on the DAO, filtering out uninstalled plugins. A sanity check calls `hasPermission()` on-chain to verify the event-derived state.
+3. Query the **Solana Squads** multisig account for members and threshold.
+
+**Environment variables:**
+
+| Variable | Description |
+|---|---|
+| `RPC_GATEWAY` | Gateway RPC endpoint |
+| `RPC_BSC` | BSC RPC endpoint |
+| `RPC_HYPEREVM` | HyperEVM RPC endpoint |
+| `RPC_ETHEREUM` | Ethereum RPC endpoint (for Aragon) |
+| `ZAMA_SAFE_GATEWAY` | Safe address on Gateway |
+| `ZAMA_SAFE_BSC` | Safe address on BSC |
+| `ZAMA_SAFE_HYPEREVM` | Safe address on HyperEVM |
+| `ZAMA_ARAGON_DAO` | Aragon DAO address on Ethereum |
+| `SOLANA_RPC_URL` | Solana RPC endpoint |
+| `SOLANA_SQUADS_MULTISIG_ACCOUNT` | Squads multisig account PDA |
+
+#### Example Output
+
+```
+=== Safe Multisig Wallets ===
+
+[Gateway]
+  Safe address : 0x5f0F...2bE
+  Threshold    : 3 of 5
+  Owners:
+    1. 0x9b82...9B71
+    2. 0xf299...fBBE
+    3. 0x6dd4...5874
+    4. 0x8edF...8CB8
+    5. 0x7053...02b3
+
+[BSC]
+  ...
+
+[HyperEVM]
+  ...
+
+All Safe wallets have IDENTICAL owners and threshold (3 of 5)
+
+=== Aragon DAO Plugins ===
+  DAO: 0xB6D6...Ef3
+  ...
+
+Detected 2 active plugin address(es):
+    https://etherscan.io/address/0x...
+    https://etherscan.io/address/0x...
+
+=== Solana Squads Multisig ===
+
+[Solana Squads]
+  Multisig account : HB3bo...CkxC
+  Threshold        : 4 of 6
+  Members:
+    1. ...
+    2. ...
+    ...
 ```
