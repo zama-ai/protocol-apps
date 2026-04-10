@@ -3,6 +3,9 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { ethers } = require('ethers');
 const { findDeploymentBlock } = require('./get-deployment-block');
+const { Connection, PublicKey } = require('@solana/web3.js');
+const multisig = require('@sqds/multisig');
+const { Multisig } = multisig.accounts;
 
 // ── Safe multisig addresses (from docs/addresses/mainnet) ──────────────────
 const SAFE_CHAINS = {
@@ -170,6 +173,30 @@ async function getAragonPlugins(rpcUrl) {
   return Array.from(activePlugins).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 }
 
+// ── Solana Squads Info ─────────────────────────────────────────────────────
+
+async function getSolanaSquadsInfo() {
+  const rpcUrl = process.env.SOLANA_RPC_URL;
+  const squadsAddress = process.env.SOLANA_SQUADS_MULTISIG_ACCOUNT;
+
+  if (!rpcUrl || !squadsAddress) {
+    console.log(`  Skipping Solana Squads: SOLANA_RPC_URL or SOLANA_SQUADS_MULTISIG_ACCOUNT not configured`);
+    return null;
+  }
+
+  const connection = new Connection(rpcUrl);
+  const multisigPda = new PublicKey(squadsAddress);
+
+  // Uses the pattern from the Squads docs
+  const multisigAccount = await Multisig.fromAccountAddress(connection, multisigPda);
+
+  return {
+    address: squadsAddress,
+    owners: multisigAccount.members.map(m => m.key.toBase58()),
+    threshold: multisigAccount.threshold,
+  };
+}
+
 // ── Output ─────────────────────────────────────────────────────────────────
 
 function printSafeInfo(info) {
@@ -264,6 +291,27 @@ async function main() {
     }
   } catch (error) {
     console.error(`\n  Error fetching Aragon plugins: ${error.message}`);
+    hadError = true;
+  }
+
+  // ── Part 3: Solana Squads ────────────────────────────────────────────────
+  console.log('\n' + '='.repeat(60));
+  console.log('SOLANA SQUADS MULTISIG');
+  console.log('='.repeat(60));
+
+  try {
+    const squadsInfo = await getSolanaSquadsInfo();
+    if (squadsInfo) {
+      console.log(`\n  [Solana Squads]`);
+      console.log(`  Multisig account address : ${squadsInfo.address}`);
+      console.log(`  Threshold    : ${squadsInfo.threshold} of ${squadsInfo.owners.length}`);
+      console.log('  Members:');
+      for (let i = 0; i < squadsInfo.members.length; i++) {
+        console.log(`    ${i + 1}. ${squadsInfo.members[i]}`);
+      }
+    }
+  } catch (error) {
+    console.error(`\n  Error fetching Solana Squads: ${error.message}`);
     hadError = true;
   }
 
