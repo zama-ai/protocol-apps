@@ -30,6 +30,7 @@ Currently, most useful scripts are:
 [*] get-token-roles
 [*] get-oft-owners
 [*] get-multisig-info
+[*] get-staking-roles
 ```
 ### getCurrentPausers
 
