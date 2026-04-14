@@ -16,7 +16,8 @@
   "overrides": {
     "@safe-global/safe-contracts": {
       "ethers": "^6.13.5"
-    }
+    },
+    "axios": "^1.15.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
