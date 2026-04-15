@@ -31,6 +31,9 @@ Currently, most useful scripts are:
 [*] get-oft-owners
 [*] get-multisig-info
 [*] get-staking-roles
+[*] get-governance-oapp-owners
+[*] get-protocol-contract-owners
+[*] get-wrapper-owners
 ```
 ### getCurrentPausers
 
@@ -392,4 +395,122 @@ The script will:
 [COPROCESSOR]
   Zama            : 0x31bB...
   ...
+```
+
+### getGovernanceOappOwners
+
+```
+npm run get-governance-oapp-owners
+```
+
+Reports the **owner** and **LayerZero delegate** of the `GovernanceOAppSender` (Ethereum) and `GovernanceOAppReceiver` (Gateway). Uses on-chain view calls only (`owner()`, `endpoint()`, `delegates(oapp)`).
+
+For each configured chain it will:
+1. Read the governance OApp to get `owner()` and `endpoint()`.
+2. Read the endpoint's `delegates(contractAddress)` to get the current delegate.
+3. Print OApp address, owner, and delegate.
+4. Exit non-zero if `owner` and `delegate` differ on any chain.
+
+**Environment variables:**
+
+| Chain                       | RPC env       | Contract address env                    |
+|-----------------------------|---------------|------------------------------------------|
+| Ethereum (Sender)           | `RPC_ETHEREUM` | `ZAMA_GOVERNANCE_OAPP_SENDER_ETHEREUM`   |
+| Gateway (Receiver)          | `RPC_GATEWAY`  | `ZAMA_GOVERNANCE_OAPP_RECEIVER_GATEWAY`  |
+
+Example output:
+
+```
+=== Governance OApp ===
+
+[Ethereum GovernanceOAppSender]
+  OApp address : 0x1c5D750D18917064915901048cdFb2dB815e0910
+  Owner        : 0x...
+  Delegate     : 0x...
+
+[Gateway GovernanceOAppReceiver]
+  OApp address : 0x10795261A06285D3718674a9Cf98Ea66F7C6A0c6
+  Owner        : 0x...
+  Delegate     : 0x...
+
+Owner and Delegate should be IDENTICAL on each chain.
+```
+
+### getProtocolContractOwners
+
+```
+npm run get-protocol-contract-owners
+```
+
+Reports the **owner** (and any **pending owner**) of the `ACL` contract on Ethereum and the `GatewayConfig` contract on the Gateway chain. Both contracts use `Ownable2Step`, so a non-zero `pendingOwner()` indicates an in-flight ownership handover and causes the script to exit non-zero.
+
+For each configured contract it will:
+1. Call `owner()` and `pendingOwner()`.
+2. Print the contract address, owner, and (if non-zero) pending owner.
+3. Emit a WARNING summary if any contract has a pending owner. The script still exits zero.
+
+**Environment variables:**
+
+| Chain     | RPC env        | Contract address env            |
+|-----------|----------------|----------------------------------|
+| Ethereum  | `RPC_ETHEREUM` | `ZAMA_ACL_ETHEREUM`              |
+| Gateway   | `RPC_GATEWAY`  | `ZAMA_GATEWAY_CONFIG_GATEWAY`    |
+
+Example output:
+
+```
+=== Protocol Contract Owners ===
+
+[Ethereum ACL]
+  Contract address : 0x4E35869D1e8106058d11b414876B735F62A325e2
+  Owner            : 0x...
+
+[Gateway GatewayConfig]
+  Contract address : 0x3B19DA9b424f95f1d2787Ab2d3a43ad56D626AAE
+  Owner            : 0x...
+```
+
+### getWrapperOwners
+
+#### Usage
+
+```bash
+npm run get-wrapper-owners
+```
+
+Reports the **owner** (and any **pending owner**) of the `ConfidentialTokenWrappersRegistry` on Ethereum and of every confidential wrapper registered in it. The list of wrappers is read from the registry on-chain, so no per-wrapper env var is required.
+
+The script will:
+1. Read `owner()` and `pendingOwner()` on the registry.
+2. Read `getTokenConfidentialTokenPairsLength()` and iterate `getTokenConfidentialTokenPair(i)` on the registry to list all wrappers (including revoked entries).
+3. For each wrapper, read `owner()` and `pendingOwner()`.
+4. Compare each wrapper's owner to the registry owner. Mismatches are reported as a NOTE and do not cause the script to fail.
+5. Emit a WARNING summary if any contract has a pending owner. The script still exits zero.
+
+**Environment variables:**
+
+| Chain     | RPC env        | Contract address env                |
+|-----------|----------------|--------------------------------------|
+| Ethereum  | `RPC_ETHEREUM` | `ZAMA_WRAPPERS_REGISTRY_ETHEREUM`    |
+
+Example output:
+
+```
+=== Wrappers Registry & Confidential Wrappers ===
+
+[Wrappers Registry]
+  Address       : 0xeb5015fF021DB115aCe010f23F55C2591059bBA0
+  Owner         : 0x...
+
+[Confidential wrapper (underlying ...)]
+  Address       : 0x...
+  Owner         : 0x...
+
+...
+
+--------------------------------------------------
+Registry owner : 0x...
+Wrappers       : 7
+
+All wrapper owners are IDENTICAL to the registry owner.
 ```

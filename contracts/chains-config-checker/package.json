@@ -10,7 +10,10 @@
     "get-oft-owners-solana": "node utils/get-oft-owners-solana.js",
     "get-oft-owners": "node utils/get-oft-owners-evm.js && node utils/get-oft-owners-solana.js",
     "get-multisig-info": "node utils/get-multisig-info.js",
-    "get-staking-roles": "node utils/get-staking-roles.js"
+    "get-staking-roles": "node utils/get-staking-roles.js",
+    "get-governance-oapp-owners": "node utils/get-governance-oapp-owners.js",
+    "get-protocol-contract-owners": "node utils/get-protocol-contract-owners.js",
+    "get-wrapper-owners": "node utils/get-wrapper-owners.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",
