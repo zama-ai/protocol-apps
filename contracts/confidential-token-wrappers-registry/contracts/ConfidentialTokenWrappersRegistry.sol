@@ -150,13 +150,13 @@ contract ConfidentialTokenWrappersRegistry is Ownable2StepUpgradeable, UUPSUpgra
         }
 
         // The confidential token must be associated with a token.
-        (, address tokenAddress) = getTokenAddress(confidentialTokenAddress);
+        (bool isValid, address tokenAddress) = getTokenAddress(confidentialTokenAddress);
         if (tokenAddress == address(0)) {
             revert NoTokenAssociatedWithConfidentialToken(confidentialTokenAddress);
         }
 
         // The confidential token must not be already revoked.
-        if (!isConfidentialTokenValid(confidentialTokenAddress)) {
+        if (!isValid) {
             revert RevokedConfidentialToken(confidentialTokenAddress);
         }
 
