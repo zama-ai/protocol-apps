@@ -39,6 +39,8 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     error InvalidUnwrapRequest(bytes32 unwrapRequestId);
     error ERC7984TotalSupplyOverflow();
 
+    event Wrap(address indexed to, uint256 roundedAmount, euint64 encryptedWrappedAmount);
+
     function _getERC7984ERC20WrapperStorage() internal pure returns (ERC7984ERC20WrapperStorage storage $) {
         assembly {
             $.slot := ERC7984_ERC20_WRAPPER_UPGRADEABLE_STORAGE_LOCATION
@@ -80,11 +82,13 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
 
         // mint confidential token
         address to = data.length < 20 ? from : address(bytes20(data));
-        _mint(to, FHE.asEuint64(SafeCast.toUint64(amount / rate())));
+        euint64 encryptedWrappedAmount = _mint(to, FHE.asEuint64(SafeCast.toUint64(amount / rate())));
 
         // transfer excess back to the sender
         uint256 excess = amount % rate();
         if (excess > 0) SafeERC20.safeTransfer(IERC20(underlying()), from, excess);
+
+        emit Wrap(to, amount - excess, encryptedWrappedAmount);
 
         // return magic value
         return IERC1363Receiver.onTransferReceived.selector;
@@ -98,12 +102,15 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * Returns the amount of wrapped tokens sent.
      */
     function wrap(address to, uint256 amount) public virtual override returns (euint64) {
+        uint256 roundedAmount = amount - (amount % rate());
         // take ownership of the tokens
-        SafeERC20.safeTransferFrom(IERC20(underlying()), msg.sender, address(this), amount - (amount % rate()));
+        SafeERC20.safeTransferFrom(IERC20(underlying()), msg.sender, address(this), roundedAmount);
 
         // mint confidential token
         euint64 wrappedAmountSent = _mint(to, FHE.asEuint64(SafeCast.toUint64(amount / rate())));
         FHE.allowTransient(wrappedAmountSent, msg.sender);
+
+        emit Wrap(to, roundedAmount, wrappedAmountSent);
 
         return wrappedAmountSent;
     }

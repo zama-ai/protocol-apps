@@ -5,6 +5,7 @@ import { ConfidentialWrapper } from '../types';
 import { FhevmType } from '@fhevm/hardhat-plugin';
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 import { expect } from 'chai';
 import { ethers, fhevm, upgrades } from 'hardhat';
 import { getRequiredEnvVar } from '../tasks/utils/loadVariables';
@@ -173,6 +174,20 @@ describe('ERC7984Wrapper', function () {
               ? this.token.connect(this.holder).transferAndCall(this.wrapper, rate)
               : this.wrapper.connect(this.holder).wrap(this.holder.address, rate),
           ).to.be.revertedWithCustomError(this.wrapper, 'ERC7984TotalSupplyOverflow');
+        });
+
+        it('emits Wrap event', async function () {
+          const amountToWrap = ethers.parseUnits('100', 18);
+          const rate = await this.wrapper.rate();
+          const roundedAmount = amountToWrap - (amountToWrap % rate);
+
+          const tx = viaCallback
+            ? this.token.connect(this.holder).transferAndCall(this.wrapper, amountToWrap)
+            : this.wrapper.connect(this.holder).wrap(this.holder.address, amountToWrap);
+
+          await expect(tx)
+            .to.emit(this.wrapper, 'Wrap')
+            .withArgs(this.holder.address, roundedAmount, anyValue);
         });
 
         if (viaCallback) {
