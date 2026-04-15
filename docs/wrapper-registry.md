@@ -158,7 +158,7 @@ struct TokenWrapperPair {
 | `ConfidentialTokenZeroAddress()`                                                              | Attempted to register/revoke with zero wrapper address |
 | `NotERC7984(confidentialTokenAddress)`                                                        | Wrapper doesn't support ERC-7984 interface             |
 | `ConfidentialTokenDoesNotSupportERC165(confidentialTokenAddress)`                             | Wrapper doesn't implement ERC-165                      |
-| `ConfidentialTokenAlreadyAssociatedWithToken(tokenAddress, existingConfidentialTokenAddress)` | Wrapper already registered to another token            |
+| `ConfidentialTokenAlreadyAssociatedWithToken(confidentialTokenAddress, existingTokenAddress)` | Wrapper already registered to another token            |
 | `TokenAlreadyAssociatedWithConfidentialToken(tokenAddress, existingConfidentialTokenAddress)` | Token already has a registered wrapper                 |
 | `RevokedConfidentialToken(confidentialTokenAddress)`                                          | Attempting to revoke an already-revoked wrapper        |
 | `NoTokenAssociatedWithConfidentialToken(confidentialTokenAddress)`                            | Attempting to revoke unregistered wrapper              |
