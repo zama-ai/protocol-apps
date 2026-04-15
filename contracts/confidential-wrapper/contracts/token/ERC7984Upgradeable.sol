@@ -292,6 +292,12 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         return _update(from, to, amount);
     }
 
+    /**
+     * @dev WARNING: The refund triggered when {ERC7984Utils-checkOnTransferReceived} returns an encrypted
+     * false is best-effort only. A receiver that transfers, burns, or otherwise reduces its balance during
+     * the hook can still return false, in which case the refund transfers zero tokens. The sender's tokens
+     * end up with the recipient rather than being refunded.
+     */
     function _transferAndCall(
         address from,
         address to,
