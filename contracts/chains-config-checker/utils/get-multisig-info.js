@@ -29,7 +29,15 @@ const SAFE_CHAINS = {
 const SAFE_ABI = [
   'function getOwners() view returns (address[])',
   'function getThreshold() view returns (uint256)',
+  'function getModulesPaginated(address start, uint256 pageSize) view returns (address[] array, address next)',
 ];
+
+const ADMIN_MODULE_ABI = [
+  'function ADMIN_ACCOUNT() view returns (address)',
+  'function SAFE_PROXY() view returns (address)',
+];
+
+const SENTINEL_MODULES = '0x0000000000000000000000000000000000000001';
 
 const PERMISSION_MANAGER_ABI = [
   'event Granted(bytes32 indexed permissionId, address indexed here, address where, address indexed who, address condition)',
@@ -86,6 +94,61 @@ async function getSafeInfo(chainConfig) {
     owners: Array.from(owners),
     threshold: Number(threshold),
   };
+}
+
+async function getAllSafeModules(safe) {
+  const [modules, next] = await safe.getModulesPaginated(SENTINEL_MODULES, 100);
+  if (next !== SENTINEL_MODULES) {
+    throw new Error(`Safe has more than 100 enabled modules (next cursor: ${next})`);
+  }
+  return Array.from(modules);
+}
+
+async function getGatewayAdminModuleInfo() {
+  const rpcUrl = process.env.RPC_GATEWAY;
+  const safeAddress = process.env.ZAMA_SAFE_GATEWAY;
+  const adminModuleAddress = process.env.ZAMA_SAFE_ADMIN_MODULE_GATEWAY;
+
+  if (!rpcUrl || !safeAddress || !adminModuleAddress) {
+    const missing = [];
+    if (!rpcUrl) missing.push('RPC_GATEWAY');
+    if (!safeAddress) missing.push('ZAMA_SAFE_GATEWAY');
+    if (!adminModuleAddress) missing.push('ZAMA_SAFE_ADMIN_MODULE_GATEWAY');
+    console.log(`  Skipping: ${missing.join(', ')} not configured`);
+    return null;
+  }
+
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const adminModule = new ethers.Contract(adminModuleAddress, ADMIN_MODULE_ABI, provider);
+  const safe = new ethers.Contract(safeAddress, SAFE_ABI, provider);
+
+  const [adminAccount, safeProxy, enabledModules] = await Promise.all([
+    adminModule.ADMIN_ACCOUNT(),
+    adminModule.SAFE_PROXY(),
+    getAllSafeModules(safe),
+  ]);
+
+  return {
+    safeAddress,
+    adminModuleAddress,
+    adminAccount,
+    safeProxy,
+    enabledModules,
+  };
+}
+
+function printGatewayAdminModuleInfo(info) {
+  console.log(`\n[Gateway AdminModule]`);
+  console.log(`  Module address : ${info.adminModuleAddress}`);
+  console.log(`  Admin account  : ${info.adminAccount}`);
+  console.log(`  Safe proxy     : ${info.safeProxy}`);
+
+  console.log(`\n[Gateway Safe enabled modules]`);
+  console.log(`  Safe address  : ${info.safeAddress}`);
+  console.log(`  Total enabled : ${info.enabledModules.length}`);
+  for (let i = 0; i < info.enabledModules.length; i++) {
+    console.log(`    ${i + 1}. ${info.enabledModules[i]}`);
+  }
 }
 
 async function getAragonPlugins(rpcUrl, daoAddress) {
@@ -248,7 +311,41 @@ async function main() {
     }
   }
 
-  // Part 2: Aragon DAO plugins
+  // Part 2: Gateway Safe AdminModule
+  console.log('\n=== Gateway Safe AdminModule ===');
+
+  try {
+    const info = await getGatewayAdminModuleInfo();
+    if (info) {
+      printGatewayAdminModuleInfo(info);
+
+      const safeProxyMatches = info.safeProxy.toLowerCase() === info.safeAddress.toLowerCase();
+      if (!safeProxyMatches) {
+        console.log(`\nWARNING: AdminModule.SAFE_PROXY (${info.safeProxy}) does not match ZAMA_SAFE_GATEWAY (${info.safeAddress})`);
+      }
+
+      const modulesLower = info.enabledModules.map((m) => m.toLowerCase());
+      const expectedLower = info.adminModuleAddress.toLowerCase();
+      const adminModuleEnabled = modulesLower.includes(expectedLower);
+      const extraModules = info.enabledModules.filter((m) => m.toLowerCase() !== expectedLower);
+
+      if (!adminModuleEnabled) {
+        console.log(`\nWARNING: AdminModule ${info.adminModuleAddress} is NOT enabled on the Gateway Safe`);
+      }
+      if (extraModules.length > 0) {
+        console.log(`\nWARNING: Gateway Safe has ${extraModules.length} unexpected module(s) enabled:`);
+        for (const m of extraModules) console.log(`  ${m}`);
+      }
+      if (safeProxyMatches && adminModuleEnabled && extraModules.length === 0) {
+        console.log('\nOnly the AdminModule is enabled on the Gateway Safe, and its SAFE_PROXY matches.');
+      }
+    }
+  } catch (error) {
+    console.error(`\n[Gateway AdminModule] Error: ${error.message}`);
+    hadError = true;
+  }
+
+  // Part 3: Aragon DAO plugins
   console.log('\n=== Aragon DAO Plugins ===');
   console.log(`  DAO: ${aragonDao || '(not set)'}`);
 
@@ -269,7 +366,7 @@ async function main() {
     hadError = true;
   }
 
-  // Part 3: Solana Squads
+  // Part 4: Solana Squads
   console.log('\n=== Solana Squads Multisig ===');
 
   try {

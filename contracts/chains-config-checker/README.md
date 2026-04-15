@@ -239,8 +239,9 @@ npm run get-multisig-info
 
 The script will:
 1. Query each configured **Gnosis Safe** (Gateway, BSC, HyperEVM) for `getOwners()` and `getThreshold()`, then cross-check that owners and threshold are identical across all chains.
-2. Detect active **Aragon DAO plugins** by scanning `Granted`/`Revoked` events for `EXECUTE_PERMISSION` on the DAO, filtering out uninstalled plugins. A sanity check calls `hasPermission()` on-chain to verify the event-derived state.
-3. Query the **Solana Squads** multisig account for members and threshold.
+2. On the **Gateway Safe**, list every enabled module via `getModulesPaginated(SENTINEL, 100)` and verify that the only enabled module is the configured `AdminModule`. The `AdminModule` is also queried for its `ADMIN_ACCOUNT()` and `SAFE_PROXY()`; the latter must match `ZAMA_SAFE_GATEWAY`.
+3. Detect active **Aragon DAO plugins** by scanning `Granted`/`Revoked` events for `EXECUTE_PERMISSION` on the DAO, filtering out uninstalled plugins. A sanity check calls `hasPermission()` on-chain to verify the event-derived state.
+4. Query the **Solana Squads** multisig account for members and threshold.
 
 **Environment variables:**
 
@@ -251,6 +252,7 @@ The script will:
 | `RPC_HYPEREVM` | HyperEVM RPC endpoint |
 | `RPC_ETHEREUM` | Ethereum RPC endpoint (for Aragon) |
 | `ZAMA_SAFE_GATEWAY` | Safe address on Gateway |
+| `ZAMA_SAFE_ADMIN_MODULE_GATEWAY` | AdminModule address enabled on the Gateway Safe |
 | `ZAMA_SAFE_BSC` | Safe address on BSC |
 | `ZAMA_SAFE_HYPEREVM` | Safe address on HyperEVM |
 | `ZAMA_ARAGON_DAO` | Aragon DAO address on Ethereum |
@@ -279,6 +281,20 @@ The script will:
   ...
 
 All Safe wallets have IDENTICAL owners and threshold (3 of 5)
+
+=== Gateway Safe AdminModule ===
+
+[Gateway AdminModule]
+  Module address : 0x57f866b5E7Fb82Fb812Ed3D3C79cdB35E9e91518
+  Admin account  : 0x...
+  Safe proxy     : 0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE
+
+[Gateway Safe enabled modules]
+  Safe address  : 0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE
+  Total enabled : 1
+    1. 0x57f866b5E7Fb82Fb812Ed3D3C79cdB35E9e91518
+
+Only the AdminModule is enabled on the Gateway Safe, and its SAFE_PROXY matches.
 
 === Aragon DAO Plugins ===
   DAO: 0xB6D6...Ef3
