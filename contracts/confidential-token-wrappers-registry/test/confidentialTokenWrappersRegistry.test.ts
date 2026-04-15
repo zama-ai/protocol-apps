@@ -142,6 +142,14 @@ describe('ConfidentialTokenWrappersRegistry', function () {
       ).to.be.revertedWithCustomError(this.registry, 'ConfidentialTokenZeroAddress');
     });
 
+    it('should revert if token address and confidential token address are the same', async function () {
+      await expect(
+        this.registry.connect(this.owner).registerConfidentialToken(this.confidentialToken1, this.confidentialToken1),
+      )
+        .to.be.revertedWithCustomError(this.registry, 'TokenAddressIsConfidentialTokenAddress')
+        .withArgs(this.confidentialToken1);
+    });
+
     it('should revert if confidential token address does not support ERC165', async function () {
       const fakeConfidentialTokenAddress = createRandomAddress();
       await expect(
