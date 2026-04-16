@@ -42,6 +42,25 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1.7.0
 
+      - name: Install forge-std
+        working-directory: contracts/staking
+        run: forge install foundry-rs/forge-std --no-git
+
+      - name: Cache node_modules
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        with:
+          path: |
+            contracts/confidential-token-wrappers-registry/node_modules
+            contracts/confidential-wrapper/node_modules
+            contracts/feesBurner/node_modules
+            contracts/governance/node_modules
+            contracts/pauserSetWrapper/node_modules
+            contracts/safe/node_modules
+            contracts/solanaOFT/node_modules
+            contracts/staking/node_modules
+            contracts/token/node_modules
+          key: contracts-node-modules-${{ hashFiles('contracts/*/package-lock.json', 'contracts/*/pnpm-lock.yaml') }}
+
       - name: Check selectors
         working-directory: contracts
         run: make check-selectors
