@@ -5,9 +5,6 @@
 # solanaOFT is excluded because it duplicates contracts already emitted by the token package.
 PACKAGES := $(filter-out solanaOFT,$(patsubst %/foundry.toml,%,$(wildcard */foundry.toml)))
 
-# awk filter that drops ERC20Mock sections (present in nearly every package).
-SELECTORS_FILTER := awk '/^[A-Za-z_][A-Za-z0-9_]*$$/ { skip = ($$0 == "ERC20Mock") } !skip'
-
 # Phony targets
 .PHONY: help update-selectors check-selectors conformance prettier $(PACKAGES)
 
@@ -24,14 +21,14 @@ help:
 update-selectors:
 	@rm -f ./selectors.txt
 	@for pkg in $(PACKAGES); do \
-		cd $$pkg && ([ -d node_modules ] || ([ -f pnpm-lock.yaml ] && pnpm i || npm i)) && forge selectors list | tail -n +2 | $(SELECTORS_FILTER) >> ../selectors.txt && cd ..; \
+		cd $$pkg && ([ -d node_modules ] || ([ -f pnpm-lock.yaml ] && pnpm i || npm i)) && forge selectors list | tail -n +2 >> ../selectors.txt && cd ..; \
 	done
 
 # Check selectors for all packages
 check-selectors:
 	@rm -f ./selectors.txt.tmp
 	@for pkg in $(PACKAGES); do \
-		cd $$pkg && ([ -d node_modules ] || ([ -f pnpm-lock.yaml ] && pnpm i || npm i)) && forge selectors list | tail -n +2 | $(SELECTORS_FILTER) >> ../selectors.txt.tmp && cd ..; \
+		cd $$pkg && ([ -d node_modules ] || ([ -f pnpm-lock.yaml ] && pnpm i || npm i)) && forge selectors list | tail -n +2 >> ../selectors.txt.tmp && cd ..; \
 	done
 	@diff ./selectors.txt ./selectors.txt.tmp &> /dev/null || { \
 		echo "Contract selectors are not up-to-date."; \
