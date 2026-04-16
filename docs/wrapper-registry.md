@@ -10,7 +10,7 @@ This document explains the **Confidential Token Wrappers Registry,** an onchain 
 * **TokenWrapperPair**: A pair of a token and its confidential wrapper.
 * **Valid**: A valid confidential wrapper has been verified by the registry owner and can be used to wrap and unwrap tokens from the underlying token.
 * **Invalid**: An invalid confidential wrapper has been revoked by the registry owner and should not be used to wrap and unwrap tokens from the underlying token.
-* **Owner**: The owner of the registry. In the FHEVM protocol, this is a DAO governance contract handled by Zama.
+* **Owner**: The owner of the registry. In the FHEVM protocol, this is the Protocol DAO governance (see [governance.md](governance.md)).
 
 ## Contract information
 
@@ -18,6 +18,19 @@ This document explains the **Confidential Token Wrappers Registry,** an onchain 
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
 | Source code | [ConfidentialTokenWrappersRegistry.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/confidential-token-wrappers-registry/contracts/ConfidentialTokenWrappersRegistry.sol) |
+
+## Structure
+
+```mermaid
+flowchart
+    subgraph Ethereum
+    Protocol-DAO -- owner --> Registry
+        Registry -- registers --> Confidential-Wrapper
+        Protocol-DAO -- owner --> Confidential-Wrapper
+    end
+```
+
+More information on confidential wrappers can be found in the [confidential-wrapper.md](confidential-wrapper.md) file.
 
 ## Quick Start
 

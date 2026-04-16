@@ -14,4 +14,4 @@
 
 | Name                | Address |
 | ------------------- | ------- |
-| Squads Multisig     | [`G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5`](https://app.squads.so/squads/G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5/home) |
+| Solana Multisig     | [`G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5`](https://solscan.io/account/G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5) |

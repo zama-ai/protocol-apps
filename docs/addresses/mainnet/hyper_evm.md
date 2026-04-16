@@ -11,4 +11,4 @@
 
 | Name            | Address |
 | --------------- | ------- |
-| Safe multisig   | [`0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827`](https://app.safe.global/home?safe=hyper-evm:0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827) |
+| HyperEVM multisig   | [`0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827`](https://hyperevmscan.io/address/0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827) |
