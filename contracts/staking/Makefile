@@ -27,5 +27,11 @@ test-tasks: clean
 	DOTENV_CONFIG_PATH=$(ENV_PATH) npx hardhat test:tasks --network hardhat $(if $(GREP),--grep '$(GREP)',)
 
 
+test-fuzz-ci:
+	FOUNDRY_PROFILE=ci forge test --match-path "*invariants*"
+
+test-fuzz-heavy:
+	FOUNDRY_PROFILE=ciheavy forge test --match-path "*invariants*"
+
 # Conform to pre-commit checks
 conformance: prettier lint
