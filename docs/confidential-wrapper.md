@@ -56,7 +56,7 @@ Non-standard tokens are not supported. This includes fee-on-transfer, deflationa
 
 ### Get the confidential wrapper address of an ERC-20 token
 
-Zama provides a registry contract that maps ERC-20 tokens to their corresponding verified confidential wrappers. Make sure to check the registry contract to ensure the confidential wrapper is valid before wrapping. More information [here](wrapper-registry.md).
+An onchain registry contract maps ERC-20 tokens to their corresponding verified confidential wrappers. Make sure to check the registry contract to ensure the confidential wrapper is valid before wrapping. More information [here](wrapper-registry.md).
 
 ### Wrap ERC-20 → Confidential token
 

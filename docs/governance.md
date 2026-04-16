@@ -81,11 +81,9 @@ Linking operator identity to their wallets will eventually be handled onchain, b
 
 ## Proposals
 
-Anyone may create governance proposals. However, in practice, we expect that Zama will typically do this. Proposals can be created using the Aragon App dashboard or by direct interaction with its contracts.
+Anyone may create governance proposals. Once a proposal is created, every operator is expected to review it shortly afterwards, and act within the deadline set in the proposal. Verifying a proposal must be done independently and against information in the secured GitHub repository. Proposals will typically include actions for calling other contracts, and operators must independently verify these as well.
 
-Once a proposal is created, every operator is expected to review it shortly afterwards, and act within the deadline set in the proposal. Verifying a proposal must be done independently and against information in the secured GitHub repository. Proposals will typically include actions for calling other contracts, and operators must independently verify these as well.
-
-When proposals are accepted, anyone can execute them through the Aragon App. However, again we expect that Zama will typically do this.
+When proposals are accepted, anyone can execute them through the Aragon App.
 
 ## Actions
 
@@ -113,7 +111,7 @@ Note that _Update offchain services_ proposal may include some onchain actions t
 
 ### Update contracts
 
-New contract implementations are typically deployed by Zama, and a governance proposal is used to update the protocol to use them (i.e. updating proxies). Operators must verify that the new implementations match the specified release version.
+Once a new contract implementation is deployed, a governance proposal is made to update the protocol to use it (i.e. updating proxies). Operators must verify that the new implementation matches the specified release version.
 
 {% hint style="danger" %}
 **Some contracts cannot be upgraded**: $ZAMA token, operator staking contracts, pauser contracts
