@@ -201,6 +201,8 @@ Considerations:
 
 The callback can be used along an ERC-7984 receiver contract. After the transfer, the receiver's `onTransferReceived` callback is invoked. If the callback returns an encrypted `false`, the contract attempts to refund the transferred amount back to the sender.
 
+The returned `transferred` ciphertext is a fresh net amount computed from the transfer and any refund attempt. It is only granted as a transient FHE allowance to `msg.sender` for the current transaction, so callers that need to keep using that value later must obtain their own persistent allowance.
+
 ```solidity
 wrapper.confidentialTransferAndCall(to, encryptedAmount, inputProof, callbackData);
 
@@ -216,6 +218,8 @@ The refund is best-effort only. A receiver that transfers, burns, or otherwise r
 #### Operator-based transfer with callback
 
 The callback can be used along an ERC-7984 receiver contract.
+
+The returned `transferred` ciphertext is also transient-only here: `msg.sender` can use it during the current transaction, but no persistent allowance is granted on that net amount.
 
 ```solidity
 wrapper.confidentialTransferFromAndCall(from, to, encryptedAmount, inputProof, callbackData);
