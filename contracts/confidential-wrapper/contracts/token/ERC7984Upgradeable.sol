@@ -186,7 +186,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         FHE.allowTransient(transferred, msg.sender);
     }
 
-    /// @inheritdoc IERC7984
+    /**
+     * @inheritdoc IERC7984
+     * @dev The returned `transferred` is a fresh ciphertext computed as `sent - refund` in
+     * {_transferAndCall} and only receives a transient FHE allowance for `msg.sender`. While `msg.sender`
+     * retains persistent access to `sent` and `refund` individually via {_update}, no persistent
+     * access is granted on this net amount.
+     */
     function confidentialTransferAndCall(
         address to,
         externalEuint64 encryptedAmount,
@@ -197,7 +203,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         FHE.allowTransient(transferred, msg.sender);
     }
 
-    /// @inheritdoc IERC7984
+    /**
+     * @inheritdoc IERC7984
+     * @dev The returned `transferred` is a fresh ciphertext computed as `sent - refund` in
+     * {_transferAndCall} and only receives a transient FHE allowance for `msg.sender`. While `msg.sender`
+     * retains persistent access to `sent` and `refund` individually via {_update}, no persistent
+     * access is granted on this net amount.
+     */
     function confidentialTransferAndCall(
         address to,
         euint64 amount,
@@ -208,7 +220,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         FHE.allowTransient(transferred, msg.sender);
     }
 
-    /// @inheritdoc IERC7984
+    /**
+     * @inheritdoc IERC7984
+     * @dev The returned `transferred` is a fresh ciphertext computed as `sent - refund` in
+     * {_transferAndCall} and only receives a transient FHE allowance for `msg.sender`. While `from`
+     * retains persistent access to `sent` and `refund` individually via {_update}, no persistent
+     * access is granted on this net amount to `msg.sender`.
+     */
     function confidentialTransferFromAndCall(
         address from,
         address to,
@@ -221,7 +239,13 @@ abstract contract ERC7984Upgradeable is Initializable, IERC7984, ERC165Upgradeab
         FHE.allowTransient(transferred, msg.sender);
     }
 
-    /// @inheritdoc IERC7984
+    /**
+     * @inheritdoc IERC7984
+     * @dev The returned `transferred` is a fresh ciphertext computed as `sent - refund` in
+     * {_transferAndCall} and only receives a transient FHE allowance for `msg.sender`. While `from`
+     * retains persistent access to `sent` and `refund` individually via {_update}, no persistent
+     * access is granted on this net amount to `msg.sender`.
+     */
     function confidentialTransferFromAndCall(
         address from,
         address to,
