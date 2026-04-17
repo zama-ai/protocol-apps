@@ -43,6 +43,14 @@ Columns used in each package's status matrix:
 - **Post-deploy audit** — external review of the deployed bytecode, configuration, and state against the audited source.
 - **Fuzzing and invariants** — property-based fuzzing and invariant tests run against the release.
 
+#### Status
+
+Each row in a package's status matrix carries a **Status** value indicating where that tag sits in its lifecycle:
+
+- **Upcoming** — tag is planned or in audit, not yet deployed.
+- **Active** — tag is the currently deployed source for at least one chain.
+- **Sunset** — tag has been superseded by a later version and is no longer the active deployment.
+
 #### Deployed addresses
 
 See [`docs/addresses/`](./docs/addresses/README.md) for the current on-chain addresses of each package across all supported chains.

@@ -14,6 +14,6 @@ Releases are tagged from the repo root as `fees-vX.Y.Z`. Contracts are immutable
 
 Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag           | Commit | Pre-deploy audit | Post-deploy audit |
-| ------------- | ------ | ---------------- | ----------------- |
-| `fees-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag           | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| ------------- | ------ | ---------------- | ----------------- | ------ |
+| `fees-v1.0.0` | `TBD`  | TBD              | TBD               | Active |

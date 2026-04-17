@@ -17,24 +17,24 @@ Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable
 
 ### Ethereum — `ZamaERC20` + `ZamaOFTAdapter`
 
-| Tag            | Commit | Pre-deploy audit | Post-deploy audit |
-| -------------- | ------ | ---------------- | ----------------- |
-| `token-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag            | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| -------------- | ------ | ---------------- | ----------------- | ------ |
+| `token-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
 
 ### BSC — `ZamaOFT`
 
-| Tag            | Commit | Pre-deploy audit | Post-deploy audit |
-| -------------- | ------ | ---------------- | ----------------- |
-| `token-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag            | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| -------------- | ------ | ---------------- | ----------------- | ------ |
+| `token-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
 
 ### HyperEVM — `ZamaOFT` + `HyperLiquidComposer`
 
-| Tag            | Commit | Pre-deploy audit | Post-deploy audit |
-| -------------- | ------ | ---------------- | ----------------- |
-| `token-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag            | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| -------------- | ------ | ---------------- | ----------------- | ------ |
+| `token-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
 
 ### Gateway — `ZamaOFT`
 
-| Tag            | Commit | Pre-deploy audit | Post-deploy audit |
-| -------------- | ------ | ---------------- | ----------------- |
-| `token-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag            | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| -------------- | ------ | ---------------- | ----------------- | ------ |
+| `token-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
