@@ -14,6 +14,6 @@ Releases are tagged from the repo root as `pauserSetWrapper-vX.Y.Z`. These contr
 
 Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag                       | Commit | Pre-deploy audit | Post-deploy audit |
-| ------------------------- | ------ | ---------------- | ----------------- |
-| `pauserSetWrapper-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag                       | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| ------------------------- | ------ | ---------------- | ----------------- | ------ |
+| `pauserSetWrapper-v1.0.0` | `TBD`  | TBD              | TBD               | Active |

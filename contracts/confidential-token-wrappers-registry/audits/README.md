@@ -8,12 +8,12 @@ Tracks the security verification status for each released version of the `confid
 
 ## Git tag convention
 
-Releases are tagged from the repo root as `registry-vX.Y.Z`. These contracts are upgradable (UUPS), so a tag is a candidate source snapshot for a proxy upgrade; the matching row below is filled in once the tag has been audited and/or deployed.
+Releases are tagged from the repo root as `registry-vX.Y.Z`. These contracts are upgradable (UUPS), so a tag is a candidate source snapshot for a proxy upgrade.
 
 ## Verification status
 
 Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag               | Commit | Pre-deploy audit | Post-deploy audit |
-| ----------------- | ------ | ---------------- | ----------------- |
-| `registry-v1.0.0` | `TBD`  | TBD              | TBD               |
+| Tag               | Commit | Pre-deploy audit | Post-deploy audit | Status |
+| ----------------- | ------ | ---------------- | ----------------- | ------ |
+| `registry-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
