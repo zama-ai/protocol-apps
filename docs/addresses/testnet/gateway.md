@@ -21,3 +21,10 @@
 | Name           | Address |
 | -------------- | ------- |
 | Pauser Set     | [`0x057dC9855536470A6D8C21d075bA17EA062A5dE7`](https://explorer.testnet.zama.org/address/0x057dC9855536470A6D8C21d075bA17EA062A5dE7) |
+
+
+## Fees
+
+| Name               | Address |
+| ------------------ | ------- |
+| FeesSenderToBurner | [`0x826106E9428460449d35F724F7098d0a67369AE2`](https://explorer.testnet.zama.org/address/0x826106E9428460449d35F724F7098d0a67369AE2) |

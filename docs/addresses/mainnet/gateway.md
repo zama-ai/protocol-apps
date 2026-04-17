@@ -21,3 +21,10 @@
 | Name           | Address |
 | -------------- | ------- |
 | Pauser Set     | [`0x571ecb596fCc5c840DA35CbeCA175580db50ac1b`](https://explorer.mainnet.zama.org/address/0x571ecb596fCc5c840DA35CbeCA175580db50ac1b) |
+
+
+## Fees
+
+| Name               | Address |
+| ------------------ | ------- |
+| FeesSenderToBurner | [`0xd9c00DbE2d5e3f64950a1258DABBC3e75697022A`](https://explorer.mainnet.zama.org/address/0xd9c00DbE2d5e3f64950a1258DABBC3e75697022A) |
