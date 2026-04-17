@@ -12,8 +12,8 @@ Releases are tagged from the repo root as `fees-vX.Y.Z`. Contracts are immutable
 
 ## Verification status
 
-Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
+Legend: ✅ completed · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag           | Commit | Pre-deploy audit | Post-deploy audit | Status |
-| ------------- | ------ | ---------------- | ----------------- | ------ |
-| `fees-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
+| Tag           | Commit | Pre-deploy audit | Post-deploy audit | Deploy status |
+| ------------- | ------ | ---------------- | ----------------- | ------------- |
+| `fees-v1.0.0` | [`b8cbe46`](https://github.com/zama-ai/protocol-apps/commit/b8cbe46dadac9a69deec2a9fe0fa5ea1478a7c0a)  | ✅              | -               | Active |

@@ -12,8 +12,8 @@ Releases are tagged from the repo root as `safe-vX.Y.Z`. These contracts are imm
 
 ## Verification status
 
-Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
+Legend: ✅ completed · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag           | Commit | Pre-deploy audit | Post-deploy audit | Status |
-| ------------- | ------ | ---------------- | ----------------- | ------ |
-| `safe-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
+| Tag           | Commit | Pre-deploy audit | Post-deploy audit | Deploy status |
+| ------------- | ------ | ---------------- | ----------------- | ------------- |
+| `safe-v1.0.0` | [`c414e53`](https://github.com/zama-ai/protocol-apps/commit/c414e538367d97f15dcfecce411873d1411f6269)  | ✅              | ✅               | Active |
