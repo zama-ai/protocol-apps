@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfaces/IERC7984ERC20Wrapper.sol";
 
 import {BatcherConfidentialUpgradeable} from "../BatcherConfidentialUpgradeable.sol";
 
 /// @dev Minimal concrete subclass used to test the abstract BatcherConfidentialUpgradeable base.
-contract BatcherConfidentialUpgradeableHarness is BatcherConfidentialUpgradeable {
+contract BatcherConfidentialUpgradeableHarness is
+    BatcherConfidentialUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
     constructor(
         IERC7984ERC20Wrapper fromToken_,
         IERC7984ERC20Wrapper toToken_
@@ -14,7 +20,8 @@ contract BatcherConfidentialUpgradeableHarness is BatcherConfidentialUpgradeable
         _disableInitializers();
     }
 
-    function initialize() external initializer {
+    function initialize(address owner_) external initializer {
+        __Ownable_init(owner_);
         __BatcherConfidential_init();
     }
 
@@ -25,4 +32,6 @@ contract BatcherConfidentialUpgradeableHarness is BatcherConfidentialUpgradeable
     function _executeRoute(uint256, uint256) internal pure override returns (ExecuteOutcome) {
         return ExecuteOutcome.Complete;
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }
