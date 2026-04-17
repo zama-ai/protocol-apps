@@ -73,7 +73,8 @@
     "web3-validator": "^2.0.6"
   },
   "overrides": {
-    "elliptic": "6.6.1"
+    "elliptic": "6.6.1",
+    "axios": "^1.15.0"
   },
   "engines": {
     "node": ">=20.0.0"
