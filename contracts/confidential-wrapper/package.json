@@ -43,7 +43,7 @@
     "chai-as-promised": "^8.0.1",
     "ethers": "^6.15.0",
     "hardhat": "^2.26.0",
-    "hardhat-deploy": "^0.11.45",
+    "hardhat-deploy": "^2.0.3",
     "hardhat-gas-reporter": "^2.3.0",
     "hardhat-ignore-warnings": "^0.2.11",
     "hardhat-exposed": "^0.3.15",
