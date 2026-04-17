@@ -8,12 +8,12 @@ Tracks the security verification status for each released version of the `stakin
 
 ## Git tag convention
 
-Releases are tagged from the repo root as `staking-vX.Y.Z`.
+Releases are tagged from the repo root as `staking-vX.Y.Z`. These contracts are mixed upgradable and immutable, so each tag is the source snapshot for a specific on-chain deployment.
 
 ## Verification status
 
 Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag              | Commit | Pre-deploy audit | Post-deploy audit | Fuzzing |
-| ---------------- | ------ | ---------------- | ----------------- | ------- |
-| `staking-v1.0.0` | `TBD`  | TBD              | TBD               | TBD     |
+| Tag              | Commit | Pre-deploy audit | Post-deploy audit | Fuzzing and invariants |
+| ---------------- | ------ | ---------------- | ----------------- | ----------------------- |
+| `staking-v1.0.0` | `TBD`  | TBD              | TBD               | TBD                     |
