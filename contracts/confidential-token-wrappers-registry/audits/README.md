@@ -12,8 +12,9 @@ Releases are tagged from the repo root as `registry-vX.Y.Z`. These contracts are
 
 ## Verification status
 
-Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
+Legend: ✅ completed · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag               | Commit | Pre-deploy audit | Post-deploy audit | Status |
-| ----------------- | ------ | ---------------- | ----------------- | ------ |
-| `registry-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
+| Tag               | Commit | Pre-deploy audit | Post-deploy audit | Deploy status   |
+| ----------------- | ------ | ---------------- | ----------------- | --------------- |
+| `registry-v1.0.0` | [`76dbe8f`](https://github.com/zama-ai/protocol-apps/commit/76dbe8f0bb8d254650b5e6644423c2dbc6fb6117)  | -              | -               | Active   |
+| `registry-v1.0.1` | [`373c5f2`](https://github.com/zama-ai/protocol-apps/commit/373c5f29ee6e9b45a379470488a83cb20b324bdf)  | ✅              | TBD               | Upcoming |

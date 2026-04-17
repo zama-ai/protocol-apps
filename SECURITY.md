@@ -50,6 +50,7 @@ Each row in a package's status matrix carries a **Status** value indicating wher
 - **Upcoming** — tag is planned or in audit, not yet deployed.
 - **Active** — tag is the currently deployed source for at least one chain.
 - **Sunset** — tag has been superseded by a later version and is no longer the active deployment.
+- **Skipped** — tag existed (and may have been audited) but was never deployed and has been passed over in favor of a later version.
 
 #### Deployed addresses
 

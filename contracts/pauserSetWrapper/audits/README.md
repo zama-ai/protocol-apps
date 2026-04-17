@@ -12,8 +12,8 @@ Releases are tagged from the repo root as `pauserSetWrapper-vX.Y.Z`. These contr
 
 ## Verification status
 
-Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
+Legend: ✅ completed · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag                       | Commit | Pre-deploy audit | Post-deploy audit | Status |
-| ------------------------- | ------ | ---------------- | ----------------- | ------ |
-| `pauserSetWrapper-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
+| Tag                       | Commit | Pre-deploy audit | Post-deploy audit | Deploy status |
+| ------------------------- | ------ | ---------------- | ----------------- | ------------- |
+| `pauserSetWrapper-v1.0.0` | [`b934741`](https://github.com/zama-ai/protocol-apps/commit/b934741e2f59ab7793d67ab34203a1ce9c9677c9)  | ✅              | -               | Active |

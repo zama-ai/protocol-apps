@@ -12,8 +12,8 @@ Releases are tagged from the repo root as `governance-vX.Y.Z`. These contracts a
 
 ## Verification status
 
-Legend: ✅ completed (link to report) · 🟡 in progress · — not applicable · TBD to be filled in.
+Legend: ✅ completed · 🟡 in progress · — not applicable · TBD to be filled in.
 
-| Tag                 | Commit | Pre-deploy audit | Post-deploy audit | Status |
-| ------------------- | ------ | ---------------- | ----------------- | ------ |
-| `governance-v1.0.0` | `TBD`  | TBD              | TBD               | Active |
+| Tag                 | Commit | Pre-deploy audit | Post-deploy audit | Deploy status |
+| ------------------- | ------ | ---------------- | ----------------- | ------------- |
+| `governance-v1.0.0` | [`14ec881`](https://github.com/zama-ai/protocol-apps/commit/14ec881d6beadae49120354ded440f6f4766412e)  | ✅              | ✅               | Active |
