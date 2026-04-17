@@ -1,8 +1,9 @@
 # Protocol Contracts Makefile
 # Common targets for all contract packages
 
-# Dynamically discover all contract packages (subdirectories with foundry.toml)
-PACKAGES := $(patsubst %/foundry.toml,%,$(wildcard */foundry.toml))
+# Dynamically discover all contract packages (subdirectories with foundry.toml).
+# solanaOFT is excluded because it duplicates contracts already emitted by the token package.
+PACKAGES := $(filter-out solanaOFT,$(patsubst %/foundry.toml,%,$(wildcard */foundry.toml)))
 
 # Phony targets
 .PHONY: help update-selectors check-selectors conformance prettier $(PACKAGES)
