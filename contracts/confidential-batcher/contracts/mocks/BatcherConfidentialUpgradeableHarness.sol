@@ -8,24 +8,22 @@ import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfa
 import {BatcherConfidentialUpgradeable} from "../BatcherConfidentialUpgradeable.sol";
 
 /// @dev Minimal concrete subclass used to test the abstract BatcherConfidentialUpgradeable base.
-contract BatcherConfidentialUpgradeableHarness is
-    BatcherConfidentialUpgradeable,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
-    constructor(
-        IERC7984ERC20Wrapper fromToken_,
-        IERC7984ERC20Wrapper toToken_
-    ) BatcherConfidentialUpgradeable(fromToken_, toToken_) {
+contract BatcherConfidentialUpgradeableHarness is BatcherConfidentialUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
         _disableInitializers();
     }
 
-    function initialize(address owner_) external initializer {
+    function initialize(
+        address owner_,
+        IERC7984ERC20Wrapper fromToken_,
+        IERC7984ERC20Wrapper toToken_
+    ) external initializer {
+        __BatcherConfidential_init(fromToken_, toToken_);
         __Ownable_init(owner_);
-        __BatcherConfidential_init();
     }
 
-    function routeDescription() public pure override returns (string memory) {
+    function routeDescription() public pure virtual override returns (string memory) {
         return "harness";
     }
 

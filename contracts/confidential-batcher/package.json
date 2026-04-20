@@ -1,5 +1,5 @@
 {
-  "name": "confidential-batcher-upgradeable",
+  "name": "confidential-batcher",
   "description": "UUPS-upgradeable fork of OpenZeppelin Confidential Contracts BatcherConfidential base",
   "version": "0.1.0",
   "engines": {

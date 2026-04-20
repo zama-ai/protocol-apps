@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Forked from OpenZeppelin Confidential Contracts v0.4.0 (finance/BatcherConfidential.sol)
 // https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/v0.4.0/contracts/finance/BatcherConfidential.sol
-// Changes: split constructor into constructor (immutables) + __BatcherConfidential_init
-// (storage/approvals) for UUPS proxy compatibility. All other logic is identical to upstream.
+// This is an upgradeable version of the original BatcherConfidential contract using the UUPS pattern.
 
 pragma solidity ^0.8.27;
 
@@ -65,10 +64,17 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
         mapping(address => euint64) deposits;
     }
 
-    IERC7984ERC20Wrapper private immutable _fromToken;
-    IERC7984ERC20Wrapper private immutable _toToken;
-    mapping(uint256 => Batch) private _batches;
-    uint256 private _currentBatchId;
+    /// @custom:storage-location erc7201:fhevm_protocol.storage.BatcherConfidentialUpgradeable
+    struct BatcherConfidentialStorage {
+        IERC7984ERC20Wrapper _fromToken;
+        IERC7984ERC20Wrapper _toToken;
+        mapping(uint256 batchId => Batch) _batches;
+        uint256 _currentBatchId;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.BatcherConfidentialUpgradeable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant BATCHER_CONFIDENTIAL_UPGRADEABLE_STORAGE_LOCATION =
+        0xb5519ddb5fad1f28e56c4dc3c1768de5be79a670e54c2abd5358b4975de10000;
 
     /// @dev Emitted when a batch with id `batchId` is dispatched via {dispatchBatch}.
     event BatchDispatched(uint256 indexed batchId);
@@ -114,7 +120,27 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
     /// @dev The given `token` does not support `IERC7984ERC20Wrapper` via `ERC165`.
     error InvalidWrapperToken(address token);
 
-    constructor(IERC7984ERC20Wrapper fromToken_, IERC7984ERC20Wrapper toToken_) {
+    function _getBatcherConfidentialStorage() internal pure returns (BatcherConfidentialStorage storage $) {
+        assembly {
+            $.slot := BATCHER_CONFIDENTIAL_UPGRADEABLE_STORAGE_LOCATION
+        }
+    }
+
+    /**
+     * @dev Initializes the batcher base contract. Must be called from the derived contract's initializer,
+     * during the proxy deployment.
+     */
+    function __BatcherConfidential_init(
+        IERC7984ERC20Wrapper fromToken_,
+        IERC7984ERC20Wrapper toToken_
+    ) internal onlyInitializing {
+        __BatcherConfidential_init_unchained(fromToken_, toToken_);
+    }
+
+    function __BatcherConfidential_init_unchained(
+        IERC7984ERC20Wrapper fromToken_,
+        IERC7984ERC20Wrapper toToken_
+    ) internal onlyInitializing {
         require(
             ERC165Checker.supportsInterface(address(fromToken_), type(IERC7984ERC20Wrapper).interfaceId),
             InvalidWrapperToken(address(fromToken_))
@@ -124,19 +150,13 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
             InvalidWrapperToken(address(toToken_))
         );
 
-        _fromToken = fromToken_;
-        _toToken = toToken_;
-    }
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        $._fromToken = fromToken_;
+        $._toToken = toToken_;
+        $._currentBatchId = 1;
 
-    /**
-     * @dev Initializer equivalent to the storage-writing portion of the upstream constructor. Must be called
-     * from the derived contract's initializer, after the proxy has been deployed.
-     */
-    function __BatcherConfidential_init() internal onlyInitializing {
-        _currentBatchId = 1;
-
-        SafeERC20.forceApprove(IERC20(fromToken().underlying()), address(fromToken()), type(uint256).max);
-        SafeERC20.forceApprove(IERC20(toToken().underlying()), address(toToken()), type(uint256).max);
+        SafeERC20.forceApprove(IERC20(fromToken_.underlying()), address(fromToken_), type(uint256).max);
+        SafeERC20.forceApprove(IERC20(toToken_.underlying()), address(toToken_), type(uint256).max);
     }
 
     /**
@@ -175,8 +195,9 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
         FHE.allowThis(newDeposit);
         FHE.allow(newDeposit, msg.sender);
 
-        _batches[batchId].totalDeposits = newTotalDeposits;
-        _batches[batchId].deposits[msg.sender] = newDeposit;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        $._batches[batchId].totalDeposits = newTotalDeposits;
+        $._batches[batchId].deposits[msg.sender] = newDeposit;
 
         emit Quit(batchId, msg.sender, sent);
 
@@ -194,7 +215,8 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
 
         euint64 amountToUnwrap = totalDeposits(batchId);
         FHE.allowTransient(amountToUnwrap, address(fromToken()));
-        _batches[batchId].unwrapRequestId = fromToken().unwrap(
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        $._batches[batchId].unwrapRequestId = fromToken().unwrap(
             address(this),
             address(this),
             externalEuint64.wrap(euint64.unwrap(amountToUnwrap)),
@@ -252,14 +274,16 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
                 exchangeRate_ != 0 && wrappedAmount <= type(uint64).max,
                 InvalidExchangeRate(batchId, unwrapAmountCleartext, exchangeRate_)
             );
-            _batches[batchId].exchangeRate = exchangeRate_;
+            BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+            $._batches[batchId].exchangeRate = exchangeRate_;
 
             emit BatchFinalized(batchId, exchangeRate_);
         } else if (outcome == ExecuteOutcome.Cancel) {
             // rewrap tokens so that users can quit and receive their original deposit back.
             // This assumes that the unwrap was successful and that the batch has not executed any route logic.
             fromToken().wrap(address(this), unwrapAmountCleartext * fromToken().rate());
-            _batches[batchId].canceled = true;
+            BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+            $._batches[batchId].canceled = true;
 
             emit BatchCanceled(batchId);
         }
@@ -287,37 +311,44 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
 
     /// @dev Batcher from token. Users deposit this token in exchange for {toToken}.
     function fromToken() public view virtual returns (IERC7984ERC20Wrapper) {
-        return _fromToken;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._fromToken;
     }
 
     /// @dev Batcher to token. Users receive this token in exchange for their {fromToken} deposits.
     function toToken() public view virtual returns (IERC7984ERC20Wrapper) {
-        return _toToken;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._toToken;
     }
 
     /// @dev The ongoing batch id. New deposits join this batch.
     function currentBatchId() public view virtual returns (uint256) {
-        return _currentBatchId;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._currentBatchId;
     }
 
     /// @dev The unwrap request id for a batch with id `batchId`.
     function unwrapRequestId(uint256 batchId) public view virtual returns (bytes32) {
-        return _batches[batchId].unwrapRequestId;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._batches[batchId].unwrapRequestId;
     }
 
     /// @dev The total deposits made in batch with id `batchId`.
     function totalDeposits(uint256 batchId) public view virtual returns (euint64) {
-        return _batches[batchId].totalDeposits;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._batches[batchId].totalDeposits;
     }
 
     /// @dev The deposits made by `account` in batch with id `batchId`.
     function deposits(uint256 batchId, address account) public view virtual returns (euint64) {
-        return _batches[batchId].deposits[account];
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._batches[batchId].deposits[account];
     }
 
     /// @dev The exchange rate set for batch with id `batchId`.
     function exchangeRate(uint256 batchId) public view virtual returns (uint64) {
-        return _batches[batchId].exchangeRate;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._batches[batchId].exchangeRate;
     }
 
     /// @dev The number of decimals of precision for the exchange rate.
@@ -330,7 +361,8 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
 
     /// @dev Returns the current state of a batch. Reverts if the batch does not exist.
     function batchState(uint256 batchId) public view virtual returns (BatchState) {
-        if (_batches[batchId].canceled) {
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        if ($._batches[batchId].canceled) {
             return BatchState.Canceled;
         }
         if (exchangeRate(batchId) != 0) {
@@ -370,7 +402,8 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
 
         FHE.allowThis(newDeposit);
         FHE.allow(newDeposit, account);
-        _batches[batchId].deposits[account] = newDeposit;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        $._batches[batchId].deposits[account] = newDeposit;
 
         emit Claimed(batchId, account, amountTransferred);
 
@@ -393,8 +426,9 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
         FHE.allow(newDeposits, to);
         FHE.allow(joinedAmount, to);
 
-        _batches[batchId].totalDeposits = newTotalDeposits;
-        _batches[batchId].deposits[to] = newDeposits;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        $._batches[batchId].totalDeposits = newTotalDeposits;
+        $._batches[batchId].deposits[to] = newDeposits;
 
         emit Joined(batchId, to, joinedAmount);
 
@@ -442,7 +476,8 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
 
     /// @dev Gets the current batch id and increments it.
     function _getAndIncreaseBatchId() internal virtual returns (uint256) {
-        return _currentBatchId++;
+        BatcherConfidentialStorage storage $ = _getBatcherConfidentialStorage();
+        return $._currentBatchId++;
     }
 
     /**
@@ -458,7 +493,4 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
     function _encodeStateBitmap(BatchState batchState_) internal pure returns (bytes32) {
         return bytes32(1 << uint8(batchState_));
     }
-
-    /// @dev Reserves storage slots for future base contract upgrades.
-    uint256[48] private __gap;
 }
