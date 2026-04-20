@@ -77,3 +77,10 @@
 | --------------- | ------- |
 | Pauser Set                    | [`0xbBfE1680b4a63ED05f7F80CE330BED7C992A586C`](https://etherscan.io/address/0xbBfE1680b4a63ED05f7F80CE330BED7C992A586C) |
 | Pauser Set Wrapper (minting)  | [`0x08940bC8944A17E64AA9F5398046ABc75bB26699`](https://etherscan.io/address/0x08940bC8944A17E64AA9F5398046ABc75bB26699) |
+
+
+## Fees
+
+| Name                | Address |
+| ------------------- | ------- |
+| ProtocolFeesBurner  | [`0xd0D284f995a0f2c33648E87bCe79ba04Fdaf8b82`](https://etherscan.io/address/0xd0D284f995a0f2c33648E87bCe79ba04Fdaf8b82) |
