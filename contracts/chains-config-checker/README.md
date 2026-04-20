@@ -30,6 +30,7 @@ Currently, most useful scripts are:
 [*] get-token-roles
 [*] get-oft-owners
 [*] get-multisig-info
+[*] get-staking-roles
 ```
 ### getCurrentPausers
 
@@ -325,4 +326,70 @@ Detected 2 active plugin address(es):
     1. ...
     2. ...
     ...
+```
+
+### getStakingRoles
+
+Reports the roles of ProtocolStaking contracts and the beneficiaries of OperatorStaking contracts. Addresses are maintained in two config files:
+
+- `staking-addresses.json` — mainnet (Ethereum)
+- `staking-addresses-testnet.json` — testnet (Sepolia)
+
+#### Usage
+
+```bash
+npm run get-staking-roles                 # mainnet (default)
+npm run get-staking-roles -- --mainnet    # explicit
+npm run get-staking-roles -- --testnet    # testnet
+```
+
+The `--` separates npm's args from the script's args. Only one of `--mainnet` / `--testnet` may be passed.
+
+The script will:
+1. For each **ProtocolStaking** contract (KMS, Coprocessor), scan `RoleGranted`/`RoleRevoked` events to compute current holders of `DEFAULT_ADMIN_ROLE`, `MANAGER_ROLE`, and `ELIGIBLE_ACCOUNT_ROLE`.
+2. Verify that all `ELIGIBLE_ACCOUNT_ROLE` holders are known **OperatorStaking** addresses in the selected config file.
+3. For each **OperatorStaking** contract, read the `beneficiary()` from its OperatorRewarder.
+
+**Environment variables:**
+
+| Variable       | Description                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| `RPC_ETHEREUM` | Archive-capable RPC endpoint. Point it at Ethereum mainnet or Sepolia depending on the flag you pass. |
+
+`RPC_ETHEREUM` must be set, otherwise the script exits with an error. The endpoint must be **archive-capable**: the script binary-searches for each ProtocolStaking deployment block via `eth_getCode` at historical blocks, which pruned nodes reject.
+
+#### Example Output
+
+```
+=== ProtocolStaking Roles ===
+
+[ProtocolStaking - KMS]
+  Contract: 0xe9b1...
+  ...
+
+  DEFAULT_ADMIN_ROLE:
+    1. 0xB6D6...Ef3
+
+  MANAGER_ROLE:
+    1. 0xB6D6...Ef3
+
+  ELIGIBLE_ACCOUNT_ROLE:
+    1. 0x8305... <- Zama (kms)
+    2. 0xB968... <- Dfns (kms)
+    ...
+    All eligible accounts are known OperatorStaking addresses.
+
+[ProtocolStaking - COPROCESSOR]
+  ...
+
+=== OperatorStaking Beneficiaries ===
+
+[KMS]
+  Zama            : 0x31bB...
+  Dfns            : 0xb59F...
+  ...
+
+[COPROCESSOR]
+  Zama            : 0x31bB...
+  ...
 ```

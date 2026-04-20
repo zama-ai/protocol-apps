@@ -9,7 +9,8 @@
     "get-oft-owners-evm": "node utils/get-oft-owners-evm.js",
     "get-oft-owners-solana": "node utils/get-oft-owners-solana.js",
     "get-oft-owners": "node utils/get-oft-owners-evm.js && node utils/get-oft-owners-solana.js",
-    "get-multisig-info": "node utils/get-multisig-info.js"
+    "get-multisig-info": "node utils/get-multisig-info.js",
+    "get-staking-roles": "node utils/get-staking-roles.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",
