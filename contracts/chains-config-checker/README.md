@@ -29,6 +29,7 @@ Currently, most useful scripts are:
 [*] get-current-pausers
 [*] get-token-roles
 [*] get-oft-owners
+[*] get-multisig-info
 ```
 ### getCurrentPausers
 
@@ -224,4 +225,104 @@ Example output:
 
 Admin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,
 and it should be a Squads multisig wallet owned by Zama FB_i operators
+```
+
+### getMultisigInfo
+
+Reports owners and thresholds for all deployed multisig wallets (EVM Safes, Aragon DAO plugins, Solana Squads).
+
+#### Usage
+
+```bash
+npm run get-multisig-info
+```
+
+The script will:
+1. Query each configured **Gnosis Safe** (Gateway, BSC, HyperEVM) for `getOwners()` and `getThreshold()`, then cross-check that owners and threshold are identical across all chains.
+2. On the **Gateway Safe**, list every enabled module via `getModulesPaginated(SENTINEL, 100)` and verify that the only enabled module is the configured `AdminModule`. The `AdminModule` is also queried for its `ADMIN_ACCOUNT()` and `SAFE_PROXY()`; the latter must match `ZAMA_SAFE_GATEWAY`.
+3. Detect active **Aragon DAO plugins** by scanning `Granted`/`Revoked` events for `EXECUTE_PERMISSION` on the DAO, filtering out uninstalled plugins. A sanity check calls `hasPermission()` on-chain to verify the event-derived state.
+4. Query the **Solana Squads** multisig account for members and threshold.
+
+**Environment variables:**
+
+| Variable | Description |
+|---|---|
+| `RPC_GATEWAY` | Gateway RPC endpoint |
+| `RPC_BSC` | BSC RPC endpoint |
+| `RPC_HYPEREVM` | HyperEVM RPC endpoint |
+| `RPC_ETHEREUM` | Ethereum RPC endpoint (for Aragon) |
+| `ZAMA_SAFE_GATEWAY` | Safe address on Gateway |
+| `ZAMA_SAFE_ADMIN_MODULE_GATEWAY` | AdminModule address enabled on the Gateway Safe |
+| `ZAMA_SAFE_BSC` | Safe address on BSC |
+| `ZAMA_SAFE_HYPEREVM` | Safe address on HyperEVM |
+| `ZAMA_ARAGON_DAO` | Aragon DAO address on Ethereum |
+| `SOLANA_RPC_URL` | Solana RPC endpoint |
+| `SOLANA_SQUADS_MULTISIG_ACCOUNT` | Squads multisig account PDA** |
+
+> **⚠️ `SOLANA_SQUADS_MULTISIG_ACCOUNT` is NOT the Squads vault ID.**
+>
+> The address listed as "Squads Multisig" in `docs/addresses/mainnet/solana.md`
+> (`G9jXsKZ2...TUVf5`, shown on `app.squads.so` and used everywhere as "the
+> multisig") is the vault account: the PDA that holds funds and signs transactions.
+>
+> `SOLANA_SQUADS_MULTISIG_ACCOUNT` is a different PDA: the Squads **multisig**
+> **account** that stores the members list and signing threshold.
+>
+> Find it on `solscan.io` under the vault's **Multisig** tab, or on
+> `app.squads.so` under `Settings`.
+
+#### Example Output
+
+```
+=== Safe Multisig Wallets ===
+
+[Gateway]
+  Safe address : 0x5f0F...2bE
+  Threshold    : 3 of 5
+  Owners:
+    1. 0x9b82...9B71
+    2. 0xf299...fBBE
+    3. 0x6dd4...5874
+    4. 0x8edF...8CB8
+    5. 0x7053...02b3
+
+[BSC]
+  ...
+
+[HyperEVM]
+  ...
+
+All Safe wallets have IDENTICAL owners and threshold (3 of 5)
+
+=== Gateway Safe AdminModule ===
+
+[Gateway AdminModule]
+  Module address : 0x57f866b5E7Fb82Fb812Ed3D3C79cdB35E9e91518
+  Admin account  : 0x...
+  Safe proxy     : 0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE
+
+[Gateway Safe enabled modules]
+  Safe address  : 0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE
+  Total enabled : 1
+    1. 0x57f866b5E7Fb82Fb812Ed3D3C79cdB35E9e91518
+
+Only the AdminModule is enabled on the Gateway Safe, and its SAFE_PROXY matches.
+
+=== Aragon DAO Plugins ===
+  DAO: 0xB6D6...Ef3
+  ...
+
+Detected 2 active plugin address(es):
+    https://etherscan.io/address/0x...
+    https://etherscan.io/address/0x...
+
+=== Solana Squads Multisig ===
+
+[Solana Squads]
+  Multisig account : HB3bo...CkxC
+  Threshold        : 4 of 6
+  Members:
+    1. ...
+    2. ...
+    ...
 ```
