@@ -257,7 +257,19 @@ The script will:
 | `ZAMA_SAFE_HYPEREVM` | Safe address on HyperEVM |
 | `ZAMA_ARAGON_DAO` | Aragon DAO address on Ethereum |
 | `SOLANA_RPC_URL` | Solana RPC endpoint |
-| `SOLANA_SQUADS_MULTISIG_ACCOUNT` | Squads multisig account PDA |
+| `SOLANA_SQUADS_MULTISIG_ACCOUNT` | Squads multisig account PDA** |
+
+> **⚠️ `SOLANA_SQUADS_MULTISIG_ACCOUNT` is NOT the Squads vault ID.**
+>
+> The address listed as "Squads Multisig" in `docs/addresses/mainnet/solana.md`
+> (`G9jXsKZ2...TUVf5`, shown on `app.squads.so` and used everywhere as "the
+> multisig") is the vault account: the PDA that holds funds and signs transactions.
+>
+> `SOLANA_SQUADS_MULTISIG_ACCOUNT` is a different PDA: the Squads **multisig**
+> **account** that stores the members list and signing threshold.
+>
+> Find it on `solscan.io` under the vault's **Multisig** tab, or on
+> `app.squads.so` under `Settings`.
 
 #### Example Output
 

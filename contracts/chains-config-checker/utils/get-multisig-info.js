@@ -223,6 +223,12 @@ async function getAragonPlugins(rpcUrl, daoAddress) {
 
 async function getSolanaSquadsInfo() {
   const rpcUrl = process.env.SOLANA_RPC_URL;
+  // NOTE: SOLANA_SQUADS_MULTISIG_ACCOUNT is NOT the Squads vault ID
+  // listed in docs/addresses/mainnet/solana.md (G9jXsKZ2...TUVf5, shown on
+  // app.squads.so and commonly referred to as "the multisig"). It is the
+  // separate multisig account PDA storing members and threshold. Found on
+  // solscan.io under the vault's "Multisig" tab, or on app.squads.so under
+  // Settings. Passing the vault address here will fail to get the multisig data.
   const squadsAddress = process.env.SOLANA_SQUADS_MULTISIG_ACCOUNT;
 
   if (!rpcUrl || !squadsAddress) {
