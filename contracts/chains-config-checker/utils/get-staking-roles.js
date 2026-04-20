@@ -1,11 +1,24 @@
 #!/usr/bin/env node
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+const path = require('path');
 const { ethers } = require('ethers');
 const { findDeploymentBlock } = require('./get-deployment-block');
-const stakingAddresses = require('../staking-addresses.json');
 
 const MAX_BLOCK_RANGE = 49999;
+
+// Both networks read RPC_ETHEREUM; point it at an Ethereum mainnet or Sepolia
+// archive RPC depending on which --mainnet/--testnet flag you pass.
+const NETWORKS = {
+  mainnet: {
+    label: 'Mainnet (Ethereum)',
+    configFile: 'staking-addresses.json',
+  },
+  testnet: {
+    label: 'Testnet (Sepolia)',
+    configFile: 'staking-addresses-testnet.json',
+  },
+};
 
 const ROLE_EVENT_ABI = [
   'event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)',
@@ -30,6 +43,15 @@ const ROLE_NAMES_BY_HASH = new Map(
   Object.entries(ROLE_HASHES).map(([name, hash]) => [hash, name])
 );
 
+function parseNetworkFlag(argv) {
+  const flags = argv.filter((a) => a === '--mainnet' || a === '--testnet');
+  if (flags.length > 1) {
+    console.error('Error: pass only one of --mainnet or --testnet');
+    process.exit(1);
+  }
+  return flags[0] === '--testnet' ? 'testnet' : 'mainnet';
+}
+
 async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) {
   const events = [];
   let currentFrom = fromBlock;
@@ -50,7 +72,7 @@ async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) 
 }
 
 // Build a set of all known OperatorStaking addresses (lowercased) for cross-referencing
-function getAllOperatorStakingAddresses() {
+function getAllOperatorStakingAddresses(stakingAddresses) {
   const addresses = new Set();
   for (const roleOperators of Object.values(stakingAddresses.operatorStaking)) {
     for (const addr of Object.values(roleOperators)) {
@@ -61,7 +83,7 @@ function getAllOperatorStakingAddresses() {
 }
 
 // Reverse-lookup: address -> "Name (role)"
-function getOperatorStakingLabel(address) {
+function getOperatorStakingLabel(stakingAddresses, address) {
   const lower = address.toLowerCase();
   for (const [role, operators] of Object.entries(stakingAddresses.operatorStaking)) {
     for (const [name, addr] of Object.entries(operators)) {
@@ -71,7 +93,7 @@ function getOperatorStakingLabel(address) {
   return null;
 }
 
-async function getProtocolStakingRoles(provider, rpcUrl, label, contractAddress) {
+async function getProtocolStakingRoles(provider, rpcUrl, contractAddress) {
   const contract = new ethers.Contract(contractAddress, ROLE_EVENT_ABI, provider);
 
   console.log(`  Finding deployment block for ${contractAddress}...`);
@@ -112,7 +134,7 @@ async function getOperatorStakingBeneficiary(provider, address) {
   return rewarder.beneficiary();
 }
 
-function printRoles(roles, allOpStakingAddresses) {
+function printRoles(roles, stakingAddresses, allOpStakingAddresses) {
   for (const [roleName, holders] of Object.entries(roles)) {
     console.log(`\n  ${roleName}:`);
     if (holders.length === 0) {
@@ -121,7 +143,7 @@ function printRoles(roles, allOpStakingAddresses) {
     }
     for (let i = 0; i < holders.length; i++) {
       const addr = holders[i];
-      const label = getOperatorStakingLabel(addr);
+      const label = getOperatorStakingLabel(stakingAddresses, addr);
       const suffix = label ? ` <- ${label}` : '';
       console.log(`    ${i + 1}. ${addr}${suffix}`);
     }
@@ -142,14 +164,20 @@ function printRoles(roles, allOpStakingAddresses) {
 }
 
 async function main() {
+  const networkKey = parseNetworkFlag(process.argv.slice(2));
+  const network = NETWORKS[networkKey];
+  const stakingAddresses = require(path.resolve(__dirname, '..', network.configFile));
+
   const rpcUrl = process.env.RPC_ETHEREUM;
   if (!rpcUrl) {
     console.error('Error: RPC_ETHEREUM not configured');
     process.exit(1);
   }
 
+  console.log(`\n### ${network.label} (${network.configFile}) ###`);
+
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const allOpStakingAddresses = getAllOperatorStakingAddresses();
+  const allOpStakingAddresses = getAllOperatorStakingAddresses(stakingAddresses);
   let hadError = false;
 
   // Part 1: ProtocolStaking roles
@@ -159,8 +187,8 @@ async function main() {
     console.log(`\n[ProtocolStaking - ${role.toUpperCase()}]`);
     console.log(`  Contract: ${address}`);
     try {
-      const roles = await getProtocolStakingRoles(provider, rpcUrl, role, address);
-      printRoles(roles, allOpStakingAddresses);
+      const roles = await getProtocolStakingRoles(provider, rpcUrl, address);
+      printRoles(roles, stakingAddresses, allOpStakingAddresses);
     } catch (error) {
       console.error(`  Error: ${error.message}`);
       hadError = true;

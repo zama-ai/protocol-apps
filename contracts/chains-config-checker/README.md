@@ -244,6 +244,11 @@ The script will:
 3. Detect active **Aragon DAO plugins** by scanning `Granted`/`Revoked` events for `EXECUTE_PERMISSION` on the DAO, filtering out uninstalled plugins. A sanity check calls `hasPermission()` on-chain to verify the event-derived state.
 4. Query the **Solana Squads** multisig account for members and threshold.
 
+The script will:
+1. For each **ProtocolStaking** contract (KMS, Coprocessor), scan `RoleGranted`/`RoleRevoked` events to compute current holders of `DEFAULT_ADMIN_ROLE`, `MANAGER_ROLE`, and `ELIGIBLE_ACCOUNT_ROLE`.
+2. Verify that all `ELIGIBLE_ACCOUNT_ROLE` holders are known **OperatorStaking** addresses in the selected config file.
+3. For each **OperatorStaking** contract, read the `beneficiary()` from its OperatorRewarder.
+
 **Environment variables:**
 
 | Variable | Description |
