@@ -11,11 +11,12 @@ import { expect } from 'chai';
 import { ethers, fhevm, upgrades } from 'hardhat';
 
 import type { BatcherConfidentialSwapMockUpgradeable } from '../types/contracts/mocks/BatcherConfidentialSwapMockUpgradeable';
-import type { ERC7984ERC20WrapperMock } from '../types/contracts/mocks/ERC7984ERC20WrapperMock';
+import type { $ERC7984ERC20Wrapper } from '../types/contracts-exposed/$_/@openzeppelin/confidential-contracts/token/ERC7984/extensions/ERC7984ERC20Wrapper.sol/$ERC7984ERC20Wrapper';
 import type { ExchangeMock } from '../types/contracts/mocks/ExchangeMock';
 
 const name = 'ConfidentialFungibleToken';
 const symbol = 'CFT';
+const uri = 'https://example.com/metadata';
 const wrapAmount = BigInt(ethers.parseEther('10'));
 const exchangeRateDecimals = 6n;
 const exchangeRateMantissa = 10n ** exchangeRateDecimals;
@@ -62,16 +63,18 @@ describe('BatcherConfidential', function () {
     const fromTokenUnderlying = await ethers.deployContract('$ERC20Mock', [name, symbol, 18]);
     const toTokenUnderlying = await ethers.deployContract('$ERC20Mock', [name, symbol, 18]);
 
-    const fromToken = (await ethers.deployContract('ERC7984ERC20WrapperMock', [
+    const fromToken = (await ethers.deployContract('$ERC7984ERC20WrapperMock', [
       fromTokenUnderlying,
       name,
       symbol,
-    ])) as unknown as ERC7984ERC20WrapperMock;
-    const toToken = (await ethers.deployContract('ERC7984ERC20WrapperMock', [
+      uri,
+    ])) as unknown as $ERC7984ERC20Wrapper;
+    const toToken = (await ethers.deployContract('$ERC7984ERC20WrapperMock', [
       toTokenUnderlying,
       name,
       symbol,
-    ])) as unknown as ERC7984ERC20WrapperMock;
+      uri,
+    ])) as unknown as $ERC7984ERC20Wrapper;
 
     for (const { to, tokens } of [holder, recipient].flatMap(x =>
       [
@@ -158,7 +161,7 @@ describe('BatcherConfidential', function () {
   for (const viaCallback of [true, false]) {
     describe(`join ${viaCallback ? 'via callback' : 'directly'}`, async function () {
       const join = async function (
-        token: ERC7984ERC20WrapperMock,
+        token: $ERC7984ERC20Wrapper,
         sender: HardhatEthersSigner,
         batcher: BatcherConfidentialSwapMockUpgradeable,
         amount: bigint,

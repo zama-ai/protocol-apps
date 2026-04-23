@@ -10,17 +10,11 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfaces/IERC7984ERC20Wrapper.sol";
 
 import {BatcherConfidentialUpgradeable} from "../BatcherConfidentialUpgradeable.sol";
-import {ZamaEthereumConfigUpgradeable} from "../fhevm/ZamaEthereumConfigUpgradeable.sol";
 import {ExchangeMock} from "./ExchangeMock.sol";
 
 /// @dev Upgradeable port of upstream `BatcherConfidentialSwapMock`.
 /// Concrete UUPS subclass used by the ported upstream test suite.
-contract BatcherConfidentialSwapMockUpgradeable is
-    BatcherConfidentialUpgradeable,
-    ZamaEthereumConfigUpgradeable,
-    OwnableUpgradeable,
-    UUPSUpgradeable
-{
+contract BatcherConfidentialSwapMockUpgradeable is BatcherConfidentialUpgradeable, OwnableUpgradeable, UUPSUpgradeable {
     /// @custom:storage-location erc7201:fhevm_protocol.storage.BatcherConfidentialSwapMock
     struct BatcherConfidentialSwapMockStorage {
         ExchangeMock _exchange;
@@ -55,7 +49,6 @@ contract BatcherConfidentialSwapMockUpgradeable is
         address owner_
     ) external initializer {
         __BatcherConfidential_init(fromToken_, toToken_);
-        __ZamaEthereumConfig_init();
         __Ownable_init(owner_);
 
         BatcherConfidentialSwapMockStorage storage $ = _getBatcherConfidentialSwapMockStorage();

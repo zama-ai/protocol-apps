@@ -36,11 +36,13 @@ describe('BatcherConfidentialUpgradeable', function () {
       underlyingFrom.target,
       'Confidential From',
       'cFROM',
+      '',
     ])) as unknown as ERC7984ERC20WrapperMock;
     toToken = (await ethers.deployContract('ERC7984ERC20WrapperMock', [
       underlyingTo.target,
       'Confidential To',
       'cTO',
+      '',
     ])) as unknown as ERC7984ERC20WrapperMock;
 
     batcher = await deployBatcher(fromToken.target as string, toToken.target as string);

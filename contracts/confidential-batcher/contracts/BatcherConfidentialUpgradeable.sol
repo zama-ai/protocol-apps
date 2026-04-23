@@ -17,6 +17,8 @@ import {IERC7984ERC20Wrapper} from "@openzeppelin/confidential-contracts/interfa
 import {IERC7984Receiver} from "@openzeppelin/confidential-contracts/interfaces/IERC7984Receiver.sol";
 import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMath.sol";
 
+import {ZamaEthereumConfigUpgradeable} from "./fhevm/ZamaEthereumConfigUpgradeable.sol";
+
 /**
  * @dev `BatcherConfidentialUpgradeable` is a batching primitive that enables routing between two {ERC7984ERC20Wrapper} contracts
  * via a non-confidential route. Users deposit {fromToken} into the batcher and receive {toToken} in exchange. Deposits are
@@ -40,7 +42,12 @@ import {FHESafeMath} from "@openzeppelin/confidential-contracts/utils/FHESafeMat
  * {fromToken} are filled--resulting in denial of service--batches could get bricked. The batcher would be unable to wrap
  * underlying tokens into {toToken}. Further, if {fromToken} is also filled, cancellation would also fail on rewrap.
  */
-abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGuardTransient, IERC7984Receiver {
+abstract contract BatcherConfidentialUpgradeable is
+    Initializable,
+    ZamaEthereumConfigUpgradeable,
+    ReentrancyGuardTransient,
+    IERC7984Receiver
+{
     /// @dev Enum representing the lifecycle state of a batch.
     enum BatchState {
         Pending, // Batch is active and accepting deposits (batchId == currentBatchId)
@@ -134,6 +141,7 @@ abstract contract BatcherConfidentialUpgradeable is Initializable, ReentrancyGua
         IERC7984ERC20Wrapper fromToken_,
         IERC7984ERC20Wrapper toToken_
     ) internal onlyInitializing {
+        __ZamaEthereumConfig_init();
         __BatcherConfidential_init_unchained(fromToken_, toToken_);
     }
 

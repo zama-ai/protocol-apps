@@ -15,8 +15,9 @@ contract ERC7984ERC20WrapperMock is ERC7984ERC20Wrapper, ZamaEthereumConfig {
     constructor(
         IERC20 underlying_,
         string memory name_,
-        string memory symbol_
-    ) ERC7984(name_, symbol_, "") ERC7984ERC20Wrapper(underlying_) {}
+        string memory symbol_,
+        string memory uri_
+    ) ERC7984(name_, symbol_, uri_) ERC7984ERC20Wrapper(underlying_) {}
 
     function name() public view override(ERC7984, IERC7984) returns (string memory) {
         return super.name();
