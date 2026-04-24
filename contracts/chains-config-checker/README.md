@@ -29,6 +29,8 @@ Currently, most useful scripts are:
 [*] get-current-pausers
 [*] get-token-roles
 [*] get-oft-owners
+[*] verify-bytecode           (see "Bytecode verification" at the bottom)
+[*] verify-solana-program     (see "Bytecode verification" at the bottom)
 ```
 ### getCurrentPausers
 
@@ -224,4 +226,79 @@ Example output:
 
 Admin, Upgrade Authority, and Delegate should be IDENTICAL on Solana,
 and it should be a Squads multisig wallet owned by Zama FB_i operators
+```
+
+## Bytecode verification
+
+Verifies that the source at each audit commit (tracked in each package's
+`audits/README.md`) produces the bytecode that is currently live on-chain.
+Addresses stay single-source in `docs/addresses/mainnet/*.md` — the scripts
+parse those files at runtime, together with a small mapping in
+`bytecode-verification/config.js` (display-name → source contract + proxy
+flag).
+
+The verification uses **partial match**: the CBOR metadata suffix is
+stripped and `immutableReferences` / `linkReferences` byte ranges are
+zeroed before comparison. Two builds with identical compiled logic but
+different formatting / paths / comments will match.
+
+### Prerequisites
+
+- Node.js (v18+)
+- `.env` with `RPC_ETHEREUM`, `RPC_GATEWAY`, `RPC_BSC`, `RPC_HYPEREVM`,
+  and (for Solana) `SOLANA_RPC_URL`.
+- Corepack enabled (`corepack enable` once) so `pnpm` is available.
+  Inside each contract worktree the script installs and compiles using
+  whichever package manager that package uses — currently `token` uses
+  pnpm, the others use npm.
+- Solana only: Docker running (required by `anchor build --verifiable`),
+  and optionally the Solana CLI for the `solana program dump` fast path.
+
+### Usage
+
+Two-step pipeline:
+
+```bash
+# Step 1: gather markdown + config -> one JSON file
+npm run gather-contract-infos
+# -> writes bytecode-verification/contract-infos.json
+# -> prints a "skipped" summary so you can audit coverage
+
+# Step 2: EVM verify (auto-runs step 1 if JSON missing)
+npm run verify-bytecode
+
+# Step 3: Solana verify
+npm run verify-solana-program
+```
+
+### Files
+
+```
+bytecode-verification/
+  config.js                  display-name -> source mapping + overrides
+  gather-contract-infos.js   script 1: parse markdown -> JSON
+  verify.js                  script 2: EVM compile + compare
+  verify-solana.js           script 3: Solana verifiable build + compare
+  contract-infos.json        generated, gitignored
+  lib/
+    parse-audits-readme.js   parser for contracts/*/audits/README.md
+    parse-addresses-doc.js   parser for docs/addresses/**/*.md
+    bytecode-compare.js      strip CBOR metadata, zero immutables, compare
+    worktree.js              git worktree + package manager detection
+```
+
+### Sample output (verify-bytecode)
+
+```
+[token-v1.0.0 @ 157e6c4]  contracts/token
+  solc 0.8.27
+  [ethereum] Zama Token (ZamaERC20) @ 0xA12C... => ok (... bytes)
+  [ethereum] Zama OFT Adapter (ZamaOFTAdapter) @ 0xa798... => ok (... bytes)
+  [gateway]  Zama OFT (ZamaOFT) @ 0xcE76... => ok (... bytes)
+  [bsc]      Zama OFT (ZamaOFT) @ 0x6907... => ok (... bytes)
+  [hyperevm] Zama OFT (ZamaOFT) @ 0x43cd... => ok (... bytes)
+
+...
+
+Summary: 39 ok, 0 mismatch/error (of 39)
 ```

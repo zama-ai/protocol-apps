@@ -1,0 +1,510 @@
+{
+  "generatedAt": "2026-04-24T20:14:03.052Z",
+  "evm": [
+    {
+      "package": "confidential-token-wrappers-registry",
+      "tag": "registry-v1.0.0",
+      "commit": "76dbe8f0bb8d254650b5e6644423c2dbc6fb6117",
+      "contractSource": "ConfidentialTokenWrappersRegistry",
+      "displayName": "Wrappers Registry",
+      "chain": "ethereum",
+      "address": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential USDC",
+      "chain": "ethereum",
+      "address": "0xe978F22157048E5DB8E5d07971376e86671672B2",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential USDT",
+      "chain": "ethereum",
+      "address": "0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential WETH",
+      "chain": "ethereum",
+      "address": "0xda9396b82634Ea99243cE51258B6A5Ae512D4893",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential BRON",
+      "chain": "ethereum",
+      "address": "0x85dE671c3bec1aDeD752c3Cea943521181C826bc",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential ZAMA",
+      "chain": "ethereum",
+      "address": "0x80CB147Fd86dC6dEe3Eee7e4Cee33d1397d98071",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential tGBP",
+      "chain": "ethereum",
+      "address": "0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9",
+      "proxy": true
+    },
+    {
+      "package": "confidential-wrapper",
+      "tag": "wrapper-v1.0.0",
+      "commit": "ac9f9ca247328ad89dd3084854f71585fdd0c39c",
+      "contractSource": "ConfidentialWrapper",
+      "displayName": "Confidential XAUt",
+      "chain": "ethereum",
+      "address": "0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1",
+      "proxy": true
+    },
+    {
+      "package": "feesBurner",
+      "tag": "fees-v1.0.0",
+      "commit": "b8cbe46dadac9a69deec2a9fe0fa5ea1478a7c0a",
+      "contractSource": "ProtocolFeesBurner",
+      "displayName": "ProtocolFeesBurner",
+      "chain": "ethereum",
+      "address": "0xd0D284f995a0f2c33648E87bCe79ba04Fdaf8b82",
+      "proxy": false
+    },
+    {
+      "package": "feesBurner",
+      "tag": "fees-v1.0.0",
+      "commit": "b8cbe46dadac9a69deec2a9fe0fa5ea1478a7c0a",
+      "contractSource": "FeesSenderToBurner",
+      "displayName": "FeesSenderToBurner",
+      "chain": "gateway",
+      "address": "0xd9c00DbE2d5e3f64950a1258DABBC3e75697022A",
+      "proxy": false
+    },
+    {
+      "package": "governance",
+      "tag": "governance-v1.0.0",
+      "commit": "14ec881d6beadae49120354ded440f6f4766412e",
+      "contractSource": "GovernanceOAppSender",
+      "displayName": "Governance OApp Sender",
+      "chain": "ethereum",
+      "address": "0x1c5D750D18917064915901048cdFb2dB815e0910",
+      "proxy": false
+    },
+    {
+      "package": "governance",
+      "tag": "governance-v1.0.0",
+      "commit": "14ec881d6beadae49120354ded440f6f4766412e",
+      "contractSource": "GovernanceOAppReceiver",
+      "displayName": "Governance OApp Receiver",
+      "chain": "gateway",
+      "address": "0x10795261A06285D3718674a9Cf98Ea66F7C6A0c6",
+      "proxy": false
+    },
+    {
+      "package": "pauserSetWrapper",
+      "tag": "pauserSetWrapper-v1.0.0",
+      "commit": "b934741e2f59ab7793d67ab34203a1ce9c9677c9",
+      "contractSource": "PauserSetWrapper",
+      "displayName": "Pauser Set Wrapper (minting)",
+      "chain": "ethereum",
+      "address": "0x08940bC8944A17E64AA9F5398046ABc75bB26699",
+      "proxy": false
+    },
+    {
+      "package": "safe",
+      "tag": "safe-v1.0.0",
+      "commit": "c414e538367d97f15dcfecce411873d1411f6269",
+      "contractSource": "AdminModule",
+      "displayName": "Admin Module",
+      "chain": "gateway",
+      "address": "0x57f866b5E7Fb82Fb812Ed3D3C79cdB35E9e91518",
+      "proxy": false
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "ProtocolStaking",
+      "displayName": "KMS",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xe9b176CCaA8840DC3b3567bb83e2cD2a6c36F4Ab",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "ProtocolStaking",
+      "displayName": "Coprocessor",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0x7147485b892158f2B875f7aC5Ea48A9937C66AE8",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Zama",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x8305d7c59886462B04C71Ecc5c5C331520C2a8E4",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Dfns",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xB9689c08A634B076849E61Ea4E42AB44aE2e5e2d",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Figment",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x8a3Bb2a9B28dAD4230a6dfE17124C398eA6416BF",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Fireblocks",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xF1BA887932d7559B3b00a58fE92F36CA8D7751d3",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "InfStones",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x80c03b5be1417D18bAe68d5a1F0f2A97457b0C3c",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Unit410",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xFCAA267679B8364957560d7420E66Bb012013091",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "LayerZero",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Ledger",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x78F597F1Dcf5dA536745558368c825654A1A044B",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Omakase",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xff54739b16576FA5402F211D0b938469Ab9A5f3F",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Stake Capital",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0xFf021fB13cA64e5354c62c954b949a88cfDEb25E",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "OpenZeppelin",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x75355a85c6FB9df5f0C80FF54e8747EEe9a0BF57",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Etherscan",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x93c931278A2aad1916783F952f94276eA5111442",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Conduit",
+      "role": "KMS",
+      "chain": "ethereum",
+      "address": "0x50C271E25Ee953DD21E916311db81E228c9Bdb59",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Zama",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0x5c9401fdA261fDb97188126e130e001DB38F1310",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Blockscape",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0x126D6B697aD04228657Ba677c71CfE20A8745b03",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "P2P",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0xdB4FE5977d4f78f251C0F821C18C1F7A16Ad3A5e",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.0",
+      "commit": "b631f175722f81f80ee05f94e5508261e552b341",
+      "contractSource": "OperatorStaking",
+      "displayName": "Artifact",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0xf5A0f502C98Df9dC22A4E4f251eC3c75f2aD8098",
+      "proxy": true
+    },
+    {
+      "package": "staking",
+      "tag": "staking-v1.0.1-luganodes",
+      "commit": "5c5e705fb79827cd459f014a931c22efd698654c",
+      "contractSource": "OperatorStaking",
+      "displayName": "Luganodes",
+      "role": "Coprocessor",
+      "chain": "ethereum",
+      "address": "0xdD7fA0C796b3ca4fc1654F4eFFea5c4E9fF57a23",
+      "proxy": true
+    },
+    {
+      "package": "token",
+      "tag": "token-v1.0.0",
+      "commit": "157e6c4aaa2283f48aeecc7b900146bc3f62bbe1",
+      "contractSource": "ZamaERC20",
+      "displayName": "Zama Token",
+      "chain": "ethereum",
+      "address": "0xA12CC123ba206d4031D1c7f6223D1C2Ec249f4f3",
+      "proxy": false
+    },
+    {
+      "package": "token",
+      "tag": "token-v1.0.0",
+      "commit": "157e6c4aaa2283f48aeecc7b900146bc3f62bbe1",
+      "contractSource": "ZamaOFTAdapter",
+      "displayName": "Zama OFT Adapter",
+      "chain": "ethereum",
+      "address": "0xa798B04149e7a61cc95B7D114AD420e8969eA268",
+      "proxy": false
+    },
+    {
+      "package": "token",
+      "tag": "token-v1.0.0",
+      "commit": "157e6c4aaa2283f48aeecc7b900146bc3f62bbe1",
+      "contractSource": "ZamaOFT",
+      "displayName": "Zama OFT",
+      "chain": "gateway",
+      "address": "0xcE762c7FDaac795D31a266B9247F8958c159c6d4",
+      "proxy": false
+    },
+    {
+      "package": "token",
+      "tag": "token-v1.0.0",
+      "commit": "157e6c4aaa2283f48aeecc7b900146bc3f62bbe1",
+      "contractSource": "ZamaOFT",
+      "displayName": "Zama OFT",
+      "chain": "bsc",
+      "address": "0x6907A5986C4950Bdaf2F81828Ec0737ce787519f",
+      "proxy": false
+    },
+    {
+      "package": "token",
+      "tag": "token-v1.0.0",
+      "commit": "157e6c4aaa2283f48aeecc7b900146bc3f62bbe1",
+      "contractSource": "ZamaOFT",
+      "displayName": "Zama OFT",
+      "chain": "hyperevm",
+      "address": "0x43cdd2cCbeB38Eb62fDf54e17aFBabf450ebBB01",
+      "proxy": false
+    }
+  ],
+  "solana": [
+    {
+      "package": "solanaOFT",
+      "tag": "solanaOFT-v1.0.0",
+      "commit": "f771d550eac70616832fc1b4370d2bb753a3a850",
+      "anchorBin": "zama_oft",
+      "programAddress": "A8W6AL4JhE4EDDcfXZ1Q8vQpwp83AnPj4UZ6y86gVFKN"
+    }
+  ],
+  "skipped": [
+    {
+      "chain": "ethereum",
+      "section": "Governance",
+      "displayName": "Protocol DAO",
+      "address": "0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3",
+      "reason": "not in config"
+    },
+    {
+      "chain": "ethereum",
+      "section": "Governance",
+      "displayName": "Governance Multisig",
+      "address": "0xE43c73aAb2b6aBBad6d0461997ce1cfea5ABe66f",
+      "reason": "not in config"
+    },
+    {
+      "chain": "ethereum",
+      "section": "Pausing",
+      "displayName": "Pauser Set",
+      "address": "0xbBfE1680b4a63ED05f7F80CE330BED7C992A586C",
+      "reason": "not in config"
+    },
+    {
+      "chain": "gateway",
+      "section": "Governance",
+      "displayName": "Gateway multisig",
+      "address": "0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE",
+      "reason": "not in config"
+    },
+    {
+      "chain": "gateway",
+      "section": "Pausing",
+      "displayName": "Pauser Set",
+      "address": "0x571ecb596fCc5c840DA35CbeCA175580db50ac1b",
+      "reason": "not in config"
+    },
+    {
+      "chain": "bsc",
+      "section": "Governance",
+      "displayName": "BSC multisig",
+      "address": "0xa40939fDe3883D2e7Cd5C32f53AB241804d2779B",
+      "reason": "not in config"
+    },
+    {
+      "chain": "hyperevm",
+      "section": "Token",
+      "displayName": "HyperLiquid Composer",
+      "address": "0x7B19Dc1d968756D895f7aA4273e174D45F8C87F0",
+      "reason": "not in config"
+    },
+    {
+      "chain": "hyperevm",
+      "section": "Governance",
+      "displayName": "HyperEVM multisig",
+      "address": "0x0d66642a5Bc6E32e013f47E08f9db9bDb1268827",
+      "reason": "not in config"
+    },
+    {
+      "chain": "solana",
+      "section": "Token",
+      "displayName": "Zama OFT (Mint)",
+      "address": "4Zp52aF4hZi9fzH19xpbWKYKQvgLyCN67KFbrQDqeTKh",
+      "reason": "not in config"
+    },
+    {
+      "chain": "solana",
+      "section": "Token",
+      "displayName": "Zama OFT Escrow",
+      "address": "22tZd8TXQGuTXEitCqxVKacdY2TAdjydsKJCFEC8jyuH",
+      "reason": "not in config"
+    },
+    {
+      "chain": "solana",
+      "section": "Token",
+      "displayName": "Zama OFT Store",
+      "address": "H9UdnuUqDJ5RV2GguybxsQb7CBQN7kQGBpKxk2dzQzx3",
+      "reason": "not in config"
+    },
+    {
+      "chain": "solana",
+      "section": "Governance",
+      "displayName": "Solana Multisig",
+      "address": "G9jXsKZ2XXfNEks2dmouKiJJFBWcn8SQHmMkcy3TUVf5",
+      "reason": "not in config"
+    }
+  ]
+}

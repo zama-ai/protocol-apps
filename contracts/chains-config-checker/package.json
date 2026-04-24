@@ -8,7 +8,10 @@
     "get-token-roles": "node utils/get-token-roles.js",
     "get-oft-owners-evm": "node utils/get-oft-owners-evm.js",
     "get-oft-owners-solana": "node utils/get-oft-owners-solana.js",
-    "get-oft-owners": "node utils/get-oft-owners-evm.js && node utils/get-oft-owners-solana.js"
+    "get-oft-owners": "node utils/get-oft-owners-evm.js && node utils/get-oft-owners-solana.js",
+    "gather-contract-infos": "node bytecode-verification/gather-contract-infos.js",
+    "verify-bytecode": "node bytecode-verification/verify.js",
+    "verify-solana-program": "node bytecode-verification/verify-solana.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",
