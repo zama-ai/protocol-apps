@@ -30,7 +30,7 @@ check-selectors:
 	@for pkg in $(PACKAGES); do \
 		cd $$pkg && ([ -d node_modules ] || ([ -f pnpm-lock.yaml ] && pnpm i || npm i)) && forge selectors list | tail -n +2 >> ../selectors.txt.tmp && cd ..; \
 	done
-	@diff ./selectors.txt ./selectors.txt.tmp &> /dev/null || { \
+	@diff ./selectors.txt ./selectors.txt.tmp > /dev/null 2>&1 || { \
 		echo "Contract selectors are not up-to-date."; \
 		echo "Please run 'make update-selectors' to update them."; \
 		rm -f ./selectors.txt.tmp; \
