@@ -1,6 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { Options } = require('@layerzerolabs/lz-v2-utilities')
+const { isAddress } = require('ethers')
 
 const DEFAULT_TEMP_PROPOSAL = 'gateway-proposal-temp.json'
 const OUTPUT_FILENAME = 'gateway-proposal.json'
@@ -192,6 +193,16 @@ function validateStructure(proposal) {
   return errors
 }
 
+// Accepts any string that BigInt parses to 0n, e.g. "0", "0x0", "0x00", "00".
+function isZeroNumericString(value) {
+  if (typeof value !== 'string' || value.trim() === '') return false
+  try {
+    return BigInt(value) === 0n
+  } catch {
+    return false
+  }
+}
+
 function computeLZOptions(gasLimit, nativeValue) {
   return Options.newOptions()
     .addExecutorLzReceiveOption(gasLimit, nativeValue)
@@ -259,6 +270,12 @@ function main() {
   }
 
   // 4. "to" must match the GovernanceOAppSender for the chosen network.
+  if (!isAddress(proposal.to)) {
+    console.error(
+      `Error: proposal "to" (${proposal.to}) is not a well-formed 0x-prefixed 20-byte hex address.`
+    )
+    process.exit(1)
+  }
   const expectedSender = GOVERNANCE_OAPP_SENDER[args.network]
   if (proposal.to.toLowerCase() !== expectedSender.toLowerCase()) {
     console.error(
@@ -267,10 +284,41 @@ function main() {
     process.exit(1)
   }
 
-  // 5. Compute LZ executor lzReceive options.
+  // 5. Each entry in arguments.targets must be a well-formed address.
+  const invalidTargets = proposal.arguments.targets
+    .map((target, index) => ({ target, index }))
+    .filter(({ target }) => !isAddress(target))
+  if (invalidTargets.length > 0) {
+    console.error('Error: proposal "arguments.targets" contains invalid addresses:')
+    for (const { target, index } of invalidTargets) {
+      console.error(`  - targets[${index}] = ${target}`)
+    }
+    process.exit(1)
+  }
+
+  // 6. Each entry in arguments.values and arguments.operations must be zero.
+  const nonZeroByKey = {}
+  for (const key of ['values', 'operations']) {
+    const nonZero = proposal.arguments[key]
+      .map((value, index) => ({ value, index }))
+      .filter(({ value }) => !isZeroNumericString(value))
+    if (nonZero.length > 0) nonZeroByKey[key] = nonZero
+  }
+  if (Object.keys(nonZeroByKey).length > 0) {
+    console.error('Error: proposal contains non-zero entries that must be zero:')
+    for (const [key, entries] of Object.entries(nonZeroByKey)) {
+      console.error(`  arguments.${key}:`)
+      for (const { value, index } of entries) {
+        console.error(`    - ${key}[${index}] = ${value}`)
+      }
+    }
+    process.exit(1)
+  }
+
+  // 7. Compute LZ executor lzReceive options.
   const lzOptions = computeLZOptions(DEFAULT_GAS_LIMIT, 0) // always assuming native value to be sent is 0
 
-  // 6. Build the filled proposal. Spread keeps original key order: because
+  // 8. Build the filled proposal. Spread keeps original key order: because
   // "options" already exists in proposal.arguments, the explicit assignment
   // updates the value in-place rather than appending it at the end.
   const output = {
@@ -281,7 +329,7 @@ function main() {
     },
   }
 
-  // 7. Write next to the input, refusing to overwrite an existing file.
+  // 9. Write next to the input, refusing to overwrite an existing file.
   let outputPath
   try {
     outputPath = writeOutputFile(path.dirname(absolutePath), OUTPUT_FILENAME, output)
