@@ -69,7 +69,23 @@
   },
   "overrides": {
     "@fhevm/solidity": "^0.10.0",
-    "axios": ">=0.30.0",
-    "serialize-javascript": "^7.0.3"
+    "hardhat-deploy": {
+      "axios": "^0.31.0"
+    },
+    "hardhat-gas-reporter": {
+      "axios": "^1.15.0"
+    },
+    "@openzeppelin/hardhat-upgrades": {
+      "axios": "^1.15.0"
+    },
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "mocha": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "solidity-coverage": {
+      "serialize-javascript": "^7.0.3"
+    }
   }
 }

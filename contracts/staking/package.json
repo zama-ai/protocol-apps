@@ -73,13 +73,28 @@
     "web3-validator": "^2.0.6"
   },
   "overrides": {
-    "elliptic": "6.6.1",
-    "axios": ">=0.30.0",
-    "ws": ">=7.5.10",
-    "tar": ">=7.5.11",
-    "serialize-javascript": "^7.0.3",
+    "sqlite3": {
+      "tar": "^7.5.11"
+    },
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "hardhat-deploy": {
+      "axios": "^0.31.0",
+      "ws": "^7.5.10"
+    },
+    "@openzeppelin/hardhat-upgrades": {
+      "axios": "^1.15.0"
+    },
     "hardhat-gas-reporter": {
-      "glob": "10.5.0"
+      "glob": "^10.5.0",
+      "axios": "^1.15.0"
+    },
+    "mocha": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "solidity-coverage": {
+      "serialize-javascript": "^7.0.3"
     }
   },
   "engines": {

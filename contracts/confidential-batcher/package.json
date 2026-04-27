@@ -56,7 +56,17 @@
   },
   "overrides": {
     "@fhevm/solidity": "^0.11.1",
-    "serialize-javascript": "^7.0.3",
-    "axios": "^1.15.0"
+    "hardhat-deploy": {
+      "axios": "^1.15.0"
+    },
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "mocha": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "solidity-coverage": {
+      "serialize-javascript": "^7.0.3"
+    }
   }
 }
