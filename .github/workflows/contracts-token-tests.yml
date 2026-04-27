@@ -45,6 +45,10 @@ jobs:
         working-directory: contracts/token
         run: pnpm install --frozen-lockfile
 
+      - name: Run lint
+        working-directory: contracts/token
+        run: pnpm run lint
+
       - name: Run compile
         working-directory: contracts/token
         run: pnpm run compile
