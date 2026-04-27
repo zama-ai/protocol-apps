@@ -9,21 +9,31 @@ task(
   "task:acceptOwnership",
   `Accepts ownership of a contract from the Safe Smart Account.`,
 )
-  .addParam("address", "Address of the contract to accept ownership of.", undefined, types.string)
+  .addParam(
+    "address",
+    "Address of the contract to accept ownership of.",
+    undefined,
+    types.string,
+  )
   .setAction(async function ({ address }, { ethers }) {
     const ownerPrivateKeysEnv = process.env[SAFE_OWNER_PRIVATE_KEYS_ENV];
     if (!ownerPrivateKeysEnv) {
-      throw new Error(`"${SAFE_OWNER_PRIVATE_KEYS_ENV}" env variable is not set`);
+      throw new Error(
+        `"${SAFE_OWNER_PRIVATE_KEYS_ENV}" env variable is not set`,
+      );
     }
-    const signers = JSON.parse(ownerPrivateKeysEnv).map((ownerPrivateKey: string) =>
-      new Wallet(ownerPrivateKey).connect(ethers.provider),
+    const signers = JSON.parse(ownerPrivateKeysEnv).map(
+      (ownerPrivateKey: string) =>
+        new Wallet(ownerPrivateKey).connect(ethers.provider),
     );
 
-    const acceptOwnershipAbi = [
-      "function acceptOwnership() public",
-    ];
-    const contractToCall = await ethers.getContractAt(acceptOwnershipAbi, address);
-    const { safeProxy: safe, safeProxyAddress } = await getSafeProxyAddress(ethers);
+    const acceptOwnershipAbi = ["function acceptOwnership() public"];
+    const contractToCall = await ethers.getContractAt(
+      acceptOwnershipAbi,
+      address,
+    );
+    const { safeProxy: safe, safeProxyAddress } =
+      await getSafeProxyAddress(ethers);
 
     const value = 0;
     const data = contractToCall.interface.encodeFunctionData("acceptOwnership");
@@ -68,12 +78,17 @@ task(
     );
   });
 
-async function getSortedSignatures(signers: Wallet[], transactionHash: string): Promise<string> {
+async function getSortedSignatures(
+  signers: Wallet[],
+  transactionHash: string,
+): Promise<string> {
   const bytesDataHash = getBytes(transactionHash);
 
   let signatureBytes = "0x";
 
-  const signerAddresses = await Promise.all(signers.map((signer) => signer.getAddress()));
+  const signerAddresses = await Promise.all(
+    signers.map((signer) => signer.getAddress()),
+  );
 
   const sortedSigners = signers.sort((a, b) => {
     const addressA = signerAddresses[signers.indexOf(a)];

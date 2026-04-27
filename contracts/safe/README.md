@@ -3,12 +3,14 @@
 ## Deploy Multisig Safe Wallet with only the deployer as owner
 
 Be sure to start with an `.env` - or copy paste the `.env.example.deploy` and fill its values (not to be confused with `.env.example.test` to be used to run tests in hardhat only!) - with just those filled variables:
+
 ```
 PRIVATE_KEY=
 RPC_URL_ZAMA_GATEWAY_TESTNET=
 ```
 
 Then run:
+
 ```
 npx hardhat compile
 npx hardhat task:deploySafe --network gateway-testnet
@@ -17,6 +19,7 @@ npx hardhat task:deploySafe --network gateway-testnet
 This will deploy `SafeL2` singleton contract, as well as `SafeProxyFactory` and `SafeL2Proxy`. The `SafeL2Proxy` is actually the multisig wallet which will become later the owner of `GatewayConfig`.
 
 Then, after waiting for around 1 minute for the blockscout indexing to take into consideration newly deployed contracts, run:
+
 ```
 npx hardhat task:verifySafe --network gateway-testnet
 ```
