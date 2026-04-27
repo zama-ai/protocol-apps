@@ -10,9 +10,9 @@ First make sure you have installed all needed dependencies via `pnpm i` and fill
 
 ### Prepare the Solana OFT Program keypair
 
-Run `anchor keys sync -p oft` command. This will create the OFT `programId` keypair and also automatically update `Anchor.toml` to use the generated keypair's public key. The default path for the program's keypair will be `target/deploy/oft-keypair.json`. The program keypair is only used for initial deployment of the program. 
+Run `anchor keys sync -p oft` command. This will create the OFT `programId` keypair and also automatically update `Anchor.toml` to use the generated keypair's public key. The default path for the program's keypair will be `target/deploy/oft-keypair.json`. The program keypair is only used for initial deployment of the program.
 
-__Optional:__ you can use `anchor keys list` to view the program ID's based on the generated keypairs.
+**Optional:** you can use `anchor keys list` to view the program ID's based on the generated keypairs.
 
 Copy the `oft` program ID value for use in the build step later.
 
