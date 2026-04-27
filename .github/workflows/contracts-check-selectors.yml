@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/contracts-check-selectors.yml'
       - 'contracts/**/*.sol'
+      - 'contracts/selectors.txt'
   push:
     branches:
       - main
