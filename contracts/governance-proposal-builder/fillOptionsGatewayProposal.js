@@ -1,11 +1,19 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { Options } = require('@layerzerolabs/lz-v2-utilities')
-const { isAddress } = require('ethers')
+const { isAddress, Interface } = require('ethers')
 
 const DEFAULT_TEMP_PROPOSAL = 'gateway-proposal-temp.json'
-const OUTPUT_FILENAME = 'gateway-proposal.json'
+const FILLED_OUTPUT_FILENAME = 'gateway-proposal-filled.json'
+const ARAGON_OUTPUT_FILENAME = 'aragonProposal.json'
 const SCRIPT_NAME = 'fillOptionsGatewayProposal.js'
+
+// ABI of GovernanceOAppSender.sendRemoteProposal. The Operation enum is
+// encoded as uint8 on the wire.
+const SEND_REMOTE_PROPOSAL_ABI = [
+  'function sendRemoteProposal(address[] targets, uint256[] values, string[] functionSignatures, bytes[] datas, uint8[] operations, bytes options) payable',
+]
+const SEND_REMOTE_PROPOSAL_IFACE = new Interface(SEND_REMOTE_PROPOSAL_ABI)
 
 const EXPECTED_METHOD = 'sendRemoteProposal'
 const EXPECTED_EMPTY_OPTIONS = '0x'
@@ -54,8 +62,13 @@ Flags:
   -h, --help                 Show this help.
 
 Reads the temp proposal, validates its structure / method / empty options /
-"to" address, computes the LayerZero executor lzReceive options via gas estimation by fork testing, and writes the result to ${OUTPUT_FILENAME}
-next to the input file. Refuses to overwrite an existing output file.
+"to" address, computes the LayerZero executor lzReceive options via gas
+estimation by fork testing, and writes two files next to the input:
+  - ${FILLED_OUTPUT_FILENAME}  (the filled gateway proposal, mirrors the input shape)
+  - ${ARAGON_OUTPUT_FILENAME}  (the same call as a single Aragon transaction:
+                               [{ to, value, data }], ready to upload to the
+                               Aragon front-end)
+Refuses to overwrite either file if it already exists.
 `
   )
 }
@@ -210,10 +223,36 @@ function computeLZOptions(gasLimit, nativeValue) {
     .toString()
 }
 
+/**
+ * Builds the Aragon proposal payload corresponding to a filled gateway
+ * proposal: a single Aragon transaction that calls sendRemoteProposal on the
+ * GovernanceOAppSender with the same arguments. The shape matches what the
+ * Aragon front-end expects when uploading a JSON proposal: an array of
+ * { to, value, data } objects.
+ */
+function buildAragonProposal(filledProposal) {
+  const a = filledProposal.arguments
+  const data = SEND_REMOTE_PROPOSAL_IFACE.encodeFunctionData('sendRemoteProposal', [
+    a.targets,
+    a.values,
+    a.functionSignatures,
+    a.datas,
+    a.operations,
+    a.options,
+  ])
+  return [
+    {
+      to: filledProposal.to,
+      value: 0,
+      data,
+    },
+  ]
+}
+
 function writeOutputFile(outputDir, filename, data) {
   const outputPath = path.join(outputDir, filename)
   // 'wx' makes open+create atomic and fails if the file already exists, so we
-  // never overwrite an existing gateway-proposal.json (even on a TOCTOU race).
+  // never overwrite an existing output file (even on a TOCTOU race).
   try {
     fs.writeFileSync(outputPath, JSON.stringify(data, null, 2) + '\n', { flag: 'wx' })
   } catch (err) {
@@ -223,6 +262,13 @@ function writeOutputFile(outputDir, filename, data) {
     throw err
   }
   return outputPath
+}
+
+function assertOutputDoesNotExist(outputDir, filename) {
+  const outputPath = path.join(outputDir, filename)
+  if (fs.existsSync(outputPath)) {
+    throw new Error(`Refusing to overwrite existing file: ${outputPath}`)
+  }
 }
 
 function main() {
@@ -321,7 +367,7 @@ function main() {
   // 8. Build the filled proposal. Spread keeps original key order: because
   // "options" already exists in proposal.arguments, the explicit assignment
   // updates the value in-place rather than appending it at the end.
-  const output = {
+  const filledProposal = {
     ...proposal,
     arguments: {
       ...proposal.arguments,
@@ -329,10 +375,19 @@ function main() {
     },
   }
 
-  // 9. Write next to the input, refusing to overwrite an existing file.
-  let outputPath
+  // 9. Build the Aragon proposal payload: a single { to, value, data } tx
+  //    where data is the ABI-encoded sendRemoteProposal(...) calldata.
+  const aragonProposal = buildAragonProposal(filledProposal)
+
+  // 10. Write both outputs next to the input, refusing to overwrite either.
+  //     Pre-check both paths first so we never end up writing only one.
+  const outputDir = path.dirname(absolutePath)
+  let filledPath, aragonPath
   try {
-    outputPath = writeOutputFile(path.dirname(absolutePath), OUTPUT_FILENAME, output)
+    assertOutputDoesNotExist(outputDir, FILLED_OUTPUT_FILENAME)
+    assertOutputDoesNotExist(outputDir, ARAGON_OUTPUT_FILENAME)
+    filledPath = writeOutputFile(outputDir, FILLED_OUTPUT_FILENAME, filledProposal)
+    aragonPath = writeOutputFile(outputDir, ARAGON_OUTPUT_FILENAME, aragonProposal)
   } catch (err) {
     console.error(`Error: ${err.message}`)
     process.exit(1)
@@ -344,7 +399,8 @@ function main() {
     `LZ executor option:    lzReceive(gasLimit=${DEFAULT_GAS_LIMIT})`
   )
   console.log(`                       ${lzOptions}`)
-  console.log(`Wrote output:          ${outputPath}`)
+  console.log(`Wrote filled proposal: ${filledPath}`)
+  console.log(`Wrote Aragon proposal: ${aragonPath}`)
 }
 
 main()

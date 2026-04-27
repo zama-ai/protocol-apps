@@ -1,4 +1,5 @@
 .env
 node_modules/
-gateway-proposal.json
+gateway-proposal-filled.json
 gateway-proposal-temp.json
+aragonProposal.json

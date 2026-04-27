@@ -43,10 +43,15 @@ Currently availabe scripts are:
    npm run fill-options-gateway-proposal:testnet
    ```
 
-3. The script writes the validated proposal (with `arguments.options` filled)
-   to `gateway-proposal.json`. This is the file that should be uploaded via the 
-   Aragon DAO front-end when creating the proposal calling `sendRemoteProposal` 
-   on `GovernanceOAppSender` contract.
+3. The script writes two files next to the input:
+   - `gateway-proposal-filled.json` — the validated proposal mirroring the
+     input shape, with `arguments.options` filled in. Useful as a
+     human-readable record of what was generated.
+   - `aragonProposal.json` — the same call rendered as a single Aragon
+     transaction (`[{ to, value, data }]`) where `data` is the ABI-encoded
+     `sendRemoteProposal(...)` calldata. This is the file to upload via the
+     Aragon DAO front-end when creating the proposal that calls
+     `sendRemoteProposal` on the `GovernanceOAppSender` contract.
 
 To validate a non-default temp proposal file:
 
@@ -83,21 +88,23 @@ option containing a single executor `lzReceive` action. To do this it forks the 
 
 ### Output
 
-The script writes a single file:
+The script writes two files next to the input:
 
 ```
-./gateway-proposal.json
+./gateway-proposal-filled.json
+./aragonProposal.json
 ```
 
-It **refuses to overwrite** an existing `gateway-proposal.json` and exits
-with a non-zero status. Delete the file first if you want to regenerate.
+It **refuses to overwrite** either file if it already exists, and exits
+with a non-zero status before writing anything. Delete the file(s) first if
+you want to regenerate.
 
-### IMPORTANT MANUAL STEP: Decoding individual `datas` entries
+### RECOMMENDED MANUAL STEP: Decoding individual `datas` entries
 
-Sanity-check what each `arguments.datas[i]` actually calls (using the matching
+Independently from this script, when doing a cross-chain proposal, it is highly recommended to always sanity-check what each `arguments.datas[i]` actually calls (using the matching
 `arguments.functionSignatures[i]`) — note that datas are encoded **without**
 the 4-byte selector, so use `cast abi-decode` and treat the bytes as the
-"return-value" tuple:
+"return-value" tuple, for example:
 
 ```bash
 DATA=0x00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000002
