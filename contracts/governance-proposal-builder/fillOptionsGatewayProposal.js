@@ -8,8 +8,6 @@ const FILLED_OUTPUT_FILENAME = 'gateway-proposal-filled.json'
 const ARAGON_OUTPUT_FILENAME = 'aragonProposal.json'
 const SCRIPT_NAME = 'fillOptionsGatewayProposal.js'
 
-// ABI of GovernanceOAppSender.sendRemoteProposal. The Operation enum is
-// encoded as uint8 on the wire.
 const SEND_REMOTE_PROPOSAL_ABI = [
   'function sendRemoteProposal(address[] targets, uint256[] values, string[] functionSignatures, bytes[] datas, uint8[] operations, bytes options) payable',
 ]
