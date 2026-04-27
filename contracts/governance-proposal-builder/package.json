@@ -1,0 +1,16 @@
+{
+  "name": "governance-proposal-builder",
+  "version": "1.0.0",
+  "description": "Helpers to build, validate and fill the LayerZero options of cross-chain governance proposals submitted to the GovernanceOAppSender.",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "fill-options-gateway-proposal:mainnet": "node fillOptionsGatewayProposal.js --network mainnet",
+    "fill-options-gateway-proposal:testnet": "node fillOptionsGatewayProposal.js --network testnet"
+  },
+  "dependencies": {
+    "@layerzerolabs/lz-v2-utilities": "^3.0.75"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "to": "0x1c5D750D18917064915901048cdFb2dB815e0910",
+  "method": "sendRemoteProposal",
+  "arguments": {
+    "targets": [
+      "0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE"
+    ],
+    "values": [
+      "0"
+    ],
+    "functionSignatures": [
+      "addOwnerWithThreshold(address,uint256)"
+    ],
+    "datas": [
+      "0x00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000002"
+    ],
+    "operations": [
+     "0"
+    ],
+    "options": "0x"
+  }
+}
