@@ -1,6 +1,7 @@
-import { Options } from '@layerzerolabs/lz-v2-utilities'
 import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
+
+import { Options } from '@layerzerolabs/lz-v2-utilities'
 
 // The SENTINEL_OWNERS is the head of the linked list in Safe's owner management
 const SENTINEL_OWNERS = '0x0000000000000000000000000000000000000001'
