@@ -16,7 +16,13 @@
   "overrides": {
     "@safe-global/safe-contracts": {
       "ethers": "^6.13.5"
-    }
+    },
+    "axios": ">=0.30.0",
+    "ws": ">=7.5.10",
+    "elliptic": "^6.6.1",
+    "lodash": "^4.18.0",
+    "serialize-javascript": "^7.0.3",
+    "glob": "^10.5.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
