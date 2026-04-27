@@ -41,6 +41,10 @@ jobs:
       # Pin Squid image to a specific digest to prevent supply-chain attacks.
       # To update: docker pull ubuntu/squid:latest && docker inspect --format='{{index .RepoDigests 0}}' ubuntu/squid:latest
       SQUID_IMAGE: ubuntu/squid@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
+      # Require the PR author to have write/admin/maintain permission before allowing Claude to review.
+      # Set to "false" only if your organisation intentionally reviews external-contributor PRs with Claude.
+      # Changing this default requires security team review (file is CODEOWNERS-protected).
+      REQUIRE_PR_AUTHOR_PERMISSION: "true"
     permissions:
       contents: read        # Checkout repository code and read files
       pull-requests: write  # Post review comments and update PR status
@@ -112,6 +116,34 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
+
+      - name: Enforce PR author repository permissions
+        id: pr-author-permission
+        if: env.REQUIRE_PR_AUTHOR_PERMISSION == 'true'
+        run: |
+          PR_AUTHOR=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.user.login' 2>/dev/null || echo "")
+          if [ -z "$PR_AUTHOR" ]; then
+            echo "::error::Could not determine PR author for PR #${PR_NUMBER}"
+            exit 1
+          fi
+
+          AUTHOR_PERMISSION=$(gh api "repos/${REPO}/collaborators/${PR_AUTHOR}/permission" --jq '.permission' 2>/dev/null || echo "none")
+          echo "PR author '${PR_AUTHOR}' permission level: ${AUTHOR_PERMISSION}"
+          echo "pr_author=${PR_AUTHOR}" >> "$GITHUB_OUTPUT"
+          echo "permission=${AUTHOR_PERMISSION}" >> "$GITHUB_OUTPUT"
+
+          case "$AUTHOR_PERMISSION" in
+            admin|write|maintain)
+              ;;
+            *)
+              echo "::error::PR author '${PR_AUTHOR}' must have write/admin/maintain permission for Claude to review this PR (got '${AUTHOR_PERMISSION}'). To allow Claude to review PRs from external contributors, set REQUIRE_PR_AUTHOR_PERMISSION: \"false\" in the job env (requires security team review — file is CODEOWNERS-protected)."
+              exit 1
+              ;;
+          esac
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
 
       - name: Clone ci-skills plugin (sparse checkout)
         run: |
