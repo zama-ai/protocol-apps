@@ -68,6 +68,8 @@
     "test:sepolia": "hardhat test --network sepolia"
   },
   "overrides": {
-    "@fhevm/solidity": "^0.10.0"
+    "@fhevm/solidity": "^0.10.0",
+    "axios": ">=0.30.0",
+    "serialize-javascript": "^7.0.3"
   }
 }
