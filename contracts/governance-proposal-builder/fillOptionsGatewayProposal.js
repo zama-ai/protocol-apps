@@ -1,7 +1,16 @@
 const fs = require('node:fs')
 const path = require('node:path')
+require('dotenv').config({ quiet: true })
 const { Options } = require('@layerzerolabs/lz-v2-utilities')
-const { isAddress, Interface } = require('ethers')
+const {
+  isAddress,
+  Interface,
+  JsonRpcProvider,
+  keccak256,
+  toUtf8Bytes,
+  dataSlice,
+  concat,
+} = require('ethers')
 
 const DEFAULT_TEMP_PROPOSAL = 'gateway-proposal-temp.json'
 const FILLED_OUTPUT_FILENAME = 'gateway-proposal-filled.json'
@@ -16,8 +25,13 @@ const SEND_REMOTE_PROPOSAL_IFACE = new Interface(SEND_REMOTE_PROPOSAL_ABI)
 const EXPECTED_METHOD = 'sendRemoteProposal'
 const EXPECTED_EMPTY_OPTIONS = '0x'
 
-// TODO: replace this part with fork testing and gas estimation
-const DEFAULT_GAS_LIMIT = 300_000
+// Buffers added on top of the summed per-call gas estimates to cover the
+// pieces this script does NOT measure directly (lzReceive entry, abi.decode
+// of the message, Safe module wrapping, event emission, RPC noise). The
+// constant base overhead is in gas units; the proportional buffer is in
+// basis points (10000 = 100%).
+const GAS_BASE_OVERHEAD = 130_000
+const GAS_BUFFER_BPS = 3000 // 30% safety margin on top of the total
 
 const GOVERNANCE_OAPP_SENDER = {
   mainnet: '0x1c5D750D18917064915901048cdFb2dB815e0910',
@@ -27,6 +41,11 @@ const GOVERNANCE_OAPP_SENDER = {
 const SAFE_PROXY = {
   mainnet: '0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE',
   testnet: '0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9',
+}
+
+const RPC_ENV_VAR = {
+  mainnet: 'RPC_GATEWAY_MAINNET',
+  testnet: 'RPC_GATEWAY_TESTNET',
 }
 
 // Canonical proposal shape (mirrors gateway-proposal-temp.json):
@@ -60,12 +79,20 @@ Flags:
   -h, --help                 Show this help.
 
 Reads the temp proposal, validates its structure / method / empty options /
-"to" address, computes the LayerZero executor lzReceive options via gas
-estimation by fork testing, and writes two files next to the input:
+"to" address, then forks the Gateway chain (RPC URL from .env) and
+impersonates the Safe proxy to estimate the gas of each call one by one;
+sums them with a constant base overhead and a proportional safety buffer
+to compute the LayerZero executor lzReceive options, and writes two files
+next to the input:
   - ${FILLED_OUTPUT_FILENAME}  (the filled gateway proposal, mirrors the input shape)
   - ${ARAGON_OUTPUT_FILENAME}  (the same call as a single Aragon transaction:
                                [{ to, value, data }], ready to upload to the
                                Aragon front-end)
+
+Required env vars (one per network, set via .env, see .env.example):
+  - RPC_GATEWAY_MAINNET   (used when --network mainnet)
+  - RPC_GATEWAY_TESTNET   (used when --network testnet)
+
 Refuses to overwrite either file if it already exists.
 `
   )
@@ -140,12 +167,6 @@ function checkExactKeys(obj, expectedKeys, label, errors) {
   }
 }
 
-/**
- * Verifies the proposal JSON has exactly the same structure as the canonical
- * gateway-proposal-temp.json: same set of keys (no extras, none missing), same
- * value types, and consistent array lengths across the per-call arrays.
- * Returns an array of error messages (empty when valid).
- */
 function validateStructure(proposal) {
   const errors = []
 
@@ -221,6 +242,43 @@ function computeLZOptions(gasLimit, nativeValue) {
     .toString()
 }
 
+function buildOnChainCalldata(functionSignature, data) {
+  if (functionSignature === '') return data
+  const selector = dataSlice(keccak256(toUtf8Bytes(functionSignature)), 0, 4)
+  return concat([selector, data])
+}
+
+async function estimatePerCallGas(provider, safeProxy, proposalArgs) {
+  const { targets, functionSignatures, datas } = proposalArgs
+  const estimates = []
+  for (let i = 0; i < targets.length; i++) {
+    const calldata = buildOnChainCalldata(functionSignatures[i], datas[i])
+    let gas
+    try {
+      gas = await provider.estimateGas({
+        from: safeProxy,
+        to: targets[i],
+        data: calldata,
+        value: 0,
+      })
+    } catch (err) {
+      const reason = err.shortMessage || err.message
+      throw new Error(
+        `eth_estimateGas failed for call #${i} (target=${targets[i]}, signature="${functionSignatures[i]}"): ${reason}`
+      )
+    }
+    estimates.push(gas)
+  }
+  return estimates
+}
+
+function applyGasBuffers(perCallEstimates) {
+  const sumEstimates = perCallEstimates.reduce((acc, g) => acc + g, 0n)
+  const subtotal = sumEstimates + BigInt(GAS_BASE_OVERHEAD)
+  const buffered = (subtotal * BigInt(10_000 + GAS_BUFFER_BPS)) / 10_000n
+  return { sumEstimates, subtotal, buffered }
+}
+
 /**
  * Builds the Aragon proposal payload corresponding to a filled gateway
  * proposal: a single Aragon transaction that calls sendRemoteProposal on the
@@ -269,7 +327,7 @@ function assertOutputDoesNotExist(outputDir, filename) {
   }
 }
 
-function main() {
+async function main() {
   let args
   try {
     args = parseArgs(process.argv)
@@ -359,10 +417,45 @@ function main() {
     process.exit(1)
   }
 
-  // 7. Compute LZ executor lzReceive options.
-  const lzOptions = computeLZOptions(DEFAULT_GAS_LIMIT, 0) // always assuming native value to be sent is 0
+  // 7. Estimate the lzReceive gas limit by forking the Gateway chain,
+  //    impersonating the Safe proxy as msg.sender, and running
+  //    eth_estimateGas for each (target, calldata) one by one. Sum the
+  //    estimates and add the constant base overhead + proportional buffer.
+  const rpcEnvVar = RPC_ENV_VAR[args.network]
+  const rpcUrl = process.env[rpcEnvVar]
+  if (!rpcUrl || rpcUrl.trim() === '') {
+    console.error(
+      `Error: missing env var ${rpcEnvVar} (required to fork the ${args.network} Gateway chain). Set it in .env (see .env.example).`
+    )
+    process.exit(1)
+  }
 
-  // 8. Build the filled proposal. Spread keeps original key order: because
+  const safeProxy = SAFE_PROXY[args.network]
+  const provider = new JsonRpcProvider(rpcUrl)
+  let chainId
+  try {
+    chainId = (await provider.getNetwork()).chainId
+  } catch (err) {
+    console.error(
+      `Error: failed to connect to ${rpcEnvVar}=${rpcUrl}: ${err.shortMessage || err.message}`
+    )
+    process.exit(1)
+  }
+
+  let perCallEstimates
+  try {
+    perCallEstimates = await estimatePerCallGas(provider, safeProxy, proposal.arguments)
+  } catch (err) {
+    console.error(`Error: ${err.message}`)
+    process.exit(1)
+  }
+  const { sumEstimates, subtotal, buffered } = applyGasBuffers(perCallEstimates)
+  const gasLimit = buffered
+
+  // 8. Compute LZ executor lzReceive options.
+  const lzOptions = computeLZOptions(gasLimit, 0) // always assuming native value to be sent is 0
+
+  // 9. Build the filled proposal. Spread keeps original key order: because
   // "options" already exists in proposal.arguments, the explicit assignment
   // updates the value in-place rather than appending it at the end.
   const filledProposal = {
@@ -373,11 +466,11 @@ function main() {
     },
   }
 
-  // 9. Build the Aragon proposal payload: a single { to, value, data } tx
-  //    where data is the ABI-encoded sendRemoteProposal(...) calldata.
+  // 10. Build the Aragon proposal payload: a single { to, value, data } tx
+  //     where data is the ABI-encoded sendRemoteProposal(...) calldata.
   const aragonProposal = buildAragonProposal(filledProposal)
 
-  // 10. Write both outputs next to the input, refusing to overwrite either.
+  // 11. Write both outputs next to the input, refusing to overwrite either.
   //     Pre-check both paths first so we never end up writing only one.
   const outputDir = path.dirname(absolutePath)
   let filledPath, aragonPath
@@ -392,13 +485,16 @@ function main() {
   }
 
   console.log(`Validated proposal:    ${absolutePath}`)
-  console.log(`Network:               ${args.network}`)
+  console.log(`Network:               ${args.network} (chainId ${chainId.toString()})`)
   console.log(
-    `LZ executor option:    lzReceive(gasLimit=${DEFAULT_GAS_LIMIT})`
+    `LZ executor option (estimated gas limit via fork testing and impersonating the Safe proxy):    lzReceive(gasLimit=${gasLimit.toString()})`
   )
   console.log(`                       ${lzOptions}`)
   console.log(`Wrote filled proposal: ${filledPath}`)
   console.log(`Wrote Aragon proposal: ${aragonPath}`)
 }
 
-main()
+main().catch((err) => {
+  console.error(`Error: ${err.stack || err.message || err}`)
+  process.exit(1)
+})
