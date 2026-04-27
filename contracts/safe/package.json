@@ -25,7 +25,7 @@
     "@safe-global/safe-contracts": "^1.4.1-2",
     "hardhat": "^2.26.3",
     "hardhat-dependency-compiler": "^1.2.1",
-    "hardhat-deploy": "^0.12.1",
+    "hardhat-deploy": "^2.0.5",
     "prettier": "^3.6.2",
     "prettier-plugin-solidity": "^2.1.0",
     "solhint": "^6.0.1",
