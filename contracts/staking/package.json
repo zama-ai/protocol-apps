@@ -73,7 +73,14 @@
     "web3-validator": "^2.0.6"
   },
   "overrides": {
-    "elliptic": "6.6.1"
+    "elliptic": "6.6.1",
+    "axios": ">=0.30.0",
+    "ws": ">=7.5.10",
+    "tar": ">=7.5.11",
+    "serialize-javascript": "^7.0.3",
+    "hardhat-gas-reporter": {
+      "glob": "10.5.0"
+    }
   },
   "engines": {
     "node": ">=20.0.0"
