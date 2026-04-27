@@ -29,6 +29,11 @@
   },
   "overrides": {
     "@solana/web3.js": "~1.95.8",
-    "lodash": "^4.18.0"
+    "@layerzerolabs/lz-solana-sdk-v2": {
+      "lodash": "^4.18.1"
+    },
+    "@layerzerolabs/oft-v2-solana-sdk": {
+      "lodash": "^4.18.1"
+    }
   }
 }
