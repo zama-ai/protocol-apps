@@ -74,14 +74,12 @@
   },
   "overrides": {
     "elliptic": "6.6.1",
-    "sqlite3": {
-      "tar": ">=7.5.11"
-    },
+    "tar": ">=7.5.11",
+    "ws": ">=7.5.10",
     "hardhat": {
       "serialize-javascript": "^7.0.3"
     },
     "hardhat-deploy": {
-      "ws": ">=7.5.10",
       "axios": "^0.31.0"
     },
     "@openzeppelin/hardhat-upgrades": {
