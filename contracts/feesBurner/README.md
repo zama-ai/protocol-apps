@@ -1,3 +1,6 @@
+[!WARNING]
+**This repository is deprecated and archived.** It is no longer maintained. Secure use of the features this repository provides cannot be guaranteed.
+
 After filling all values of the `.env` file until the `ZAMA_ERC20_ADDRESS` variable (i.e all variables except from `PROTOCOL_FEES_BURNER_ADDRESS`), run this command to deploy first the `ProtocolFeesBurner` contract on Ethereum testnet:
 
 # Deployment
