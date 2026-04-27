@@ -25,6 +25,7 @@ cp .env.example .env
 Currently availabe scripts are:
 ```
 [*] fill-options-gateway-proposal
+[*] decode-options-gateway-proposal
 ```
 
 ### fillOptionsGatewayProposal
@@ -106,3 +107,29 @@ cast abi-decode 'f()(address,uint256)' "$DATA"
 
 The `f()` is just a placeholder; only the parameter-types tuple matters. Pass
 the same types as the matching `functionSignatures[i]`.
+
+### decodeOptionsGatewayProposal
+
+Reverse of the `computeLZOptions` step inside `fillOptionsGatewayProposal`:
+takes a LayerZero options hex string
+and prints the decoded `gasLimit` and `nativeValue`. Useful to sanity-check
+what's in `arguments.options` of a Gateway proposal and to use before voting on a pending DAO Gateway proposal.
+
+#### Usage
+
+```bash
+npm run decode-options-gateway-proposal -- --options 0x000301001101000000000000000000000000000493e0
+```
+
+The leading `--` is required so npm forwards the flag to the script instead
+of consuming it itself. `--options` is the only flag and is required.
+
+#### Output
+
+Prints (to stdout) the raw hex and the decoded fields:
+
+```
+Options hex:   0x000301001101000000000000000000000000000493e0
+gasLimit:      300000
+nativeValue:   0
+```

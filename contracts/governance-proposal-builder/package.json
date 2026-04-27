@@ -8,7 +8,8 @@
   },
   "scripts": {
     "fill-options-gateway-proposal:mainnet": "node fillOptionsGatewayProposal.js --network mainnet",
-    "fill-options-gateway-proposal:testnet": "node fillOptionsGatewayProposal.js --network testnet"
+    "fill-options-gateway-proposal:testnet": "node fillOptionsGatewayProposal.js --network testnet",
+    "decode-options-gateway-proposal": "node decodeOptionsGatewayProposal.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-v2-utilities": "^3.0.75",
