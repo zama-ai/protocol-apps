@@ -73,6 +73,7 @@
     "web3-validator": "^2.0.6"
   },
   "overrides": {
+    "elliptic": "6.6.1",
     "sqlite3": {
       "tar": "^7.5.11"
     },
