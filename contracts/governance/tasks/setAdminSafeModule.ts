@@ -1,12 +1,13 @@
 import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
+
 import { createLogger } from '@layerzerolabs/io-devtools'
 const logger = createLogger()
 
 task('task:setAdminSafeModule', 'Sets GovernanceOAppReceiver.adminSafeModule')
     .addParam('module', 'AdminModule address to authorize', undefined, types.string)
     .addOptionalParam('receiver', 'GovernanceOAppReceiver address (defaults to deployment)', undefined, types.string)
-    .setAction(async ({ module, receiver }: { module: string, receiver: string }, hre: HardhatRuntimeEnvironment) => {
+    .setAction(async ({ module, receiver }: { module: string; receiver: string }, hre: HardhatRuntimeEnvironment) => {
         const { deployments, ethers, getNamedAccounts } = hre
 
         const moduleAddress = ethers.utils.getAddress(module)

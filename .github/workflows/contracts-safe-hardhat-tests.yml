@@ -37,6 +37,10 @@ jobs:
         working-directory: contracts/safe
         run: npm ci
 
+      - name: Run lint
+        working-directory: contracts/safe
+        run: npm run prettier:check && npm run lint:sol
+
       - name: Run unit tests
         working-directory: contracts/safe
         run: make test

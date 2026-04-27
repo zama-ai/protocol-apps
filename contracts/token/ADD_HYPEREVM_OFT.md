@@ -40,9 +40,9 @@ oftAdapter: {
 }
 ```
 
-Then, run `npx hardhat compile` to ensure relevant artifacts that are required by Hardhat helper tasks involving the EVM OFT are generated. 
+Then, run `npx hardhat compile` to ensure relevant artifacts that are required by Hardhat helper tasks involving the EVM OFT are generated.
 
-Finally, in order to copy all the `abi` values in the `deployments` artifacts from the compilation artifacts located in `artifacts` folder, just run: 
+Finally, in order to copy all the `abi` values in the `deployments` artifacts from the compilation artifacts located in `artifacts` folder, just run:
 
 ```
 npx ts-node scripts/copyAbiToDeployments.ts
@@ -58,9 +58,9 @@ You can then verify the contract on hyperevmscan by running `pnpm verify:ethersc
 
 This can be done easily, since your deployer hot wallet is still the owner and delegate of the `ZamaOFT` instance on HyperEVM Chain - later, after full wiring on both chains, ownership and delegate roles should be transferred to governance on HyperEVM Chain, which should be a Safe multisig deployed on HyperEVM mainnet.
 
-You just have to run: 
+You just have to run:
 
-```npx hardhat lz:oapp:wire --oapp-config layerzero.config.mainnet.hyperevm.ts --skip-connections-from-eids <EID_ETHEREUM_V2_MAINNET>```
+`npx hardhat lz:oapp:wire --oapp-config layerzero.config.mainnet.hyperevm.ts --skip-connections-from-eids <EID_ETHEREUM_V2_MAINNET>`
 
 In previous command, replace `<EID_ETHEREUM_V2_MAINNET>` by `30101`.
 
@@ -92,13 +92,13 @@ After voting and execution of the wiring proposal, your OFT is now successfully 
 
 ## Step 5 : Test OFT transfers
 
-You can test that the OFT HyperEVM has been correctly wired by sending some amount of tokens from Ethereum to HyperEVM Chain, and the other way around, by using commands such as: 
+You can test that the OFT HyperEVM has been correctly wired by sending some amount of tokens from Ethereum to HyperEVM Chain, and the other way around, by using commands such as:
 
 ```
 npx hardhat lz:oft:send --src-eid 30101 --dst-eid 30367 --amount 0.1 --to <RECEIVER_ADDRESS> --oapp-config layerzero.config.mainnet.hyperevm.ts
 ```
 
-to send 0.1 Zama token from Ethereum to HyperEVM mainnet, and: 
+to send 0.1 Zama token from Ethereum to HyperEVM mainnet, and:
 
 ```
 npx hardhat lz:oft:send --src-eid 30367 --dst-eid 30101 --amount 0.1 --to <RECEIVER_ADDRESS> --oapp-config layerzero.config.mainnet.hyperevm.ts
@@ -110,7 +110,7 @@ to send 0.1 Zama token from HyperEVM mainnet to Ethereum.
 
 Once the transfer tests are successful AND the HyperEVM<->HyperCore has also been fully setup, don't forget to transfer the delegate and owners roles of the HyperEVM OFT instance to governance (i.e HyperEVM Safe Multisig).
 
-__WARNING:__ Don't transfer delegate and owners roles before first setting up completely the second bridge, between HyperEVM and HyperCore, since the deployer/owner private key must be used to sign a required EIP712/HyperCore `finalizeEVMContract` specific action. See [LayerZero HyperLiquid docs](https://docs.layerzero.network/v2/developers/hyperliquid/hyperliquid-oft-deployment) for more details.
+**WARNING:** Don't transfer delegate and owners roles before first setting up completely the second bridge, between HyperEVM and HyperCore, since the deployer/owner private key must be used to sign a required EIP712/HyperCore `finalizeEVMContract` specific action. See [LayerZero HyperLiquid docs](https://docs.layerzero.network/v2/developers/hyperliquid/hyperliquid-oft-deployment) for more details.
 
 Those `cast` commands are helpful for transferring roles:
 

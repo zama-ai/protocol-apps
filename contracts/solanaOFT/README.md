@@ -6,7 +6,7 @@ The goal of this runbook is to guide you step by step on how to deploy a ZAMA OF
 
 ## Step 1 : Deploy the OFT on Solana Chain
 
-First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly: see [`.env.example`](./.env.example) file. Default recommendation is to fill only those 3 values: `PRIVATE_KEY`, `RPC_URL_ETHEREUM` and `RPC_URL_SOLANA` values, as this will use the default Solana config and local keypair, which should be setup first via `solana config set --url mainnet-beta` and the local keypair generated with `solana-keygen` command. 
+First make sure you have installed all needed dependencies via `pnpm i` and filled the `.env` file correctly: see [`.env.example`](./.env.example) file. Default recommendation is to fill only those 3 values: `PRIVATE_KEY`, `RPC_URL_ETHEREUM` and `RPC_URL_SOLANA` values, as this will use the default Solana config and local keypair, which should be setup first via `solana config set --url mainnet-beta` and the local keypair generated with `solana-keygen` command.
 
 For the `RPC_URL_SOLANA` value, we recommend getting one from [Helius](https://www.helius.dev/).
 
@@ -14,9 +14,9 @@ Please make sure to fund your public key with 5 SOL on Solana mainnet, before de
 
 ### Prepare the Solana OFT Program keypair
 
-Run `anchor keys sync -p oft` command. This will create the OFT `programId` keypair and also automatically update `Anchor.toml` to use the generated keypair's public key. The default path for the program's keypair will be `target/deploy/oft-keypair.json`. The program keypair is only used for initial deployment of the program. 
+Run `anchor keys sync -p oft` command. This will create the OFT `programId` keypair and also automatically update `Anchor.toml` to use the generated keypair's public key. The default path for the program's keypair will be `target/deploy/oft-keypair.json`. The program keypair is only used for initial deployment of the program.
 
-__Optional:__ you can use `anchor keys list` to view the program ID's based on the generated keypairs.
+**Optional:** you can use `anchor keys list` to view the program ID's based on the generated keypairs.
 
 Copy the `oft` program ID value for use in the build step later.
 
@@ -98,7 +98,7 @@ After voting and execution of the wiring proposal, your OFT is now successfully 
 
 ## Step 4 : Test OFT transfers
 
-First, make sure the Solidity contracts are compiled by running `npx hardhat compile`. 
+First, make sure the Solidity contracts are compiled by running `npx hardhat compile`.
 
 Send 1 OFT from **Ethereum** to **Solana**:
 
@@ -149,7 +149,7 @@ The transfer of both require modifying your LZ Config file and running helper ta
 
 Overall, you should carry out these steps:
 
-1/ Modify `layerzero.config.ts` to include **only** the new delegate address. This means that the  exported function at the end of the config file should be as: 
+1/ Modify `layerzero.config.ts` to include **only** the new delegate address. This means that the exported function at the end of the config file should be as:
 
 ```
 export default async function () {
@@ -184,7 +184,7 @@ Notice from this snippet that only the returned value changed, and that `<SQUADS
 
 2/ Run `pnpm hardhat lz:oapp:wire --oapp-config layerzero.config.ts`.
 
-3/ Modify `layerzero.config.ts` to include the new owner address. This means that the  exported function at the end of the config file should be now as: 
+3/ Modify `layerzero.config.ts` to include the new owner address. This means that the exported function at the end of the config file should be now as:
 
 ```
 export default async function () {
@@ -231,7 +231,7 @@ solana program set-upgrade-authority --skip-new-upgrade-authority-signer-check <
 New upgrade authority can be easily checked via any Solana block explorer.
 
 ### Transfer token metadata update authority
- 
+
 Use this command by replacing `<MINT_ADDRESS>` by its actual value, which could be read from `deployments/solana-mainnet/OFT.json`:
 
 ```
