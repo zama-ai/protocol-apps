@@ -14,12 +14,10 @@ Currently, you can only perform **one-way wiring from Solana → Move-VM** using
 #### Deployment Process
 
 1. **Create and Deploy Solana Example**
-
    - Create the Solana example: `LZ_ENABLE_SOLANA_OAPP_EXAMPLE=1 npx create-lz-oapp@latest`
    - Deploy to Solana following the deployment instructions in the Solana example README
 
 2. **Create and Deploy Aptos Move Example**
-
    - Create the Aptos Move example: `LZ_ENABLE_EXPERIMENTAL_MOVE_VM_EXAMPLES=1 npx create-lz-oapp@latest`
    - Deploy to Aptos following the deployment and initialization instructions in the Aptos example README
 
@@ -32,7 +30,6 @@ Currently, you can only perform **one-way wiring from Solana → Move-VM** using
    ```
 
 3. **Configure Solana Example**
-
    - Navigate to the Solana example directory
    - Use the example configuration at `./docs/move.layerzero.config.ts`
    - Fill out the configuration with your desired values
@@ -53,7 +50,6 @@ Currently, you can only perform **one-way wiring from Solana → Move-VM** using
    If these commands succeed, you have successfully wired the Solana contract to the Aptos Move contract.
 
 5. **Wire Aptos to Solana**
-
    - Transfer the `move.layerzero.config.ts` file from the Solana example to the Aptos Move example directory
    - In the Aptos Move example directory, run:
      ```bash
