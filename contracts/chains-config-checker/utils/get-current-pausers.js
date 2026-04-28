@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { ethers } = require('ethers');
 const { findDeploymentBlock, isValidAddress } = require('./get-deployment-block');
+const { queryEventsInChunks } = require('./lib/events');
 
 // PauserSet event signatures
 const PAUSER_SET_ABI = [
@@ -10,9 +11,6 @@ const PAUSER_SET_ABI = [
   'event RemovePauser(address account)',
   'event SwapPauser(address oldAccount, address newAccount)',
 ];
-
-// Max block range for eth_getLogs (most providers limit to 50k)
-const MAX_BLOCK_RANGE = 49999;
 
 // Chain configurations from environment
 const CHAINS = {
@@ -27,25 +25,6 @@ const CHAINS = {
     pauserSetAddress: process.env.PAUSER_SET_GATEWAY,
   },
 };
-
-async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) {
-  const events = [];
-  let currentFrom = fromBlock;
-
-  while (currentFrom <= toBlock) {
-    const currentTo = Math.min(currentFrom + MAX_BLOCK_RANGE, toBlock);
-    const progress = Math.round(((currentFrom - fromBlock) / (toBlock - fromBlock)) * 100) || 0;
-    process.stdout.write(`\r    ${label}: ${progress}% (block ${currentFrom})...`);
-
-    const chunk = await contract.queryFilter(filter, currentFrom, currentTo);
-    events.push(...chunk);
-
-    currentFrom = currentTo + 1;
-  }
-
-  console.log(`\r    ${label}: 100% - found ${events.length} events`);
-  return events;
-}
 
 async function getPausersForChain(chainConfig) {
   const { name, rpcUrl, pauserSetAddress } = chainConfig;

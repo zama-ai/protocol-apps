@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { ethers } = require('ethers');
 const { isValidAddress } = require('./get-deployment-block');
+const { OWNABLE2STEP_ABI, ZERO_ADDRESS, getOwnerAndPending } = require('./lib/owner-pending');
 
 const CONTRACTS = {
   ethereumAcl: {
@@ -16,13 +17,6 @@ const CONTRACTS = {
     addrEnv: 'ZAMA_GATEWAY_CONFIG_GATEWAY',
   },
 };
-
-const OWNABLE2STEP_ABI = [
-  'function owner() view returns (address)',
-  'function pendingOwner() view returns (address)',
-];
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 function buildConfigs() {
   return Object.entries(CONTRACTS).map(([key, contract]) => ({
@@ -43,10 +37,7 @@ async function getOwnerInfo(config) {
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const contract = new ethers.Contract(contractAddress, OWNABLE2STEP_ABI, provider);
 
-  const [owner, pendingOwner] = await Promise.all([
-    contract.owner(),
-    contract.pendingOwner(),
-  ]);
+  const { owner, pendingOwner } = await getOwnerAndPending(contract);
 
   return { name, contractAddress, owner, pendingOwner };
 }

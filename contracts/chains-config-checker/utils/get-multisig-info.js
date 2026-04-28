@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { ethers } = require('ethers');
 const { findDeploymentBlock } = require('./get-deployment-block');
+const { queryEventsInChunks } = require('./lib/events');
 const { Connection, PublicKey } = require('@solana/web3.js');
 const multisig = require('@sqds/multisig');
 const { Multisig } = multisig.accounts;
@@ -44,27 +45,6 @@ const PERMISSION_MANAGER_ABI = [
   'event Revoked(bytes32 indexed permissionId, address indexed here, address where, address indexed who)',
   'function hasPermission(address _where, address _who, bytes32 _permissionId, bytes _data) view returns (bool)'
 ];
-
-const MAX_BLOCK_RANGE = 49999;
-
-async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) {
-  const events = [];
-  let currentFrom = fromBlock;
-
-  while (currentFrom <= toBlock) {
-    const currentTo = Math.min(currentFrom + MAX_BLOCK_RANGE, toBlock);
-    const progress = Math.round(((currentFrom - fromBlock) / (toBlock - fromBlock)) * 100) || 0;
-    process.stdout.write(`\r    ${label}: ${progress}% (block ${currentFrom})...`);
-
-    const chunk = await contract.queryFilter(filter, currentFrom, currentTo);
-    events.push(...chunk);
-
-    currentFrom = currentTo + 1;
-  }
-
-  console.log(`\r    ${label}: 100% - found ${events.length} events`);
-  return events;
-}
 
 async function getSafeInfo(chainConfig) {
   const { name, rpcEnv, safeAddressEnv } = chainConfig;

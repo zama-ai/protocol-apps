@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
-const { ethers } = require('ethers');
 const { isValidAddress } = require('./get-deployment-block');
+const { getOwnerAndDelegateForChain } = require('./lib/owner-delegate');
 
 // Chain configurations from environment (OFT/OFTAdapter per chain)
 const CHAINS = {
@@ -28,15 +28,6 @@ const CHAINS = {
   },
 };
 
-const ADAPTER_OR_OFT_ABI = [
-  'function owner() view returns (address)',
-  'function endpoint() view returns (address)',
-];
-
-const ENDPOINT_ABI = [
-  'function delegates(address) view returns (address)',
-];
-
 function buildChainConfigs() {
   const configs = [];
   for (const [key, chain] of Object.entries(CHAINS)) {
@@ -50,43 +41,6 @@ function buildChainConfigs() {
     });
   }
   return configs;
-}
-
-async function getOwnerAndDelegateForChain(chainConfig) {
-  const { name, rpcUrl, contractAddress } = chainConfig;
-
-  if (!rpcUrl) {
-    throw new Error(`[${name}] RPC URL is not configured`);
-  }
-
-  if (!contractAddress) {
-    throw new Error(`[${name}] Contract address is not configured`);
-  }
-
-  if (!isValidAddress(contractAddress)) {
-    throw new Error(`[${name}] Invalid contract address format`);
-  }
-
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const app = new ethers.Contract(contractAddress, ADAPTER_OR_OFT_ABI, provider);
-
-  const [owner, endpointAddress] = await Promise.all([
-    app.owner(),
-    app.endpoint(),
-  ]);
-
-  const endpoint = new ethers.Contract(endpointAddress, ENDPOINT_ABI, provider);
-  const delegate = await endpoint.delegates(contractAddress);
-
-  const equal = owner === delegate;
-
-  return {
-    name,
-    contractAddress,
-    owner,
-    delegate,
-    equal
-  };
 }
 
 async function printOwnerAndDelegate(info) {
