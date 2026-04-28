@@ -67,17 +67,17 @@ describe('ERC7984Wrapper', function () {
 
   describe('supportsInterface', function () {
     it('supports IERC7984ERC20Wrapper', async function () {
-      const interfaceId = "0x1f1c62b2"; // type(IERC7984ERC20Wrapper).interfaceId
+      const interfaceId = '0x1f1c62b2'; // type(IERC7984ERC20Wrapper).interfaceId
       await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
 
     it('supports IERC1363Receiver', async function () {
-      const interfaceId = "0x88a7ca5c"; // type(IERC1363Receiver).interfaceId
+      const interfaceId = '0x88a7ca5c'; // type(IERC1363Receiver).interfaceId
       await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
 
     it('supports IERC7984', async function () {
-      const interfaceId = "0x4958f2a4"; // type(IERC7984).interfaceId
+      const interfaceId = '0x4958f2a4'; // type(IERC7984).interfaceId
       await expect(this.wrapper.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
   });
@@ -185,9 +185,7 @@ describe('ERC7984Wrapper', function () {
             ? this.token.connect(this.holder).transferAndCall(this.wrapper, amountToWrap)
             : this.wrapper.connect(this.holder).wrap(this.holder.address, amountToWrap);
 
-          await expect(tx)
-            .to.emit(this.wrapper, 'Wrap')
-            .withArgs(this.holder.address, roundedAmount, anyValue);
+          await expect(tx).to.emit(this.wrapper, 'Wrap').withArgs(this.holder.address, roundedAmount, anyValue);
         });
 
         if (viaCallback) {
