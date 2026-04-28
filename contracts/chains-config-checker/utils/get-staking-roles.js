@@ -4,8 +4,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') }
 const path = require('path');
 const { ethers } = require('ethers');
 const { findDeploymentBlock } = require('./get-deployment-block');
-
-const MAX_BLOCK_RANGE = 49999;
+const { queryEventsInChunks } = require('./lib/events');
 
 // Both networks read RPC_ETHEREUM; point it at an Ethereum mainnet or Sepolia
 // archive RPC depending on which --mainnet/--testnet flag you pass.
@@ -50,25 +49,6 @@ function parseNetworkFlag(argv) {
     process.exit(1);
   }
   return flags[0] === '--testnet' ? 'testnet' : 'mainnet';
-}
-
-async function queryEventsInChunks(contract, filter, fromBlock, toBlock, label) {
-  const events = [];
-  let currentFrom = fromBlock;
-
-  while (currentFrom <= toBlock) {
-    const currentTo = Math.min(currentFrom + MAX_BLOCK_RANGE, toBlock);
-    const progress = Math.round(((currentFrom - fromBlock) / (toBlock - fromBlock)) * 100) || 0;
-    process.stdout.write(`\r    ${label}: ${progress}% (block ${currentFrom})...`);
-
-    const chunk = await contract.queryFilter(filter, currentFrom, currentTo);
-    events.push(...chunk);
-
-    currentFrom = currentTo + 1;
-  }
-
-  console.log(`\r    ${label}: 100% - found ${events.length} events`);
-  return events;
 }
 
 // Build a set of all known OperatorStaking addresses (lowercased) for cross-referencing
