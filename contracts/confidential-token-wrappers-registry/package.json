@@ -54,5 +54,25 @@
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "test": "hardhat test",
     "test:sepolia": "hardhat test --network sepolia"
+  },
+  "overrides": {
+    "@openzeppelin/hardhat-upgrades": {
+      "axios": "^1.15.0"
+    },
+    "hardhat-gas-reporter": {
+      "axios": "^1.15.0"
+    },
+    "hardhat-deploy": {
+      "axios": "^0.31.0"
+    },
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "mocha": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "solidity-coverage": {
+      "serialize-javascript": "^7.0.3"
+    }
   }
 }

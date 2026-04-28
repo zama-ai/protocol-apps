@@ -1,3 +1,6 @@
+[!WARNING]
+**This repository is deprecated and archived.** It is no longer maintained. Secure use of the features this repository provides cannot be guaranteed.
+
 # PauserSetWrapper
 
 This project contains the PauserSetWrapper contract, which allows pausers from a PauserSet contract to call specific functions on target contracts.
