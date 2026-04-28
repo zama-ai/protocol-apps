@@ -9,6 +9,7 @@ import 'hardhat-deploy';
 import 'hardhat-gas-reporter';
 import 'hardhat-ignore-warnings';
 import '@fhevm/hardhat-plugin';
+import { glob } from 'glob';
 import { task } from 'hardhat/config';
 import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from 'hardhat/types';
 import { resolve } from 'path';
@@ -17,9 +18,8 @@ import 'hardhat-exposed';
 
 import './tasks/accounts';
 import './tasks/deploy';
-import './tasks/deploy-upgrade-impl';
+import './tasks/upgrades/confidentialWrapperV2';
 import './tasks/verify';
-import './tasks/verify-upgrade-impl';
 
 // Get the environment configuration from .env file
 //
@@ -58,6 +58,20 @@ task('test', 'Runs the test suite with environment variables from .env.example')
   }
   await runSuper();
 });
+
+// Run the test suite for tasks with environment variables from `.env.example`
+task('test:tasks', 'Runs the test suite for tasks with environment variables from .env.example').setAction(
+  async (_, hre) => {
+    // Load `.env.example`
+    const envExamplePath = resolve(__dirname, '.env.example');
+    if (existsSync(envExamplePath)) {
+      dotenv.config({ path: envExamplePath, override: true });
+    }
+
+    const testFiles = await glob('test-tasks/**/*.test.ts');
+    await hre.run('test', { testFiles });
+  },
+);
 
 const config: HardhatUserConfig = {
   solidity: {
