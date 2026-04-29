@@ -65,11 +65,11 @@ describe('ERC7984', function () {
 
   describe('ERC165', async function () {
     it('should support IERC7984', async function () {
-      const interfaceId = "0x4958f2a4"; // type(IERC7984).interfaceId
+      const interfaceId = '0x4958f2a4'; // type(IERC7984).interfaceId
       await expect(this.token.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
     it('should support IERC165', async function () {
-      const interfaceId = "0x01ffc9a7"; // type(IERC165).interfaceId
+      const interfaceId = '0x01ffc9a7'; // type(IERC165).interfaceId
       await expect(this.token.supportsInterface(interfaceId)).to.eventually.equal(true);
     });
     it('should not support interface', async function () {
