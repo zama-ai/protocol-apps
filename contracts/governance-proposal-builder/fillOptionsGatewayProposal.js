@@ -4,6 +4,7 @@ require('dotenv').config({ quiet: true })
 const { Options } = require('@layerzerolabs/lz-v2-utilities')
 const {
   isAddress,
+  isHexString,
   Interface,
   JsonRpcProvider,
   keccak256,
@@ -243,7 +244,22 @@ function computeLZOptions(gasLimit, nativeValue) {
 }
 
 function buildOnChainCalldata(functionSignature, data) {
-  if (functionSignature === '') return data
+  if (!isHexString(data)) {
+    throw new Error(
+      `pre-encoded calldata must be a 0x-prefixed hex string with whole bytes (got ${JSON.stringify(data)})`
+    )
+  }
+
+  if (functionSignature === '') {
+    const byteLen = (data.length - 2) / 2
+    if (byteLen < 4) {
+      throw new Error(
+        `pre-encoded calldata must be at least 4 bytes for the selector (got ${byteLen} bytes: ${data})`
+      )
+    }
+    return data
+  }
+
   const selector = dataSlice(keccak256(toUtf8Bytes(functionSignature)), 0, 4)
   return concat([selector, data])
 }
