@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { ethers } = require('ethers');
 const { isValidAddress } = require('./get-deployment-block');
+const { ZERO_ADDRESS, getOwnerAndPending } = require('./lib/owner-pending');
 
 const REGISTRY_ABI = [
   'function owner() view returns (address)',
@@ -17,16 +18,6 @@ const WRAPPER_ABI = [
 ];
 
 const ERC20_SYMBOL_ABI = ['function symbol() view returns (string)'];
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-
-async function getOwnerAndPending(contract) {
-  const [owner, pendingOwner] = await Promise.all([
-    contract.owner(),
-    contract.pendingOwner(),
-  ]);
-  return { owner, pendingOwner };
-}
 
 function printEntry(label, address, owner, pendingOwner) {
   console.log(`\n[${label}]`);
