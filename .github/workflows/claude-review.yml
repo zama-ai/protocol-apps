@@ -22,7 +22,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: claude-review-${{ github.repository }}-${{ github.event.issue.number }}
+  # Only @claude comments share the per-PR group, so a new @claude cancels an in-progress one.
+  # Other issue_comment events (e.g. the tracking/result comments this workflow posts via the
+  # GitHub App token) get a unique per-comment group, so they can't cancel an in-progress run.
+  # The job-level `if:` skips those non-@claude runs; the group split prevents cross-cancellation.
+  group: ${{ contains(github.event.comment.body, '@claude') && format('claude-review-{0}-{1}', github.repository, github.event.issue.number) || format('claude-review-noop-{0}', github.event.comment.id) }}
   cancel-in-progress: true
 
 jobs:
