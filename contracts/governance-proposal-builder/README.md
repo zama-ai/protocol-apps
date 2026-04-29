@@ -20,15 +20,6 @@ Create a `.env` file based on `.env.example`:
 cp .env.example .env
 ```
 
-The `fill-options-gateway-proposal:<network>` script needs an RPC URL for
-the chosen network in order to fork the Gateway chain and estimate
-`lzReceive` gas:
-
-| Flag                  | Required env var          |
-|-----------------------|---------------------------|
-| `--network mainnet`   | `RPC_GATEWAY_MAINNET`     |
-| `--network testnet`   | `RPC_GATEWAY_TESTNET`     |
-
 ## Available scripts
 
 Currently availabe scripts are:
@@ -80,7 +71,7 @@ canonical structure of `gateway-proposal-temp.json`:
   - mainnet: `0x1c5D750D18917064915901048cdFb2dB815e0910`
   - testnet: `0x909692c2f4979ca3fa11B5859d499308A1ec4932`
 - currently it only allows `values` and `operations` to be arrays of `"0"`s.
-- each `targets[i]` has non-empty bytecode on the forked Gateway chain.
+- each `targets[i]` has non-empty bytecode on the Gateway chain.
 
 #### How `options` is computed
 

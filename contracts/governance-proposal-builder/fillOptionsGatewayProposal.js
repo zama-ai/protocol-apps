@@ -432,7 +432,7 @@ async function main() {
   const rpcUrl = process.env[rpcEnvVar]
   if (!rpcUrl || rpcUrl.trim() === '') {
     console.error(
-      `Error: missing env var ${rpcEnvVar} (required to fork the ${args.network} Gateway chain). Set it in .env (see .env.example).`
+      `Error: missing env var ${rpcEnvVar} (required to fetch the ${args.network} Gateway chain). Set it in .env (see .env.example).`
     )
     process.exit(1)
   }
