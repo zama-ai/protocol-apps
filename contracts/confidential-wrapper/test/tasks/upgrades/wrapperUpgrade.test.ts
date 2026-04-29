@@ -5,6 +5,7 @@ import {
 } from '../../../tasks/upgrades/confidentialWrapperV2';
 import { expect } from 'chai';
 import hre from 'hardhat';
+import { FunctionFragment } from 'ethers';
 
 describe('ConfidentialWrapperV2 Upgrade', function () {
   const WRAPPER_NAME = 'Upgrade Test Wrapper';
@@ -58,9 +59,9 @@ describe('ConfidentialWrapperV2 Upgrade', function () {
       // Ensure the new implementation is a different address
       expect(newImplAddress).to.not.equal(initialImplAddress);
 
-      // Upgrade the proxy to the new implementation with reinitializeV2() calldata
-      const calldata = '0xc4115874'; // returned via: `cast calldata "reinitializeV2()"`
-      await wrapper.connect(deployerSigner).upgradeToAndCall(newImplAddress, calldata);
+      // Upgrade the proxy to the new implementation with reinitializeV2() selector
+      const selector = FunctionFragment.from('reinitializeV2()').selector;
+      await wrapper.connect(deployerSigner).upgradeToAndCall(newImplAddress, selector);
 
       // Get the upgraded ConfidentialWrapperV2 contract
       const wrapperV2 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V2_CONTRACT, proxyAddress);

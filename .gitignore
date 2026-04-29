@@ -54,6 +54,9 @@ tmp/
 *-local.*
 .local
 
+# Devcontainer
+.devcontainer
+
 # Node.js specific
 #-------------------------------------------------------------------------------
 # Dependency directories
