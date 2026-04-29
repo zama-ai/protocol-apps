@@ -248,10 +248,17 @@ function buildOnChainCalldata(functionSignature, data) {
   return concat([selector, data])
 }
 
-async function estimatePerCallGas(provider, safeProxy, proposalArgs) {
+async function estimatePerCallGas(provider, safeProxy, proposalArgs, network) {
   const { targets, functionSignatures, datas } = proposalArgs
   const estimates = []
   for (let i = 0; i < targets.length; i++) {
+    const code = await provider.getCode(targets[i])
+    if (code === '0x') {
+      throw new Error(
+        `target #${i} (${targets[i]}) has no bytecode on the ${network} Gateway chain`
+      )
+    }
+
     const calldata = buildOnChainCalldata(functionSignatures[i], datas[i])
     let gas
     try {
@@ -444,7 +451,7 @@ async function main() {
 
   let perCallEstimates
   try {
-    perCallEstimates = await estimatePerCallGas(provider, safeProxy, proposal.arguments)
+    perCallEstimates = await estimatePerCallGas(provider, safeProxy, proposal.arguments, args.network)
   } catch (err) {
     console.error(`Error: ${err.message}`)
     process.exit(1)
