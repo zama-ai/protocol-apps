@@ -1,5 +1,6 @@
-import { Options } from '@layerzerolabs/lz-v2-utilities'
 import { task, types } from 'hardhat/config'
+
+import { Options } from '@layerzerolabs/lz-v2-utilities'
 
 // eg use: `npx hardhat task:getLZOptions --gas-limit 300000`
 task('task:getLZOptions')

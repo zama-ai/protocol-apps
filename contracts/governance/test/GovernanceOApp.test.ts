@@ -2,10 +2,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import { Contract, ContractFactory } from 'ethers'
 import { deployments, ethers } from 'hardhat'
-import { execTransaction } from './utils/execTransaction'
 
-import { Options } from '@layerzerolabs/lz-v2-utilities'
 import { EndpointId } from '@layerzerolabs/lz-definitions'
+import { Options } from '@layerzerolabs/lz-v2-utilities'
+
+import { execTransaction } from './utils/execTransaction'
 
 describe('GovernanceOApp Test', function () {
     const eidA = EndpointId.SEPOLIA_V2_TESTNET

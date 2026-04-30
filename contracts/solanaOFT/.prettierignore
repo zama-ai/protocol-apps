@@ -12,3 +12,4 @@ out/
 *.lock
 package-lock.json
 package.json
+deployments/

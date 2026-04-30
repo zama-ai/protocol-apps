@@ -1,5 +1,5 @@
+import { Contract, Signer } from 'ethers'
 import { ethers } from 'hardhat'
-import { Signer, Contract } from 'ethers'
 
 /**
  * Executes a transaction on the Safe contract.
