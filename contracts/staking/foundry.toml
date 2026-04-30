@@ -18,3 +18,11 @@ remappings = [
 
 [invariant]
 fail_on_revert = true
+
+[profile.ci.invariant]
+runs = 100
+fail_on_revert = true
+
+[profile.ciheavy.invariant]
+runs = 10000
+fail_on_revert = true
