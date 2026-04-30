@@ -1,0 +1,49 @@
+{
+  "env": {
+    "ENABLE_LSP_TOOL": "1"
+  },
+  "extraKnownMarketplaces": {
+    "zama-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "zama-ai/zama-marketplace"
+      }
+    },
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "zama-developer@zama-marketplace": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "building-secure-contracts@trailofbits": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git diff:*)",
+      "Bash(npm run build)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck)",
+      "Bash(npm test)",
+      "Bash(npm run test)",
+      "Bash(npm run test:*)",
+      "Bash(npm run format)",
+      "Bash(npm run format:*)",
+      "Bash(npx hardhat compile)",
+      "Bash(npx hardhat test)",
+      "Bash(npx hardhat:*)"
+    ],
+    "ask": [
+      "Bash(rm:*)",
+      "Bash(git push:*)",
+      "Bash(npm publish)",
+      "Bash(npm publish:*)"
+    ],
+    "deny": ["Read(./.env)", "Read(./.env.*)"]
+  }
+}
