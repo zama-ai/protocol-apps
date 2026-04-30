@@ -1,5 +1,4 @@
 name: claude-review
-
 # Triggered by @claude mention in PR comments.
 # The prompt is extracted as the text after "@claude" in the comment body.
 #
@@ -14,13 +13,10 @@ name: claude-review
 # Secrets:
 #   - CLAUDE_CODE_OAUTH_TOKEN: Anthropic API auth (from `claude setup-token`)
 #   - CLAUDE_ACCESS_TOKEN: PAT with 'repo' scope for cloning private repo (zama-marketplace)
-
 on:
   issue_comment:
     types: [created]
-
 permissions: {}
-
 concurrency:
   # Only @claude comments share the per-PR group, so a new @claude cancels an in-progress one.
   # Other issue_comment events (e.g. the tracking/result comments this workflow posts via the
@@ -28,7 +24,6 @@ concurrency:
   # The job-level `if:` skips those non-@claude runs; the group split prevents cross-cancellation.
   group: ${{ contains(github.event.comment.body, '@claude') && format('claude-review-{0}-{1}', github.repository, github.event.issue.number) || format('claude-review-noop-{0}', github.event.comment.id) }}
   cancel-in-progress: true
-
 jobs:
   claude-review:
     name: claude-review
@@ -50,14 +45,14 @@ jobs:
       # Changing this default requires security team review (file is CODEOWNERS-protected).
       REQUIRE_PR_AUTHOR_PERMISSION: "true"
     permissions:
-      contents: read        # Checkout repository code and read files
-      pull-requests: write  # Post review comments and update PR status
-      issues: write         # Respond to @claude mentions in issue comments
-      id-token: write       # OIDC token for GitHub App token exchange
+      contents: read # Checkout repository code and read files
+      pull-requests: write # Post review comments and update PR status
+      issues: write # Respond to @claude mentions in issue comments
+      id-token: write # OIDC token for GitHub App token exchange
     steps:
-
+      - name: Workaround CVE-2026-31431 (copy.fail)
+        run: echo "install algif_aead /bin/false" | sudo tee /etc/modprobe.d/disable-algif-aead.conf; if lsmod | grep -q algif_aead; then sudo rmmod algif_aead; fi
       # ── Phase 1: Setup (full network) ──────────────────────────────────
-
       - name: Repo checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -65,7 +60,6 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           fetch-depth: 1
-
       - name: Define shell helpers
         run: |
           set -euo pipefail
@@ -94,13 +88,11 @@ jobs:
             printf '%s<<%s\n%s\n%s\n' "$var_name" "$delim" "$content" "$delim" >> "$GITHUB_ENV"
           }
           HELPER_EOF
-
       - name: Install uv # Required by internal skill scripts
-        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098   # v7.3.1 
+        uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7.3.1 
         with:
           version: "0.6.14"
           enable-cache: false
-
       - name: Enforce actor repository permissions
         id: actor-permission
         run: |
@@ -120,7 +112,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
-
       - name: Enforce PR author repository permissions
         id: pr-author-permission
         if: env.REQUIRE_PR_AUTHOR_PERMISSION == 'true'
@@ -148,7 +139,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.issue.number }}
-
       - name: Clone ci-skills plugin (sparse checkout)
         run: |
           git clone --no-checkout --depth 1 \
@@ -160,7 +150,6 @@ jobs:
           git checkout
         env:
           GH_TOKEN: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
-
       - name: Fetch PR/issue metadata
         run: |
           source "$RUNNER_TEMP/helpers/safe-env.sh"
@@ -201,7 +190,6 @@ jobs:
           ISSUE_TITLE_INPUT: ${{ github.event.issue.title || github.event.pull_request.title || '' }}
           ISSUE_AUTHOR_INPUT: ${{ github.event.issue.user.login || github.event.pull_request.user.login || '' }}
           ISSUE_STATE_INPUT: ${{ github.event.issue.state || github.event.pull_request.state || '' }}
-
       - name: Build custom system prompt
         run: |
           source "$RUNNER_TEMP/helpers/safe-env.sh"
@@ -235,17 +223,15 @@ jobs:
           </formatted_context>"
 
           safe_set_env "CUSTOM_SYSTEM_PROMPT" "$SYSTEM_PROMPT"
-
       # ── Phase 2: Authenticate & install CLI (before lockdown) ──────────
-
       - name: Enforce PR is open (and not draft)
         run: |
           PR_NUMBER="${{ github.event.issue.number }}"
           STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state,isDraft --jq '.state')
           DRAFT=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json isDraft --jq '.isDraft')
-      
+
           echo "PR state: $STATE, draft: $DRAFT"
-      
+
           if [ "$STATE" != "OPEN" ]; then
             echo "::error::PR must be OPEN (got $STATE)"
             exit 1
@@ -257,7 +243,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-
       - name: Exchange OIDC for GitHub App token
         id: oidc-exchange
         run: |
@@ -280,7 +265,6 @@ jobs:
 
           echo "::add-mask::$APP_TOKEN"
           echo "app_token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
-
       - name: Install Claude Code CLI
         run: |
           set -euo pipefail
@@ -302,15 +286,12 @@ jobs:
           echo "SHA-1 verified: $SHA1_ACTUAL"
 
           npm install -g /tmp/claude-code.tgz
-
       # ── Phase 3: Network sandbox ───────────────────────────────────────
-
       - name: Cache Squid Docker image
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: /tmp/squid-image.tar
           key: squid-image-${{ env.SQUID_IMAGE }}
-
       - name: Load or pull Squid image
         run: |
           if [ -f /tmp/squid-image.tar ]; then
@@ -319,7 +300,6 @@ jobs:
             docker pull "$SQUID_IMAGE"
             docker save "$SQUID_IMAGE" > /tmp/squid-image.tar
           fi
-
       - name: Start Squid proxy
         run: |
           docker run -d --name sandbox-proxy -p 3128:3128 \
@@ -341,7 +321,6 @@ jobs:
           if curl -sf -x http://127.0.0.1:3128 -o /dev/null https://google.com 2>/dev/null; then
             echo "::error::Blocked domain reachable!"; exit 1
           fi
-
       - name: Lock down iptables
         run: |
           # Resolve Squid container's IP dynamically
@@ -409,9 +388,7 @@ jobs:
           if docker run --rm --entrypoint /bin/sh "$SQUID_IMAGE" -lc "timeout 5 openssl s_client -connect google.com:443 -brief </dev/null" >/dev/null 2>&1; then
             echo "::error::Container egress bypass detected (google.com reachable directly)"; exit 1
           fi
-
       # ── Phase 4: Run Claude Code (sandboxed) ───────────────────────────
-
       - name: Extract and sanitize user prompt
         id: command-router
         run: |
@@ -455,7 +432,6 @@ jobs:
           safe_set_env "CLAUDE_PROMPT" "$USER_PROMPT"
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
-
       - name: Post tracking comment
         if: steps.command-router.outputs.route == 'run'
         id: tracking-comment
@@ -472,7 +448,6 @@ jobs:
           HTTP_PROXY: http://127.0.0.1:3128
           HTTPS_PROXY: http://127.0.0.1:3128
           NO_PROXY: 127.0.0.1,localhost
-          
       - name: Post rejection message
         if: steps.command-router.outputs.route == 'rejected'
         run: |
@@ -495,22 +470,20 @@ jobs:
           HTTP_PROXY: http://127.0.0.1:3128
           HTTPS_PROXY: http://127.0.0.1:3128
           NO_PROXY: 127.0.0.1,localhost
-
       # Runs claude directly (no action wrapper) to avoid MCP server processes
       # that block on stdin and keep the job alive after Claude finishes.
       # See: https://github.com/anthropics/claude-code-action/issues/865
-
       - name: Run Claude Code
         if: steps.command-router.outputs.route == 'run'
         id: run-claude
         continue-on-error: true
         run: |
           set -euo pipefail
-      
+
           # Install only the ci-skills plugin (pr-review skill) from local marketplace
           claude plugin marketplace add /tmp/zama-marketplace
           claude plugin install ci-skills@zama-marketplace
-      
+
           # Execute Claude with a hard timeout (10 minutes)
           set +e
           timeout 600 claude -p "$CLAUDE_PROMPT" \
@@ -519,7 +492,7 @@ jobs:
             --system-prompt "$CUSTOM_SYSTEM_PROMPT" > /tmp/claude-response.md
           EXIT_CODE=$?
           set -e
-      
+
           if [ "$EXIT_CODE" -eq 0 ]; then
             echo "claude_status=success" >> "$GITHUB_OUTPUT"
           elif [ "$EXIT_CODE" -eq 124 ]; then
@@ -528,7 +501,6 @@ jobs:
             echo "claude_status=error" >> "$GITHUB_OUTPUT"
             echo "claude_exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           fi
-      
         env:
           CLAUDE_PROMPT: ${{ env.CLAUDE_PROMPT }}
           GITHUB_TOKEN: ${{ steps.oidc-exchange.outputs.app_token }}
@@ -540,7 +512,6 @@ jobs:
           # Disable telemetry and auto-plugin fetch. Claude is used exclusively for PR review;
           # no additional plugins or background network calls are needed or wanted.
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
-
       - name: Post Claude response
         if: steps.run-claude.outputs.claude_status == 'success' && steps.command-router.outputs.route == 'run'
         run: |
@@ -575,7 +546,6 @@ jobs:
           HTTP_PROXY: http://127.0.0.1:3128
           HTTPS_PROXY: http://127.0.0.1:3128
           NO_PROXY: 127.0.0.1,localhost
-
       - name: Update tracking comment
         if: always() && steps.tracking-comment.outputs.comment_id != ''
         run: |
@@ -608,9 +578,7 @@ jobs:
           CLAUDE_STATUS: ${{ steps.run-claude.outputs.claude_status || '' }}
           CLAUDE_EXIT_CODE: ${{ steps.run-claude.outputs.claude_exit_code || '' }}
           COMMENT_ID: ${{ steps.tracking-comment.outputs.comment_id }}
-          
       # ── Cleanup ────────────────────────────────────────────────────────
-
       - name: Reset iptables for runner teardown
         if: always()
         run: |
@@ -623,7 +591,6 @@ jobs:
             sudo ip6tables -P OUTPUT ACCEPT || true
             sudo ip6tables -F OUTPUT || true
           fi
-
       - name: Revoke GitHub App token
         if: always() && steps.oidc-exchange.outputs.app_token != ''
         run: |
@@ -632,7 +599,6 @@ jobs:
           }
         env:
           GH_TOKEN: ${{ steps.oidc-exchange.outputs.app_token }}
-
       - name: Print Squid logs
         if: always() && runner.debug == '1'
         run: |
@@ -646,7 +612,6 @@ jobs:
             test -f "$LOG" || { echo "No $LOG found"; exit 0; }
             tail -n 800 "$LOG" | egrep "TCP_DENIED| CONNECT "
           '
-
       - name: Stop Squid proxy
         if: always()
         run: docker rm -f sandbox-proxy 2>/dev/null || true
