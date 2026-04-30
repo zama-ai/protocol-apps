@@ -60,7 +60,9 @@ This can be done easily, since your deployer hot wallet is still the owner and d
 
 You just have to run:
 
-`npx hardhat lz:oapp:wire --oapp-config layerzero.config.mainnet.hyperevm.ts --skip-connections-from-eids <EID_ETHEREUM_V2_MAINNET>`
+```
+npx hardhat lz:oapp:wire --oapp-config layerzero.config.mainnet.hyperevm.ts --skip-connections-from-eids <EID_ETHEREUM_V2_MAINNET>
+```
 
 In previous command, replace `<EID_ETHEREUM_V2_MAINNET>` by `30101`.
 
