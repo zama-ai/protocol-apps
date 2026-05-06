@@ -26,6 +26,7 @@ Currently availabe scripts are:
 ```
 [*] fill-options-gateway-proposal
 [*] decode-options-gateway-proposal
+[*] aragon-proposal-inspector
 ```
 
 ### fillOptionsGatewayProposal
@@ -134,3 +135,67 @@ Options hex:   0x000301001101000000000000000000000000000493e0
 gasLimit:      300000
 nativeValue:   0
 ```
+
+### aragonProposalInspector
+
+Independent, RPC-only viewer for a pending proposal on an Aragon
+**Multisig** plugin. Useful as a sanity check before voting in case the
+Aragon front-end has been compromised: this script bypasses
+all Aragon-hosted infrastructure.
+
+#### Trust path
+
+For the proposal content itself: only the chosen RPC endpoint and ethers js library. No Aragon subgraph or
+hosted API is consulted. Point `RPC_ETHEREUM` at an endpoint
+you trust — ideally your own node.
+
+For the optional abi-decoding of calldata and contract names: also Etherscan. 
+The abi-decoding is still done and checked locally, we use Etherscan only for fetching 
+the ABIs and contrat names, so we don't actually trust Etherscan for the security of decoded data.
+
+#### Usage
+
+```bash
+# Reads RPC from .env (RPC_ETHEREUM)
+npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id 5
+
+# Or override the RPC inline (e.g. to point at Sepolia, your own node, ...)
+npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id 5 --rpc https://your.rpc
+
+# Machine-readable output
+npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id 5 --json
+```
+
+The leading `--` is required so npm forwards flags to the script. Required
+flags are `--plugin` (the Multisig plugin address — **not** the DAO address;
+in Aragon OSx, proposals live on the plugin) and `--id` (decimal or
+0x-hex non-negative integer).
+
+#### Optional: Etherscan enrichment
+
+If `ETHERSCAN_API_KEY` is set in `.env`, every action's `to` address is
+additionally looked up via the Etherscan v2 API
+(single key across all supported chains). For
+each address, the inspector prints:
+
+- the contract `name` and verification status,
+- if the contract is flagged as a proxy and `Implementation` is set, the
+  implementation's name + verification status,
+- the abi-decoded `function:` line + each argument, decoded against the
+  contract's own ABI when verified, falling back to the implementation ABI
+  for verified proxies.
+
+#### What it prints
+
+For the human-readable mode:
+
+- Plugin address, chain id, latest block.
+- Proposal id, `executed` flag, `approvals / minApprovals`, and
+  `canExecute`.
+- `snapshotBlock`, `startDate`, `endDate`, and a derived
+  `Window status` (not yet open / open / closed).
+- `allowFailureMap` (raw hex).
+- For each action: `to`, optional `name` (when Etherscan is enabled),
+  `value` (wei), the full raw `data`, and an optional `function:` block
+  with the decoded signature and arguments (when Etherscan is enabled and
+  the calldata could be decoded).
