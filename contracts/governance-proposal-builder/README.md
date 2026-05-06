@@ -192,9 +192,8 @@ For the human-readable mode:
 - Plugin address, chain id, latest block.
 - Proposal id, `executed` flag, `approvals / minApprovals`, and
   `canExecute`.
-- `snapshotBlock`, `startDate`, `endDate`, and a derived
+- `startDate`, `endDate`, and a derived
   `Window status` (not yet open / open / closed).
-- `allowFailureMap` (raw hex).
 - For each action: `to`, optional `name` (when Etherscan is enabled),
   `value` (wei), the full raw `data`, and an optional `function:` block
   with the decoded signature and arguments (when Etherscan is enabled and
