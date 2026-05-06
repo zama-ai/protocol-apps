@@ -13,8 +13,8 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 * **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to the Protocol DAO governance (see [governance.md](governance.md)). Ownership will then be transferred to the underlying token's owner.
 * **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](wrapper-registry.md).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
-* **Input proof**: A proof that the encrypted amount is valid. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
-* **Public decryption**: A request to publicly decrypt an encrypted amount. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
+* **Input proof**: A proof that the encrypted amount is valid. More information in the [Zama SDK documentation](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt).
+* **Public decryption**: A request to publicly decrypt an encrypted amount. More information in the [Zama SDK documentation](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt).
 
 ## Contract information
 
@@ -102,7 +102,7 @@ Accounts with a zero balance that have never held tokens cannot be the `from` ad
 {% hint style="info" %}
 ### **Input proof**
 
-To unwrap any amount of confidential tokens, the `from` address must first create an encrypted input to generate an `encryptedAmount` (`externalEuint64`) along its `inputProof`. The amount to be encrypted must use the same decimal precision as the confidential wrapper. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input).
+To unwrap any amount of confidential tokens, the `from` address must first create an encrypted input to generate an `encryptedAmount` (`externalEuint64`) along its `inputProof`. The amount to be encrypted must use the same decimal precision as the confidential wrapper. More information in the [Zama SDK documentation](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt).
 {% endhint %}
 
 ```solidity
@@ -143,7 +143,7 @@ The unwrap request must be finalized with `finalizeUnwrap`. The `unwrapRequestId
 {% hint style="info" %}
 ### **Public decryption**
 
-The encrypted amount `unwrapAmount_` emitted by the `UnwrapRequested` event must be publicly decrypted to get the `unwrapAmountCleartext` along its `decryptionProof`. More information in the [`relayer-sdk` documentation](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption).
+The encrypted amount `unwrapAmount_` emitted by the `UnwrapRequested` event must be publicly decrypted to get the `unwrapAmountCleartext` along its `decryptionProof`. More information in the [Zama SDK documentation](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt).
 {% endhint %}
 
 ```solidity

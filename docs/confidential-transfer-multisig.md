@@ -204,5 +204,4 @@ The required number of owners approve and execute the proposal through the multi
 
 - [Confidential Wrapper](confidential-wrapper.md) - Full documentation on the confidential token wrapper
 - [ACL Documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control) - Access Control List for encrypted handles
-- [Relayer SDK - Input](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/input) - Creating encrypted inputs
-- [Relayer SDK - Decryption](https://docs.zama.org/protocol/relayer-sdk-guides/fhevm-relayer/decryption/public-decryption) - Public decryption process
+- [Zama SDK](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt) - Encrypt & decrypt
