@@ -1,5 +1,5 @@
 require('dotenv').config({ quiet: true })
-const { isAddress, Interface, JsonRpcProvider, getAddress } = require('ethers')
+const { isAddress, Interface, JsonRpcProvider, getAddress, formatEther } = require('ethers')
 
 const SCRIPT_NAME = 'aragonProposalInspector.js'
 const RPC_ENV_VAR = 'RPC_ETHEREUM'
@@ -608,13 +608,21 @@ async function main() {
   for (let i = 0; i < describedActions.length; i++) {
     const a = describedActions[i]
     const e = enrichments[i]
+    const hasCode = (await provider.getCode(a.to)) !== '0x'
     console.log('')
     console.log(`  [${a.index}] to:    ${a.to}`)
-    const nameLine = formatNameLine(e)
-    if (nameLine) console.log(`      name:  ${nameLine}`)
-    console.log(`      value: ${a.value} wei`)
+    if (!hasCode && a.data !== '0x') {
+      console.log('      !!! WARNING: NO CODE AT THIS ADDRESS, BUT DATA IS NON-EMPTY !!!')
+      console.log('      !!! the call will be silently discarded by the EVM          !!!')
+    }
+    if (hasCode) {
+      const nameLine = formatNameLine(e)
+      if (nameLine) console.log(`      name:  ${nameLine}`)
+    }
+    const valueWei = BigInt(a.value)
+    console.log(`      value: ${valueWei === 0n ? '0' : `${formatEther(valueWei)} ETH (${a.value} wei)`}`)
     console.log(`      data:  ${a.data}`)
-    if (etherscanEnabled) printDecoded(e)
+    if (etherscanEnabled && hasCode) printDecoded(e)
   }
 }
 
