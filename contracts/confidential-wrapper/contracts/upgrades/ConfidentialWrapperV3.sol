@@ -15,6 +15,14 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2, ERC7984UpgradeableCompl
         _setComplianceOracle(oracle);
     }
 
+    function transferObserver(address newObserver) external onlyOwner {
+        _setObserver(newObserver);
+    }
+
+    function revokeObserver() external onlyOwner {
+        _revokeObserver();
+    }
+
     function wrap(
         address to,
         uint256 amount
