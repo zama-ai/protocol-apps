@@ -93,12 +93,12 @@ abstract contract ERC7984UpgradeableCompliance is ERC7984ERC20WrapperUpgradeable
     // --- Sanctions hooks ---
 
     function _transfer(address from, address to, euint64 amount) internal virtual override returns (euint64) {
-        _validateTransferCompliance(from, to);
+        _validateCompliance(from, to);
         return super._transfer(from, to, amount);
     }
 
     function wrap(address to, uint256 amount) public virtual override returns (euint64) {
-        _validateMintCompliance(msg.sender, to);
+        _validateCompliance(msg.sender, to);
         return super.wrap(to, amount);
     }
 
@@ -109,25 +109,13 @@ abstract contract ERC7984UpgradeableCompliance is ERC7984ERC20WrapperUpgradeable
         bytes calldata data
     ) public virtual override returns (bytes4) {
         address to = data.length < 20 ? from : address(bytes20(data));
-        _validateMintCompliance(from, to);
+        _validateCompliance(from, to);
         return super.onTransferReceived(operator, from, amount, data);
     }
 
     function _unwrap(address from, address to, euint64 amount) internal virtual override returns (bytes32) {
-        _validateUnwrapCompliance(from, to);
+        _validateCompliance(from, to);
         return super._unwrap(from, to, amount);
-    }
-
-    function _validateTransferCompliance(address from, address to) internal virtual {
-        _validateCompliance(from, to);
-    }
-
-    function _validateMintCompliance(address sender, address to) internal virtual {
-        _validateCompliance(sender, to);
-    }
-
-    function _validateUnwrapCompliance(address from, address to) internal virtual {
-        _validateCompliance(from, to);
     }
 
     function _validateCompliance(address from, address to) internal virtual {
