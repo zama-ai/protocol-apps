@@ -189,12 +189,20 @@ each address, the inspector prints:
 
 For the human-readable mode:
 
-- Plugin address, chain id, latest block.
-- Proposal id, `executed` flag, `approvals / minApprovals`, and
-  `canExecute`.
-- `startDate`, `endDate`, and a derived
-  `Window status` (not yet open / open / closed).
-- For each action: `to`, optional `name` (when Etherscan is enabled),
-  `value` (wei), the full raw `data`, and an optional `function:` block
-  with the decoded signature and arguments (when Etherscan is enabled and
-  the calldata could be decoded).
+- `plugin`: the plugin address,
+- `chainId`: the chain id,
+- `latestBlock`: the latest block fetched from the RPC,
+- `proposalId`: the proposal id,
+- `executed`: if the proposal has been executed,
+- `approvals`: the number of approvals received vs the minimum number of approvals required,
+- `startDate`: the proposal's start date,
+- `endDate`: the proposal's end date,
+- `windowStatus`: not yet open, open, or closed.
+- `etherscanEnabled`: if Etherscan is enabled,
+- `actions`: the number and details of all actions in the proposal. For each:
+  - `to`: the proxy contract address
+  - (optional) `name`: Etherscan information (when enabled), including: name, current implementation address, verification status,
+  - `value`: in wei, 
+  - `data`: the full raw calldata, 
+  - (optional) `function`: the decoded signature and arguments (when Etherscan is enabled and
+  the calldata can be decoded).
