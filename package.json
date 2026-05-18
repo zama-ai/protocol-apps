@@ -2,7 +2,8 @@
   "name": "protocol-apps",
   "private": true,
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "setup:claude": "node scripts/setup-claude.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
