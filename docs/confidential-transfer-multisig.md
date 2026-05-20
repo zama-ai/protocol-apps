@@ -57,7 +57,7 @@ npx hardhat task:userDecrypt \
 
 Currently there are two ways to do a confidential transfer. Better and more practical methods will become available in the future, once fhEVM will support new features (such as user delegated decryption, ACL simplifications, EIP-1271 support, etc).
 
-1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](https://github.com/zama-ai/protocol-apps/blob/617169bae0ca34998ce39676e5c13c0bbeebcd58/scripts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
+1/ **Confidential transfer with helper contract**: multi-step method leveraging the [`FHEVMMultiSigHelper.sol`](https://github.com/zama-ai/protocol-apps/blob/main/scripts/fhevm-cli/contracts/FHEVMMultiSigHelper.sol) contract to properly handle newly encrypted inputs and ACL permissions. This requires several transactions but is more flexible than the second method, and could be used to send only part of the multisig confidential balance.
 
 2/ **Not recommended: Leaky transfer of whole balance**: this is a quick and dirty workaround, where the owners would transfer the current confidential balance handle of the multisig in a single transaction. This method would leak the fact that the multisig is sending its whole balance to the receiver. It could even be done blindly to save time and gas (not recommended), if the owners skip the steps from [previous section](#reading-the-balance-of-a-multisig-account).
 
