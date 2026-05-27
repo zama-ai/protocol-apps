@@ -16,15 +16,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  statuses: write
-  pull-requests: read
-
 jobs:
   dispatch:
     name: Dispatch private security analysis
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      statuses: write      # post security/fuzzing commit statuses
+      pull-requests: read  # list changed files via GET /pulls/{number}/files
 
     steps:
       - name: Check for contract changes
@@ -33,12 +32,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           COMMIT: ${{ github.event.pull_request.head.sha }}
           PR: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           post_failure() {
             gh api --method POST \
-              "repos/${{ github.repository }}/statuses/$COMMIT" \
+              "repos/$REPOSITORY/statuses/$COMMIT" \
               -f state=failure \
               -f context="security/fuzzing" \
               -f description="$1" \
@@ -47,7 +47,7 @@ jobs:
 
           set +e
           changed=$(gh api --paginate \
-            "repos/${{ github.repository }}/pulls/$PR/files" \
+            "repos/$REPOSITORY/pulls/$PR/files" \
             --jq '.[].filename')
           api_rc=$?
           set -e
@@ -68,9 +68,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           COMMIT: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           gh api --method POST \
-            "repos/${{ github.repository }}/statuses/$COMMIT" \
+            "repos/$REPOSITORY/statuses/$COMMIT" \
             -f state=success \
             -f context="security/fuzzing" \
             -f description="No contract changes — skipped"
@@ -80,9 +81,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           COMMIT: ${{ github.event.pull_request.head.sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           gh api --method POST \
-            "repos/${{ github.repository }}/statuses/$COMMIT" \
+            "repos/$REPOSITORY/statuses/$COMMIT" \
             -f state=pending \
             -f context="security/fuzzing" \
             -f description="Security analysis queued" \
@@ -95,6 +97,7 @@ jobs:
           COMMIT: ${{ github.event.pull_request.head.sha }}
           PR: ${{ github.event.pull_request.number }}
           DISPATCH_TOKEN: ${{ secrets.SECURITY_DISPATCH_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
@@ -110,7 +113,7 @@ jobs:
 
           if [[ "$dispatch_rc" -ne 0 ]]; then
             gh api --method POST \
-              "repos/${{ github.repository }}/statuses/$COMMIT" \
+              "repos/$REPOSITORY/statuses/$COMMIT" \
               -f state=failure \
               -f context="security/fuzzing" \
               -f description="Security analysis dispatch failed"
