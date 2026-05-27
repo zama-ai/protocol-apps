@@ -1,0 +1,118 @@
+name: Security Analysis Gate
+
+# Tier 1 — public repo dispatcher. Does only API work; never checks out
+# or executes PR code. Runs on pull_request (not pull_request_target) so
+# fork PRs are explicitly not gated — a maintainer must push a fork branch
+# to this repo to trigger private analysis.
+#
+# Fail-closed contract: every gh api call either succeeds or posts
+# security/fuzzing=failure.
+#
+# Required secret: SECURITY_DISPATCH_TOKEN — fine-grained PAT with
+#   contents:write on zama-ai/protocol-apps-security (for repository_dispatch)
+# GITHUB_TOKEN handles all status writes on this repo (statuses: write below).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  statuses: write
+  pull-requests: read
+
+jobs:
+  dispatch:
+    name: Dispatch private security analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check for contract changes
+        id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          post_failure() {
+            gh api --method POST \
+              "repos/${{ github.repository }}/statuses/$COMMIT" \
+              -f state=failure \
+              -f context="security/fuzzing" \
+              -f description="$1" \
+              -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          }
+
+          set +e
+          changed=$(gh api --paginate \
+            "repos/${{ github.repository }}/pulls/$PR/files" \
+            --jq '.[].filename')
+          api_rc=$?
+          set -e
+
+          if [[ "$api_rc" -ne 0 ]]; then
+            post_failure "Security analysis dispatch failed: could not fetch changed files"
+            exit 1
+          fi
+
+          if printf '%s\n' "$changed" | grep -q '^contracts/'; then
+            echo "has_contracts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_contracts=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post success — no security analysis needed
+        if: steps.files.outputs.has_contracts == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST \
+            "repos/${{ github.repository }}/statuses/$COMMIT" \
+            -f state=success \
+            -f context="security/fuzzing" \
+            -f description="No contract changes — skipped"
+
+      - name: Post pending status
+        if: steps.files.outputs.has_contracts == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST \
+            "repos/${{ github.repository }}/statuses/$COMMIT" \
+            -f state=pending \
+            -f context="security/fuzzing" \
+            -f description="Security analysis queued" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Dispatch private security analysis
+        if: steps.files.outputs.has_contracts == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+          DISPATCH_TOKEN: ${{ secrets.SECURITY_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          set +e
+          GH_TOKEN="$DISPATCH_TOKEN" gh api \
+            --method POST \
+            repos/zama-ai/protocol-apps-security/dispatches \
+            -f event_type=pr-fuzz \
+            -F client_payload[commit_sha]="$COMMIT" \
+            -F client_payload[pr_number]="$PR"
+          dispatch_rc=$?
+          set -e
+
+          if [[ "$dispatch_rc" -ne 0 ]]; then
+            gh api --method POST \
+              "repos/${{ github.repository }}/statuses/$COMMIT" \
+              -f state=failure \
+              -f context="security/fuzzing" \
+              -f description="Security analysis dispatch failed"
+            exit 1
+          fi
