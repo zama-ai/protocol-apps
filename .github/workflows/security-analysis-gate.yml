@@ -103,8 +103,8 @@ jobs:
             --method POST \
             repos/zama-ai/protocol-apps-security/dispatches \
             -f event_type=pr-fuzz \
-            -F client_payload[commit_sha]="$COMMIT" \
-            -F client_payload[pr_number]="$PR"
+            -F "client_payload[commit_sha]=$COMMIT" \
+            -F "client_payload[pr_number]=$PR"
           dispatch_rc=$?
           set -e
 
