@@ -376,4 +376,4 @@ These files are the reusable base layer for a native confidential token in this 
 
 ## Related registry guidance
 
-Registering native confidential tokens will be supported in the near future.
+A native confidential token registry is currently unavailable. Registering native confidential tokens will be supported in the future.
