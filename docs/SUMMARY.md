@@ -5,6 +5,7 @@
 * [Zama Token](./zama-token.md)
 * [Staking](./staking.md)
 * Confidential Tokens
+  * [Native confidential token](./confidential-token.md)
   * [Confidential wrapper](./confidential-wrapper.md)
   * [Registry](./wrapper-registry.md)
 * Governance
