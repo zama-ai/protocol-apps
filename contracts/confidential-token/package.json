@@ -1,0 +1,17 @@
+{
+  "name": "confidential-token-base",
+  "description": "Reusable base contracts for native confidential tokens",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=7.0.0"
+  },
+  "license": "BSD-3-Clause-Clear",
+  "private": true,
+  "dependencies": {
+    "@fhevm/solidity": "^0.10.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "@openzeppelin/contracts-upgradeable": "^5.1.0",
+    "@openzeppelin/confidential-contracts": "^0.4.0"
+  }
+}

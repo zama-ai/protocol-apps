@@ -1,0 +1,17 @@
+artifacts/
+cache/
+node_modules/
+.env
+types/
+typechain-types/
+coverage/
+coverage.json
+
+# Hardhat
+deployments/
+
+# Foundry
+broadcast/
+
+# Fhevm
+fhevmTemp/
