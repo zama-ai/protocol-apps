@@ -20,8 +20,8 @@ The goal of this document is to provide a clear path to follow from the referenc
 
 | Resource | Link |
 | --- | --- |
-| Upgradeable ERC-7984 | [ERC7984Upgradeable.sol](https://github.com/zama-ai/protocol-apps/blob/9ccc8e9037cbc13fe162b0c622e42e644498ea62/contracts/confidential-token/contracts/token/ERC7984Upgradeable.sol) |
-| FHE config helper | [ZamaEthereumConfigUpgradeable.sol](https://github.com/zama-ai/protocol-apps/blob/9ccc8e9037cbc13fe162b0c622e42e644498ea62/contracts/confidential-token/contracts/fhevm/ZamaEthereumConfigUpgradeable.sol) |
+| Upgradeable ERC-7984 | [ERC7984Upgradeable.sol](https://github.com/zama-ai/protocol-apps/blob/3f6a39473c3942757b9f15d0c47c6a72357606fe/contracts/confidential-token/contracts/token/ERC7984Upgradeable.sol) |
+| FHE config helper | [ZamaEthereumConfigUpgradeable.sol](https://github.com/zama-ai/protocol-apps/blob/3f6a39473c3942757b9f15d0c47c6a72357606fe/contracts/confidential-token/contracts/fhevm/ZamaEthereumConfigUpgradeable.sol) |
 | OpenZeppelin access control docs | [Access Control](https://docs.openzeppelin.com/contracts/5.x/access-control) |
 | OpenZeppelin upgradeability docs | [Writing Upgradeable Contracts](https://docs.openzeppelin.com/upgrades-plugins/writing-upgradeable) |
 | OpenZeppelin utility contracts | [Utilities](https://docs.openzeppelin.com/contracts/api/utils) |
@@ -70,7 +70,7 @@ Set either `MNEMONIC` or `PRIVATE_KEY` for deployment signing. The reference exa
 
 ### Step 3: Use the reference deployment example
 
-The deployable reference flow lives in [`scripts/native-confidential-token`](https://github.com/zama-ai/protocol-apps/tree/9ccc8e9037cbc13fe162b0c622e42e644498ea62/scripts/native-confidential-token).
+The deployable reference flow lives in [`scripts/native-confidential-token`](https://github.com/zama-ai/protocol-apps/tree/3f6a39473c3942757b9f15d0c47c6a72357606fe/scripts/native-confidential-token).
 
 The reference project uses `contracts/confidential-token` as a local package dependency. After `npm install`, the example resolves the reusable base contracts through the `confidential-token-base/...` Solidity imports.
 
@@ -200,7 +200,7 @@ function initialize(
 
 ### Step 6: Create the deployment script
 
-Create `scripts/deploy-native-token.ts`, or reuse the example from [`scripts/native-confidential-token/scripts/deploy-native-token.ts`](https://github.com/zama-ai/protocol-apps/blob/9ccc8e9037cbc13fe162b0c622e42e644498ea62/scripts/native-confidential-token/scripts/deploy-native-token.ts):
+Create `scripts/deploy-native-token.ts`, or reuse the example from [`scripts/native-confidential-token/scripts/deploy-native-token.ts`](https://github.com/zama-ai/protocol-apps/blob/3f6a39473c3942757b9f15d0c47c6a72357606fe/scripts/native-confidential-token/scripts/deploy-native-token.ts):
 
 ```ts
 import "dotenv/config";
@@ -357,14 +357,14 @@ For these patterns, rely on the official OpenZeppelin references:
 
 ## Migrating beyond the reference project
 
-The primary flow in this guide assumes you start from [`scripts/native-confidential-token`](https://github.com/zama-ai/protocol-apps/tree/9ccc8e9037cbc13fe162b0c622e42e644498ea62/scripts/native-confidential-token) and deploy from that reference project.
+The primary flow in this guide assumes you start from [`scripts/native-confidential-token`](https://github.com/zama-ai/protocol-apps/tree/3f6a39473c3942757b9f15d0c47c6a72357606fe/scripts/native-confidential-token) and deploy from that reference project.
 
-If you later want to move this flow into another repository, the reusable abstract/helper contracts live in [`contracts/confidential-token`](https://github.com/zama-ai/protocol-apps/tree/9ccc8e9037cbc13fe162b0c622e42e644498ea62/contracts/confidential-token).
+If you later want to move this flow into another repository, the reusable abstract/helper contracts live in [`contracts/confidential-token`](https://github.com/zama-ai/protocol-apps/tree/3f6a39473c3942757b9f15d0c47c6a72357606fe/contracts/confidential-token).
 
 To reuse only the base layer, vendor the following source files:
 
-* [`ERC7984Upgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/9ccc8e9037cbc13fe162b0c622e42e644498ea62/contracts/confidential-token/contracts/token/ERC7984Upgradeable.sol)
-* [`ZamaEthereumConfigUpgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/9ccc8e9037cbc13fe162b0c622e42e644498ea62/contracts/confidential-token/contracts/fhevm/ZamaEthereumConfigUpgradeable.sol)
+* [`ERC7984Upgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/3f6a39473c3942757b9f15d0c47c6a72357606fe/contracts/confidential-token/contracts/token/ERC7984Upgradeable.sol)
+* [`ZamaEthereumConfigUpgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/3f6a39473c3942757b9f15d0c47c6a72357606fe/contracts/confidential-token/contracts/fhevm/ZamaEthereumConfigUpgradeable.sol)
 
 Copying only these two Solidity files is **not** enough. They also import upstream dependencies from npm, so your project must install:
 
