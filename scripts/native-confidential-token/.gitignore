@@ -6,6 +6,15 @@ types/
 typechain-types/
 coverage/
 coverage.json
+.openzeppelin/
+.DS_Store
+.vscode/
+.idea/
+.cursor/
+.cursorrules
+.cursorignore
+.cursorignorerules
+.cursorignorerulesrules
 
 # Hardhat
 deployments/
