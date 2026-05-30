@@ -3,6 +3,10 @@ import {
   CONFIDENTIAL_WRAPPER_V2_CONTRACT,
   getConfidentialWrapperV2ImplName,
 } from '../../../tasks/upgrades/confidentialWrapperV2';
+import {
+  CONFIDENTIAL_WRAPPER_V3_CONTRACT,
+  getConfidentialWrapperV3ImplName,
+} from '../../../tasks/upgrades/confidentialWrapperV3';
 import { expect } from 'chai';
 import hre from 'hardhat';
 import { FunctionFragment, Interface } from 'ethers';
@@ -51,18 +55,17 @@ describe('ConfidentialWrapperV3 Upgrade', function () {
     const wrapperV2 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V2_CONTRACT, proxyAddress);
     const v2ImplAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
 
-    // Deploy V3 implementation and upgrade
-    const v3Factory = await hre.ethers.getContractFactory('ConfidentialWrapperV3');
-    const v3Impl = await v3Factory.deploy();
-    await v3Impl.waitForDeployment();
-    const v3ImplAddress = await v3Impl.getAddress();
+    // Deploy V3 implementation via task and upgrade
+    await hre.run('task:deployConfidentialWrapperV3Impl');
+    const v3Deployment = await hre.deployments.get(getConfidentialWrapperV3ImplName());
+    const v3ImplAddress = v3Deployment.address;
     expect(v3ImplAddress).to.not.equal(v2ImplAddress);
 
     const v3Iface = new Interface(['function reinitializeV3(address[], bytes4, bool)']);
     const v3Calldata = v3Iface.encodeFunctionData('reinitializeV3', [[], '0x00000000', false]);
     await wrapperV2.connect(deployerSigner).upgradeToAndCall(v3ImplAddress, v3Calldata);
 
-    const wrapperV3 = await hre.ethers.getContractAt('ConfidentialWrapperV3', proxyAddress);
+    const wrapperV3 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V3_CONTRACT, proxyAddress);
 
     // Implementation updated
     expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(v3ImplAddress);

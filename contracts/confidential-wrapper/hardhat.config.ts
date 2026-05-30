@@ -18,6 +18,7 @@ import 'hardhat-exposed';
 import './tasks/accounts';
 import './tasks/deploy';
 import './tasks/upgrades/confidentialWrapperV2';
+import './tasks/upgrades/confidentialWrapperV3';
 import './tasks/verify';
 
 // Get the environment configuration from .env file
