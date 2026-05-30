@@ -88,6 +88,16 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         return _getConfidentialWrapperV3Storage()._blockedUsers[user];
     }
 
+    /// @dev Returns the underlying denylist functionselector.
+    function getUnderlyingDenyListSelector() public view virtual returns (bytes4) {
+        return _getConfidentialWrapperV3Storage().underlyingDenyListSelector;
+    }
+
+    /// @dev Returns whether the underlying denylist functionselector is set.
+    function hasUnderlyingDenyListSelector() public view virtual returns (bool) {
+        return _getConfidentialWrapperV3Storage().hasUnderlyingDenyListSelector;
+    }
+
     function _blockUser(address user) internal virtual {
         require(user != address(0), CannotBlockNullAddress());
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
