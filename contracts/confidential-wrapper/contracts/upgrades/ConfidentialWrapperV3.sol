@@ -2,22 +2,27 @@
 pragma solidity ^0.8.27;
 
 import {externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
-import {ConfidentialWrapper} from "./ConfidentialWrapper.sol";
+import {ConfidentialWrapperV2} from "./ConfidentialWrapperV2.sol";
 
 /**
- * @title ConfidentialWrapperV2
+ * @title ConfidentialWrapperV3
  * @notice Upgrade contract that adds an owner-controlled denylist preventing blocked addresses
- * from participating in confidential transfers, wraps, and unwraps.
+ * from participating in confidential transfers, wraps (deposits/shields), and unwraps
+ * (withdrawals/unshields).
+ *
+ * @dev The {address(0)} sentinel used by {_mint} and {_burn} is guaranteed to never be present
+ * in the denylist because {_blockUser} reverts when called with it. This invariant lets the
+ * {_update} override check `from` and `to` unconditionally.
  */
-contract ConfidentialWrapperV2 is ConfidentialWrapper {
-    /// @custom:storage-location erc7201:fhevm_protocol.storage.ConfidentialWrapperV2
-    struct ConfidentialWrapperV2Storage {
+contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
+    /// @custom:storage-location erc7201:fhevm_protocol.storage.ConfidentialWrapperV3
+    struct ConfidentialWrapperV3Storage {
         mapping(address user => bool blocked) _blocked;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV2")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant CONFIDENTIAL_WRAPPER_V2_STORAGE_LOCATION =
-        0x348f718a5aac47227a04366f3da800aea80d61732000e333f52695ee73896600;
+    // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV3")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CONFIDENTIAL_WRAPPER_V3_STORAGE_LOCATION =
+        0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00;
 
     /// @dev Emitted when `user` is added to the denylist.
     event UserBlocked(address indexed user);
@@ -37,17 +42,18 @@ contract ConfidentialWrapperV2 is ConfidentialWrapper {
     /// @dev Thrown when attempting to unblock a user that is not on the denylist.
     error UserAlreadyUnblocked(address user);
 
-    function _getConfidentialWrapperV2Storage() internal pure returns (ConfidentialWrapperV2Storage storage $) {
+    function _getConfidentialWrapperV3Storage() internal pure returns (ConfidentialWrapperV3Storage storage $) {
         assembly {
-            $.slot := CONFIDENTIAL_WRAPPER_V2_STORAGE_LOCATION
+            $.slot := CONFIDENTIAL_WRAPPER_V3_STORAGE_LOCATION
         }
     }
 
     /**
-     * @dev Reinitializer used when upgrading from V1. Optionally seeds the denylist with `blockedUsers`.
+     * @dev Reinitializer used when upgrading from V2. Optionally seeds the denylist with `blockedUsers`.
+     * Reverts if any entry in `blockedUsers` is {address(0)} or appears more than once.
      */
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV2(address[] memory blockedUsers) public virtual reinitializer(2) {
+    function reinitializeV3(address[] memory blockedUsers) public virtual reinitializer(3) {
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
@@ -66,19 +72,19 @@ contract ConfidentialWrapperV2 is ConfidentialWrapper {
 
     /// @dev Returns whether `user` is currently on the denylist.
     function isBlocked(address user) public view virtual returns (bool) {
-        return _getConfidentialWrapperV2Storage()._blocked[user];
+        return _getConfidentialWrapperV3Storage()._blocked[user];
     }
 
     function _blockUser(address user) internal virtual {
         require(user != address(0), CannotBlockNullAddress());
-        ConfidentialWrapperV2Storage storage $ = _getConfidentialWrapperV2Storage();
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         require(!$._blocked[user], UserAlreadyBlocked(user));
         $._blocked[user] = true;
         emit UserBlocked(user);
     }
 
     function _unblockUser(address user) internal virtual {
-        ConfidentialWrapperV2Storage storage $ = _getConfidentialWrapperV2Storage();
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         require($._blocked[user], UserAlreadyUnblocked(user));
         $._blocked[user] = false;
         emit UserUnblocked(user);
