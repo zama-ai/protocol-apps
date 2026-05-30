@@ -93,6 +93,8 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /// @dev Catches confidential transfers (both parties), the wrap recipient (mint side), and the unwrap holder (burn side).
     function _update(address from, address to, euint64 amount) internal virtual override returns (euint64) {
+        // to block operators in case of confidentialTransferFrom(AndCall)
+        if (msg.sender != from) _requireNotBlocked(msg.sender);
         _requireNotBlocked(from);
         _requireNotBlocked(to);
         return super._update(from, to, amount);
@@ -100,6 +102,7 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /// @dev Catches a blocked depositor on the direct {wrap} path; the recipient is covered via {_update}.
     function wrap(address to, uint256 amount) public virtual override returns (euint64) {
+        // needed because _update is not aware of msg.sender, because it's doing a _mint, i.e from is null address
         _requireNotBlocked(msg.sender);
         return super.wrap(to, amount);
     }
@@ -111,12 +114,15 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         uint256 amount,
         bytes calldata data
     ) public virtual override returns (bytes4) {
+        // needed because _update is not aware of from, because it's doing a _mint, i.e from is null address
         _requireNotBlocked(from);
         return super.onTransferReceived(operator, from, amount, data);
     }
 
     /// @dev Catches a blocked recipient of the underlying token; the holder `from` is covered via {_update}.
     function unwrap(address from, address to, euint64 amount) public virtual override returns (bytes32) {
+        // to block operators in case of unwrap
+        if (msg.sender != from) _requireNotBlocked(msg.sender);
         _requireNotBlocked(to);
         return super.unwrap(from, to, amount);
     }
@@ -128,6 +134,9 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         externalEuint64 encryptedAmount,
         bytes calldata inputProof
     ) public virtual override returns (bytes32) {
+        // to block operators in case of unwrap
+        if (msg.sender != from) _requireNotBlocked(msg.sender);
+        // needed because _update is not aware of to, because it's doing a _burn, i.e to is null address
         _requireNotBlocked(to);
         return super.unwrap(from, to, encryptedAmount, inputProof);
     }
@@ -141,6 +150,7 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
     ) public virtual override {
+        // needed because _update is no longer called in finalizeUnwrap, because cTokens were already burnt in unwrap
         _requireNotBlocked(unwrapRequester(unwrapRequestId));
         super.finalizeUnwrap(unwrapRequestId, unwrapAmountCleartext, decryptionProof);
     }
