@@ -9,13 +9,16 @@ import {
 } from '../../../tasks/upgrades/confidentialWrapperV3';
 import { expect } from 'chai';
 import hre from 'hardhat';
-import { FunctionFragment, Interface } from 'ethers';
+import { FunctionFragment, Interface, ethers } from 'ethers';
 
 describe('ConfidentialWrapperV3 Upgrade', function () {
   const WRAPPER_NAME = 'Upgrade Test Wrapper V3';
   const WRAPPER_SYMBOL = 'cUPTEST3';
   const CONTRACT_URI =
     'data:application/json;utf8,{"name":"Upgrade Test Wrapper V3","symbol":"cUPTEST3","description":"Test wrapper for V3 upgrade flow"}';
+  const ADDRESSES_TO_BLOCK = Array.from({ length: 2 }, () =>
+    ethers.getAddress(ethers.hexlify(ethers.randomBytes(20))),
+  );
 
   async function deployV2Proxy() {
     const erc20Factory = await hre.ethers.getContractFactory('ERC20Mock');
@@ -62,7 +65,7 @@ describe('ConfidentialWrapperV3 Upgrade', function () {
     expect(v3ImplAddress).to.not.equal(v2ImplAddress);
 
     const v3Iface = new Interface(['function reinitializeV3(address[], bytes4, bool)']);
-    const v3Calldata = v3Iface.encodeFunctionData('reinitializeV3', [[], '0x00000000', false]);
+    const v3Calldata = v3Iface.encodeFunctionData('reinitializeV3', [ADDRESSES_TO_BLOCK, '0x00000000', false]);
     await wrapperV2.connect(deployerSigner).upgradeToAndCall(v3ImplAddress, v3Calldata);
 
     const wrapperV3 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V3_CONTRACT, proxyAddress);
@@ -77,8 +80,10 @@ describe('ConfidentialWrapperV3 Upgrade', function () {
     expect(await wrapperV3.owner()).to.equal(deployer);
     expect(await wrapperV3.underlying()).to.equal(underlyingAddress);
 
-    // Denylist state initialised to empty
-    expect(await wrapperV3.isBlocked(user.address)).to.equal(false);
+    // Denylist state initialised
+    for (const address of ADDRESSES_TO_BLOCK) {
+      expect(await wrapperV3.isBlocked(address)).to.be.true;
+    }
 
     // blockUser / unblockUser
     await expect(wrapperV3.connect(deployerSigner).blockUser(user.address))

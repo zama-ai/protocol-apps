@@ -45,10 +45,7 @@ async function deployConfidentialWrapperV3Impl(hre: HardhatRuntimeEnvironment) {
 }
 
 // Deploy the ConfidentialWrapperV3 implementation contract
-// After deploying the implementation, the owner should call `upgradeToAndCall(address,bytes)` on the Proxy,
-// with the address of the implementation as first argument,
-// and second argument the calldata returned by:
-//   cast calldata "reinitializeV3(address[],bytes4,bool)" "[]" "0x00000000" false
+// After deploying the implementation, the owner should call `upgradeToAndCall` on the Proxy
 // Example usage:
 // npx hardhat task:deployConfidentialWrapperV3Impl --network testnet
 task('task:deployConfidentialWrapperV3Impl').setAction(async function (_, hre) {
