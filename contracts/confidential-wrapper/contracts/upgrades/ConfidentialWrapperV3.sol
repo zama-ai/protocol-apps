@@ -13,6 +13,8 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     /// @custom:storage-location erc7201:fhevm_protocol.storage.ConfidentialWrapperV3
     struct ConfidentialWrapperV3Storage {
         mapping(address user => bool blocked) _blockedUsers;
+        bytes4 underlyingDenyListSelector;
+        bool hasUnderlyingDenyListSelector;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV3")) - 1)) & ~bytes32(uint256(0xff))
@@ -37,6 +39,15 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     /// @dev Thrown when attempting to unblock a user that is not on the denylist.
     error UserAlreadyUnblocked(address user);
 
+    /// @dev Thrown when the underlying denylist call fails.
+    error UnderlyingDenyListCallFailed();
+
+    /// @dev Thrown when the underlying denylist call returns an invalid response.
+    error InvalidUnderlyingDenyListResponse();
+
+    /// @dev Thrown when the underlying denylist call returns a true value for the given address.
+    error UnderlyingDenyListedAddress(address user);
+
     function _getConfidentialWrapperV3Storage() internal pure returns (ConfidentialWrapperV3Storage storage $) {
         assembly {
             $.slot := CONFIDENTIAL_WRAPPER_V3_STORAGE_LOCATION
@@ -48,11 +59,18 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
      * Reverts if any entry in `blockedUsers` is {address(0)} or appears more than once.
      */
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV3(address[] memory blockedUsers) public virtual reinitializer(3) {
+    function reinitializeV3(
+        address[] memory blockedUsers,
+        bytes4 underlyingDenyListSelector,
+        bool hasUnderlyingDenyListSelector
+    ) public virtual reinitializer(3) {
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
         }
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        $.underlyingDenyListSelector = underlyingDenyListSelector;
+        $.hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector;
     }
 
     /// @dev Adds `user` to the denylist. Reverts if `user` is {address(0)} or already blocked.
@@ -87,6 +105,16 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     function _requireNotBlocked(address user) internal view {
         require(!isBlocked(user), BlockedUser(user));
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        if ($.hasUnderlyingDenyListSelector) {
+            (bool success, bytes memory data) = underlying().staticcall(
+                abi.encodeWithSelector($.underlyingDenyListSelector, user)
+            );
+            if (!success) revert UnderlyingDenyListCallFailed();
+            if (data.length != 32) revert InvalidUnderlyingDenyListResponse();
+            bool value = abi.decode(data, (bool));
+            if (value == true) revert UnderlyingDenyListedAddress(user);
+        }
     }
 
     // ----- Overrides enforcing the denylist -----
