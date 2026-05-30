@@ -7,17 +7,12 @@ import {ConfidentialWrapperV2} from "./ConfidentialWrapperV2.sol";
 /**
  * @title ConfidentialWrapperV3
  * @notice Upgrade contract that adds an owner-controlled denylist preventing blocked addresses
- * from participating in confidential transfers, wraps (deposits/shields), and unwraps
- * (withdrawals/unshields).
- *
- * @dev The {address(0)} sentinel used by {_mint} and {_burn} is guaranteed to never be present
- * in the denylist because {_blockUser} reverts when called with it. This invariant lets the
- * {_update} override check `from` and `to` unconditionally.
+ * from participating in confidential transfers, wraps, and unwraps.
  */
 contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     /// @custom:storage-location erc7201:fhevm_protocol.storage.ConfidentialWrapperV3
     struct ConfidentialWrapperV3Storage {
-        mapping(address user => bool blocked) _blocked;
+        mapping(address user => bool blocked) _blockedUsers;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV3")) - 1)) & ~bytes32(uint256(0xff))
@@ -72,21 +67,21 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /// @dev Returns whether `user` is currently on the denylist.
     function isBlocked(address user) public view virtual returns (bool) {
-        return _getConfidentialWrapperV3Storage()._blocked[user];
+        return _getConfidentialWrapperV3Storage()._blockedUsers[user];
     }
 
     function _blockUser(address user) internal virtual {
         require(user != address(0), CannotBlockNullAddress());
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        require(!$._blocked[user], UserAlreadyBlocked(user));
-        $._blocked[user] = true;
+        require(!$._blockedUsers[user], UserAlreadyBlocked(user));
+        $._blockedUsers[user] = true;
         emit UserBlocked(user);
     }
 
     function _unblockUser(address user) internal virtual {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        require($._blocked[user], UserAlreadyUnblocked(user));
-        $._blocked[user] = false;
+        require($._blockedUsers[user], UserAlreadyUnblocked(user));
+        $._blockedUsers[user] = false;
         emit UserUnblocked(user);
     }
 
