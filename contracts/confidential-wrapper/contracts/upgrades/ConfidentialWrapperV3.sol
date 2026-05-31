@@ -30,9 +30,6 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     /// @dev Thrown when `user` is on the denylist and attempts a restricted operation.
     error BlockedUser(address user);
 
-    /// @dev Thrown when attempting to add {address(0)} to the denylist.
-    error CannotBlockNullAddress();
-
     /// @dev Thrown when attempting to block a user that is already on the denylist.
     error UserAlreadyBlocked(address user);
 
@@ -56,7 +53,7 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /**
      * @dev Reinitializer used when upgrading from V2. Optionally seeds the denylist with `blockedUsers`.
-     * Reverts if any entry in `blockedUsers` is {address(0)} or appears more than once.
+     * Reverts if any entry in `blockedUsers` appears more than once.
      */
     /// @custom:oz-upgrades-validate-as-initializer
     function reinitializeV3(
@@ -73,7 +70,7 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         $.hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector;
     }
 
-    /// @dev Adds `user` to the denylist. Reverts if `user` is {address(0)} or already blocked.
+    /// @dev Adds `user` to the denylist.
     function blockUser(address user) external virtual onlyOwner {
         _blockUser(user);
     }
@@ -99,7 +96,6 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     }
 
     function _blockUser(address user) internal virtual {
-        require(user != address(0), CannotBlockNullAddress());
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         require(!$._blockedUsers[user], UserAlreadyBlocked(user));
         $._blockedUsers[user] = true;
@@ -114,6 +110,8 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     }
 
     function _requireNotBlocked(address user) internal view {
+        // to not block mints and burns, also needed because for e.g. USDT.getBlackListStatus(address(0))
+        if (user == address(0)) return;
         require(!isBlocked(user), BlockedUser(user));
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         if ($.hasUnderlyingDenyListSelector) {
