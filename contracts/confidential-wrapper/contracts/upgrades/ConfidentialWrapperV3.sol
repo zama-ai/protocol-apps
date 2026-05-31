@@ -152,8 +152,9 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         uint256 amount,
         bytes calldata data
     ) public virtual override returns (bytes4) {
-        // needed because _update is not aware of from, because it's doing a _mint, i.e from is null address
+        // needed because _update is not aware of from nor operator, because it's doing a _mint, i.e from is null address
         _requireNotBlocked(from);
+        _requireNotBlocked(operator);
         return super.onTransferReceived(operator, from, amount, data);
     }
 
