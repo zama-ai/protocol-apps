@@ -1034,31 +1034,21 @@ describe('ConfidentialWrapperV3 DenyList', function () {
   });
 
   describe('Underlying DenyList — Admin', function () {
-    describe('hasUnderlyingDenyListSelector', function () {
-      it('returns true when a selector is configured', async function () {
-        const token: any = await ethers.deployContract('ERC20MockCUSDC');
-        const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
-        expect(await wrapper.hasUnderlyingDenyListSelector()).to.be.true;
-      });
-
-      it('returns false when no selector is configured', async function () {
-        const token: any = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
-        const wrapper = await deployV3(token.target as string);
-        expect(await wrapper.hasUnderlyingDenyListSelector()).to.be.false;
-      });
-    });
-
     describe('getUnderlyingDenyListSelector', function () {
-      it('returns the configured selector', async function () {
+      it('returns (true, selector) when a selector is configured', async function () {
         const token: any = await ethers.deployContract('ERC20MockCUSDC');
         const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
-        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
+        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
+        expect(isSet).to.be.true;
+        expect(selector).to.equal(SELECTOR_CUSDC);
       });
 
-      it('returns bytes4(0) when no selector is configured', async function () {
+      it('returns (false, 0x00000000) when no selector is configured', async function () {
         const token: any = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
         const wrapper = await deployV3(token.target as string);
-        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal('0x00000000');
+        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
+        expect(isSet).to.be.false;
+        expect(selector).to.equal('0x00000000');
       });
     });
   });
