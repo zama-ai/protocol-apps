@@ -158,8 +158,6 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /// @dev Internal logic for handling the creation of unwrap requests. Returns the unwrap request id.
     function _unwrap(address from, address to, euint64 amount) internal virtual override returns (bytes32) {
-        // to block operators in case of unwrap
-        if (msg.sender != from) _requireNotBlocked(msg.sender);
         // needed because _update is not aware of to, because it's doing a _burn, i.e to is null address
         _requireNotBlocked(to);
         return super._unwrap(from, to, amount);
