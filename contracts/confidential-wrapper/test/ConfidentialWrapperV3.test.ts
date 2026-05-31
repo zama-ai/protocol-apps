@@ -348,6 +348,86 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       });
     });
 
+    describe('finalizeUnwrap (blocked from/operator between unwrap and finalize)', function () {
+      it('reverts with BlockedUser(holder) when `from != to` and holder is blocked after unwrap', async function () {
+        await wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6));
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await wrapper.connect(holder).unwrap(holder.address, recipient.address, balance);
+        const event = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested())).at(-1)!;
+        const unwrapRequestId = event.args[1];
+
+        await wrapper.connect(ownerSigner).blockUser(holder.address);
+
+        await expect(wrapper.connect(recipient).finalizeUnwrap(unwrapRequestId, 0, '0x'))
+          .to.be.revertedWithCustomError(wrapper, 'BlockedUser')
+          .withArgs(holder.address);
+      });
+
+      it('reverts with BlockedUser(recipient) when `from != to` and recipient is blocked after unwrap', async function () {
+        await wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6));
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await wrapper.connect(holder).unwrap(holder.address, recipient.address, balance);
+        const event = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested())).at(-1)!;
+        const unwrapRequestId = event.args[1];
+
+        await wrapper.connect(ownerSigner).blockUser(recipient.address);
+
+        await expect(wrapper.connect(holder).finalizeUnwrap(unwrapRequestId, 0, '0x'))
+          .to.be.revertedWithCustomError(wrapper, 'BlockedUser')
+          .withArgs(recipient.address);
+      });
+
+      it('reverts with BlockedUser(operator) when an operator-initiated unwrap is finalized after the operator is blocked', async function () {
+        await wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6));
+        const until = BigInt(Math.floor(Date.now() / 1000) + 3600);
+        await wrapper.connect(holder).setOperator(operator.address, until);
+
+        const encryptedInput = await fhevm
+          .createEncryptedInput(wrapper.target, operator.address)
+          .add64(ethers.parseUnits('100', 6))
+          .encrypt();
+        await wrapper
+          .connect(operator)
+          [
+            'unwrap(address,address,bytes32,bytes)'
+          ](holder.address, recipient.address, encryptedInput.handles[0], encryptedInput.inputProof);
+        const event = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested())).at(-1)!;
+        const unwrapRequestId = event.args[1];
+
+        await wrapper.connect(ownerSigner).blockUser(operator.address);
+
+        await expect(wrapper.connect(recipient).finalizeUnwrap(unwrapRequestId, 0, '0x'))
+          .to.be.revertedWithCustomError(wrapper, 'BlockedUser')
+          .withArgs(operator.address);
+      });
+
+      it('successfully finalizes when no party is blocked, settles the underlying transfer, and reports gas', async function () {
+        const wrapAmount = ethers.parseUnits('100', 6);
+        await wrapper.connect(holder).wrap(holder.address, wrapAmount);
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await wrapper.connect(holder).unwrap(holder.address, recipient.address, balance);
+
+        const event = (await wrapper.queryFilter(wrapper.filters.UnwrapRequested())).at(-1)!;
+        const unwrapRequestId = event.args[1];
+        const unwrapAmount = event.args[2];
+        const { abiEncodedClearValues, decryptionProof } = await fhevm.publicDecrypt([unwrapAmount]);
+
+        const recipientBalanceBefore = await token.balanceOf(recipient.address);
+
+        const tx = await wrapper
+          .connect(recipient)
+          .finalizeUnwrap(unwrapRequestId, abiEncodedClearValues, decryptionProof);
+        await tx.wait();
+
+        await expect(tx)
+          .to.emit(wrapper, 'UnwrapFinalized')
+          .withArgs(recipient.address, unwrapRequestId, unwrapAmount, abiEncodedClearValues);
+
+        expect(await token.balanceOf(recipient.address)).to.equal(recipientBalanceBefore + wrapAmount);
+        expect(await wrapper.unwrapRequester(unwrapRequestId)).to.equal(ethers.ZeroAddress);
+      });
+    });
+
     describe('confidentialTransfer', function () {
       beforeEach(async function () {
         await wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6));

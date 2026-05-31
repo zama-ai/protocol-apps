@@ -10,11 +10,18 @@ import {ConfidentialWrapperV2} from "./ConfidentialWrapperV2.sol";
  * from participating in confidential transfers, wraps, and unwraps.
  */
 contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
+    /// @dev to persist context of the unwrap between the unwrap and the finalizeUnwrap calls
+    struct UnwrapContext {
+        address from;
+        address operator;
+    }
+
     /// @custom:storage-location erc7201:fhevm_protocol.storage.ConfidentialWrapperV3
     struct ConfidentialWrapperV3Storage {
         mapping(address user => bool blocked) _blockedUsers;
-        bytes4 underlyingDenyListSelector;
-        bool hasUnderlyingDenyListSelector;
+        mapping(bytes32 unwrapRequestId => UnwrapContext unwrapContext) _unwrapContexts;
+        bytes4 _underlyingDenyListSelector;
+        bool _hasUnderlyingDenyListSelector;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV3")) - 1)) & ~bytes32(uint256(0xff))
@@ -59,15 +66,15 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     function reinitializeV3(
         address[] memory blockedUsers,
         bytes4 underlyingDenyListSelector,
-        bool hasUnderlyingDenyListSelector
+        bool hasUnderlyingDenyListSelector_
     ) public virtual reinitializer(3) {
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
         }
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        $.underlyingDenyListSelector = underlyingDenyListSelector;
-        $.hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector;
+        $._underlyingDenyListSelector = underlyingDenyListSelector;
+        $._hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector_;
     }
 
     /// @dev Adds `user` to the denylist.
@@ -87,12 +94,12 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
 
     /// @dev Returns the underlying denylist functionselector.
     function getUnderlyingDenyListSelector() public view virtual returns (bytes4) {
-        return _getConfidentialWrapperV3Storage().underlyingDenyListSelector;
+        return _getConfidentialWrapperV3Storage()._underlyingDenyListSelector;
     }
 
     /// @dev Returns whether the underlying denylist functionselector is set.
     function hasUnderlyingDenyListSelector() public view virtual returns (bool) {
-        return _getConfidentialWrapperV3Storage().hasUnderlyingDenyListSelector;
+        return _getConfidentialWrapperV3Storage()._hasUnderlyingDenyListSelector;
     }
 
     function _blockUser(address user) internal virtual {
@@ -114,9 +121,9 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         if (user == address(0)) return;
         require(!isBlocked(user), BlockedUser(user));
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        if ($.hasUnderlyingDenyListSelector) {
+        if ($._hasUnderlyingDenyListSelector) {
             (bool success, bytes memory data) = underlying().staticcall(
-                abi.encodeWithSelector($.underlyingDenyListSelector, user)
+                abi.encodeWithSelector($._underlyingDenyListSelector, user)
             );
             if (!success) revert UnderlyingDenyListCallFailed();
             if (data.length != 32) revert InvalidUnderlyingDenyListResponse();
@@ -160,7 +167,10 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     function _unwrap(address from, address to, euint64 amount) internal virtual override returns (bytes32) {
         // needed because _update is not aware of to, because it's doing a _burn, i.e to is null address
         _requireNotBlocked(to);
-        return super._unwrap(from, to, amount);
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        bytes32 unwrapRequestId = super._unwrap(from, to, amount);
+        $._unwrapContexts[unwrapRequestId] = UnwrapContext(from, msg.sender);
+        return unwrapRequestId;
     }
 
     /**
@@ -174,6 +184,14 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     ) public virtual override {
         // needed because _update is no longer called in finalizeUnwrap, because cTokens were already burnt in unwrap
         _requireNotBlocked(unwrapRequester(unwrapRequestId));
+        // also check both original holder and operator from the corresponding unwrap call
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        UnwrapContext memory unwrapContext = $._unwrapContexts[unwrapRequestId];
+        _requireNotBlocked(unwrapContext.from);
+        if (unwrapContext.from != unwrapContext.operator) {
+            _requireNotBlocked(unwrapContext.operator);
+        }
+        delete $._unwrapContexts[unwrapRequestId];
         super.finalizeUnwrap(unwrapRequestId, unwrapAmountCleartext, decryptionProof);
     }
 }
