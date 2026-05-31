@@ -156,26 +156,13 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         return super.onTransferReceived(operator, from, amount, data);
     }
 
-    /// @dev Catches a blocked recipient of the underlying token; the holder `from` is covered via {_update}.
-    function unwrap(address from, address to, euint64 amount) public virtual override returns (bytes32) {
-        // to block operators in case of unwrap
-        if (msg.sender != from) _requireNotBlocked(msg.sender);
-        _requireNotBlocked(to);
-        return super.unwrap(from, to, amount);
-    }
-
-    /// @dev Input-proof variant of {unwrap}; same denylist enforcement as the other overload.
-    function unwrap(
-        address from,
-        address to,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
-    ) public virtual override returns (bytes32) {
+    /// @dev Internal logic for handling the creation of unwrap requests. Returns the unwrap request id.
+    function _unwrap(address from, address to, euint64 amount) internal virtual override returns (bytes32) {
         // to block operators in case of unwrap
         if (msg.sender != from) _requireNotBlocked(msg.sender);
         // needed because _update is not aware of to, because it's doing a _burn, i.e to is null address
         _requireNotBlocked(to);
-        return super.unwrap(from, to, encryptedAmount, inputProof);
+        return super._unwrap(from, to, amount);
     }
 
     /**
