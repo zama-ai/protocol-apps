@@ -16,9 +16,7 @@ describe('ConfidentialWrapperV3 Upgrade', function () {
   const WRAPPER_SYMBOL = 'cUPTEST3';
   const CONTRACT_URI =
     'data:application/json;utf8,{"name":"Upgrade Test Wrapper V3","symbol":"cUPTEST3","description":"Test wrapper for V3 upgrade flow"}';
-  const ADDRESSES_TO_BLOCK = Array.from({ length: 2 }, () =>
-    ethers.getAddress(ethers.hexlify(ethers.randomBytes(20))),
-  );
+  const ADDRESSES_TO_BLOCK = Array.from({ length: 2 }, () => ethers.getAddress(ethers.hexlify(ethers.randomBytes(20))));
 
   async function deployV2Proxy() {
     const erc20Factory = await hre.ethers.getContractFactory('ERC20Mock');
