@@ -10,7 +10,8 @@
     "fill-options-gateway-proposal:mainnet": "node fillOptionsGatewayProposal.js --network mainnet",
     "fill-options-gateway-proposal:testnet": "node fillOptionsGatewayProposal.js --network testnet",
     "decode-options-gateway-proposal": "node decodeOptionsGatewayProposal.js",
-    "aragon-proposal-inspector": "node aragonProposalInspector.js"
+    "aragon-proposal-inspector": "node aragonProposalInspector.js",
+    "verify-bytecode": "node verifyBytecode.js"
   },
   "dependencies": {
     "@layerzerolabs/lz-v2-utilities": "^3.0.75",
