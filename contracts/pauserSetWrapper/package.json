@@ -28,7 +28,7 @@
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "hardhat": "^2.26.0",
-    "hardhat-deploy": "^0.12.4",
+    "hardhat-deploy": "^2.0.8",
     "hardhat-gas-reporter": "^2.3.0",
     "solidity-coverage": "^0.8.16",
     "ts-node": "^10.9.2",
