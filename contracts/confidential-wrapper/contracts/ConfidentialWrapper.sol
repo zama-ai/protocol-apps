@@ -33,7 +33,17 @@ contract ConfidentialWrapper is
         string memory contractURI_,
         IERC20 underlying_,
         address owner_
-    ) public initializer {
+    ) public virtual initializer {
+        __ConfidentialWrapper_init(name_, symbol_, contractURI_, underlying_, owner_);
+    }
+
+    function __ConfidentialWrapper_init(
+        string memory name_,
+        string memory symbol_,
+        string memory contractURI_,
+        IERC20 underlying_,
+        address owner_
+    ) internal onlyInitializing {
         __ERC7984_init(name_, symbol_, contractURI_);
         __ERC7984ERC20Wrapper_init(underlying_);
         __ZamaEthereumConfig_init();

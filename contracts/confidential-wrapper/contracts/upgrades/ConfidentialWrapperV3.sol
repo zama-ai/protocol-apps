@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ConfidentialWrapperV2} from "./ConfidentialWrapperV2.sol";
 
 /**
@@ -59,15 +60,59 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
     }
 
     /**
-     * @dev Reinitializer used when upgrading from V2. Optionally seeds the denylist with `blockedUsers`.
-     * Reverts if any entry in `blockedUsers` appears more than once.
+     * @notice Initializes the contract when deployed fresh at V3.
+     * Advances the initializer version to 3 so reinitializers below this version cannot be replayed.
      */
-    /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV3(
+    function initializeV3(
+        string memory name_,
+        string memory symbol_,
+        string memory contractURI_,
+        IERC20 underlying_,
+        address owner_,
         address[] memory blockedUsers,
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_
     ) public virtual reinitializer(3) {
+        __ConfidentialWrapperV3_init(
+            name_,
+            symbol_,
+            contractURI_,
+            underlying_,
+            owner_,
+            blockedUsers,
+            underlyingDenyListSelector,
+            hasUnderlyingDenyListSelector_
+        );
+    }
+
+    /// @dev Chains V2 initialization with V3-specific storage initialization.
+    function __ConfidentialWrapperV3_init(
+        string memory name_,
+        string memory symbol_,
+        string memory contractURI_,
+        IERC20 underlying_,
+        address owner_,
+        address[] memory blockedUsers,
+        bytes4 underlyingDenyListSelector,
+        bool hasUnderlyingDenyListSelector_
+    ) internal onlyInitializing {
+        __ConfidentialWrapperV2_init(name_, symbol_, contractURI_, underlying_, owner_);
+        __ConfidentialWrapperV3_init_unchained(
+            blockedUsers,
+            underlyingDenyListSelector,
+            hasUnderlyingDenyListSelector_
+        );
+    }
+
+    /**
+     * @dev V3-specific initialization logic. Optionally seeds the denylist with `blockedUsers`.
+     * Reverts if any entry in `blockedUsers` appears more than once.
+     */
+    function __ConfidentialWrapperV3_init_unchained(
+        address[] memory blockedUsers,
+        bytes4 underlyingDenyListSelector,
+        bool hasUnderlyingDenyListSelector_
+    ) internal onlyInitializing {
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
@@ -75,6 +120,22 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         $._underlyingDenyListSelector = underlyingDenyListSelector;
         $._hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector_;
+    }
+
+    /**
+     * @dev Reinitializer used when upgrading from V2. Optionally seeds the denylist with `blockedUsers`.
+     * Reverts if any entry in `blockedUsers` appears more than once.
+     */
+    function reinitializeV3(
+        address[] memory blockedUsers,
+        bytes4 underlyingDenyListSelector,
+        bool hasUnderlyingDenyListSelector_
+    ) public virtual reinitializer(3) {
+        __ConfidentialWrapperV3_init_unchained(
+            blockedUsers,
+            underlyingDenyListSelector,
+            hasUnderlyingDenyListSelector_
+        );
     }
 
     /// @dev Adds `user` to the denylist.
