@@ -59,6 +59,12 @@ contract ConfidentialWrapperV3 is ConfidentialWrapperV2 {
         }
     }
 
+    /// @dev Disabled in V3. Use {initializeV3} instead.
+    /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
+    function initializeV2(string memory, string memory, string memory, IERC20, address) public virtual override {
+        revert ConfidentialWrapperInvalidInitializerVersion();
+    }
+
     /**
      * @notice Initializes the contract when deployed fresh at V3.
      * Advances the initializer version to 3 so reinitializers below this version cannot be replayed.
