@@ -43,14 +43,16 @@ Currently, most useful scripts are:
 npm run get-current-pausers
 ```
 
-Returns the current set of active pausers for PauserSet contracts on Ethereum and Gateway chains by analyzing on-chain events.
+Returns the current set of active pausers for PauserSet contracts on the configured chains (Ethereum, Gateway, and Polygon) by analyzing on-chain events.
+
+A chain is queried only when both its `RPC_<CHAIN>` and `PAUSER_SET_<CHAIN>` env vars are set, so the script works with any subset of the supported chains.
 
 The script will:
-1. Query both Ethereum and Gateway chains (if configured)
+1. Query every configured chain (any of Ethereum, Gateway, Polygon)
 2. Find the deployment block for each PauserSet contract
 3. Fetch all `AddPauser`, `RemovePauser`, and `SwapPauser` events
 4. Compute the current set of active pausers
-5. Display a summary comparing pausers across chains
+5. Display a summary comparing pausers across all configured chains
 
 #### Example Output
 
@@ -88,10 +90,10 @@ Gateway pausers:
   Total: 2 pauser(s)
 
 --------------------------------------------------
-Pausers are IDENTICAL on both chains.
+Pausers are IDENTICAL across all 2 configured chains.
 ```
 
-If pausers differ between chains, the script will show which addresses exist only on one chain.
+If pausers differ between chains, the script lists each mismatched address with the chains it is present on and the chains it is missing from.
 
 ### getTokenRoles
 

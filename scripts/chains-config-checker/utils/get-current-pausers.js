@@ -12,17 +12,26 @@ const PAUSER_SET_ABI = [
   'event SwapPauser(address oldAccount, address newAccount)',
 ];
 
-// Chain configurations from environment
+// Chain configurations from environment.
+// `symbol` is the native gas token, used only for balance display.
 const CHAINS = {
   ethereum: {
     name: 'Ethereum',
+    symbol: 'ETH',
     rpcUrl: process.env.RPC_ETHEREUM,
     pauserSetAddress: process.env.PAUSER_SET_ETHEREUM,
   },
   gateway: {
     name: 'Gateway',
+    symbol: 'ETH',
     rpcUrl: process.env.RPC_GATEWAY,
     pauserSetAddress: process.env.PAUSER_SET_GATEWAY,
+  },
+  polygon: {
+    name: 'Polygon',
+    symbol: 'POL',
+    rpcUrl: process.env.RPC_POLYGON,
+    pauserSetAddress: process.env.PAUSER_SET_POLYGON,
   },
 };
 
@@ -100,14 +109,14 @@ async function getPausersForChain(chainConfig) {
   return { pausers: Array.from(pausers), provider };
 }
 
-function formatEth(balanceWei) {
-  const balanceEth = ethers.formatEther(balanceWei);
+function formatNative(balanceWei) {
+  const balance = ethers.formatEther(balanceWei);
   // Format to 6 decimal places, removing trailing zeros
-  const formatted = parseFloat(balanceEth).toFixed(6).replace(/\.?0+$/, '');
+  const formatted = parseFloat(balance).toFixed(6).replace(/\.?0+$/, '');
   return formatted === '' ? '0' : formatted;
 }
 
-async function printPausers(chainName, pausers, provider) {
+async function printPausers(chainName, symbol, pausers, provider) {
   console.log(`\n${chainName} pausers:`);
   if (pausers === null) {
     console.log('  (not configured)');
@@ -117,8 +126,8 @@ async function printPausers(chainName, pausers, provider) {
     for (let i = 0; i < pausers.length; i++) {
       const pauser = pausers[i];
       const balance = await provider.getBalance(pauser);
-      const balanceEth = formatEth(balance);
-      console.log(`  ${i + 1}. ${pauser} (${balanceEth} ETH)`);
+      const balanceFormatted = formatNative(balance);
+      console.log(`  ${i + 1}. ${pauser} (${balanceFormatted} ${symbol})`);
     }
   }
   if (pausers !== null) {
@@ -126,31 +135,63 @@ async function printPausers(chainName, pausers, provider) {
   }
 }
 
-async function main() {
-  // Check if any chain is configured
-  const hasEthereumConfig = CHAINS.ethereum.rpcUrl && CHAINS.ethereum.pauserSetAddress;
-  const hasGatewayConfig = CHAINS.gateway.rpcUrl && CHAINS.gateway.pauserSetAddress;
+// Compare the pauser sets across every chain that returned results.
+function compareAcrossChains(results) {
+  const configured = Object.keys(results).filter((key) => results[key]?.pausers);
+  if (configured.length < 2) return;
 
-  if (!hasEthereumConfig && !hasGatewayConfig) {
+  console.log('\n' + '-'.repeat(50));
+
+  // Map each pauser to the set of chains it currently appears on.
+  const presence = new Map(); // pauser => Set(chain keys)
+  for (const key of configured) {
+    for (const pauser of results[key].pausers) {
+      if (!presence.has(pauser)) presence.set(pauser, new Set());
+      presence.get(pauser).add(key);
+    }
+  }
+
+  const chainCount = configured.length;
+  const identical = [...presence.values()].every((chains) => chains.size === chainCount);
+
+  if (identical) {
+    console.log(`Pausers are IDENTICAL across all ${chainCount} configured chains.`);
+    return;
+  }
+
+  console.log('WARNING: Pausers DIFFER between chains!');
+  for (const [pauser, chains] of presence) {
+    if (chains.size === chainCount) continue;
+    const present = configured.filter((key) => chains.has(key)).map((key) => CHAINS[key].name);
+    const missing = configured.filter((key) => !chains.has(key)).map((key) => CHAINS[key].name);
+    console.log(`\n  ${pauser}`);
+    console.log(`    on:      ${present.join(', ')}`);
+    console.log(`    missing: ${missing.join(', ')}`);
+  }
+}
+
+async function main() {
+  // Determine which chains are fully configured (both RPC and address present).
+  const configuredKeys = Object.keys(CHAINS).filter(
+    (key) => CHAINS[key].rpcUrl && CHAINS[key].pauserSetAddress
+  );
+
+  if (configuredKeys.length === 0) {
     console.error('Error: No chains configured. Please set environment variables in .env file:');
-    console.error('  RPC_ETHEREUM, PAUSER_SET_ETHEREUM');
-    console.error('  RPC_GATEWAY, PAUSER_SET_GATEWAY');
+    for (const key of Object.keys(CHAINS)) {
+      const suffix = key.toUpperCase();
+      console.error(`  RPC_${suffix}, PAUSER_SET_${suffix}`);
+    }
     process.exit(1);
   }
 
   const results = {};
 
   try {
-    // Process Ethereum
-    if (hasEthereumConfig) {
-      console.log('\n[Ethereum]');
-      results.ethereum = await getPausersForChain(CHAINS.ethereum);
-    }
-
-    // Process Gateway
-    if (hasGatewayConfig) {
-      console.log('\n[Gateway]');
-      results.gateway = await getPausersForChain(CHAINS.gateway);
+    // Fetch pausers for every configured chain.
+    for (const key of configuredKeys) {
+      console.log(`\n[${CHAINS[key].name}]`);
+      results[key] = await getPausersForChain(CHAINS[key]);
     }
 
     // Print summary
@@ -158,49 +199,17 @@ async function main() {
     console.log('SUMMARY');
     console.log('='.repeat(50));
 
-    if (hasEthereumConfig) {
+    for (const key of configuredKeys) {
       await printPausers(
-        'Ethereum',
-        results.ethereum?.pausers ?? null,
-        results.ethereum?.provider
+        CHAINS[key].name,
+        CHAINS[key].symbol,
+        results[key]?.pausers ?? null,
+        results[key]?.provider
       );
     }
 
-    if (hasGatewayConfig) {
-      await printPausers(
-        'Gateway',
-        results.gateway?.pausers ?? null,
-        results.gateway?.provider
-      );
-    }
-
-    // Check if pausers match across chains
-    if (results.ethereum?.pausers && results.gateway?.pausers) {
-      const ethPausers = results.ethereum.pausers;
-      const gwPausers = results.gateway.pausers;
-      const ethSet = new Set(ethPausers);
-      const gwSet = new Set(gwPausers);
-      const match = ethSet.size === gwSet.size && [...ethSet].every((p) => gwSet.has(p));
-
-      console.log('\n' + '-'.repeat(50));
-      if (match) {
-        console.log('Pausers are IDENTICAL on both chains.');
-      } else {
-        console.log('WARNING: Pausers DIFFER between chains!');
-
-        const onlyEth = ethPausers.filter((p) => !gwSet.has(p));
-        const onlyGw = gwPausers.filter((p) => !ethSet.has(p));
-
-        if (onlyEth.length > 0) {
-          console.log('\n  Only on Ethereum:');
-          onlyEth.forEach((p) => console.log(`    - ${p}`));
-        }
-        if (onlyGw.length > 0) {
-          console.log('\n  Only on Gateway:');
-          onlyGw.forEach((p) => console.log(`    - ${p}`));
-        }
-      }
-    }
+    // Compare pausers across all configured chains.
+    compareAcrossChains(results);
   } catch (error) {
     console.error(`\nError: ${error.message}`);
     process.exit(1);
