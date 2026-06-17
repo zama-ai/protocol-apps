@@ -101,6 +101,14 @@ const config: HardhatUserConfig = {
       url: process.env.RPC_URL_ZAMA_GATEWAY_MAINNET || "",
       accounts,
     },
+    "polygon-amoy-testnet": {
+      url: process.env.RPC_URL_POLYGON_AMOY_TESTNET || "",
+      accounts,
+    },
+    "polygon-mainnet": {
+      url: process.env.RPC_URL_POLYGON_MAINNET || "",
+      accounts,
+    },
     hardhat: {
       // Need this to avoid deployment issues in test
       saveDeployments: false,
@@ -142,10 +150,16 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      "gateway-testnet": "empty",
-    },
+    apiKey: process.env.ETHERSCAN_API || "",
     customChains: [
+      {
+        network: "gateway-mainnet",
+        chainId: 261131,
+        urls: {
+          apiURL: "https://explorer-zama-gateway-mainnet.t.conduit.xyz/api",
+          browserURL: "https://explorer-zama-gateway-mainnet.t.conduit.xyz",
+        },
+      },
       {
         network: "gateway-testnet",
         chainId: 10901,

@@ -1,39 +1,53 @@
 import { task } from "hardhat/config";
-import { getDeployedAddress } from "./utils/loadVariables";
+import { getRequiredEnvVar, getDeployedAddress } from "./utils/loadVariables";
 import { execTransaction } from "./utils/execTransaction";
 
-task("task:enableAdminModule").setAction(async function (
-  _,
-  { ethers, network, getNamedAccounts },
-) {
-  const adminModuleAddress = await getDeployedAddress(
-    network.name,
-    "AdminModule",
-  );
-  const safeProxyAddress = await getDeployedAddress(
-    network.name,
-    "SafeL2Proxy",
-  );
-  const safeProxy = await ethers.getContractAt("SafeL2", safeProxyAddress);
+// Enable the AdminModule in the Safe
+// Example usage:
+// npx hardhat task:enableAdminModule --network <NETWORK>
+// To target a Safe created outside hardhat-deploy, read its address from the
+// SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact:
+// npx hardhat task:enableAdminModule --use-safe-proxy-address-env --network <NETWORK>
+task("task:enableAdminModule")
+  .addFlag(
+    "useSafeProxyAddressEnv",
+    "Read the Safe proxy address from the SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact",
+  )
+  .setAction(async function (
+    { useSafeProxyAddressEnv },
+    { ethers, network, getNamedAccounts },
+  ) {
+    const adminModuleAddress = await getDeployedAddress(
+      network.name,
+      "AdminModule",
+    );
+    const safeProxyAddress =
+      useSafeProxyAddressEnv || network.name === "hardhat"
+        ? getRequiredEnvVar("SAFE_PROXY_ADDRESS")
+        : await getDeployedAddress(network.name, "SafeL2Proxy");
+    const safeProxyContract = await ethers.getContractAt(
+      "SafeL2",
+      safeProxyAddress,
+    );
 
-  const enableModuleData = safeProxy.interface.encodeFunctionData(
-    "enableModule",
-    [adminModuleAddress],
-  );
+    const enableModuleData = safeProxyContract.interface.encodeFunctionData(
+      "enableModule",
+      [adminModuleAddress],
+    );
 
-  const { deployer } = await getNamedAccounts();
+    const { deployer } = await getNamedAccounts();
 
-  const signer = await ethers.getSigner(deployer);
-  await execTransaction(
-    [signer],
-    safeProxy,
-    safeProxy.target,
-    0,
-    enableModuleData,
-    0,
-  );
+    const signer = await ethers.getSigner(deployer);
+    await execTransaction(
+      [signer],
+      safeProxyContract,
+      safeProxyContract.target,
+      0,
+      enableModuleData,
+      0,
+    );
 
-  console.log(
-    "AdminModule was successfully enabled in the Safe : please double check by calling isModuleEnabled(ADMIN_MODULE_ADDRESS) on the SafeProxy",
-  );
-});
+    console.log(
+      "AdminModule was successfully enabled in the Safe : please double check by calling isModuleEnabled(ADMIN_MODULE_ADDRESS) on the SafeProxy",
+    );
+  });

@@ -107,35 +107,43 @@ task("task:deploySafe").setAction(async function (
 // Deploy the AdminModule contract
 // Example usage:
 // npx hardhat task:deployAdminModule
-task("task:deployAdminModule").setAction(async function (
-  _,
-  { getNamedAccounts, deployments, network },
-) {
-  const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
+// To target a Safe created outside hardhat-deploy, read its address from the
+// SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact:
+// npx hardhat task:deployAdminModule --use-safe-proxy-address-env --network <NETWORK>
+task("task:deployAdminModule")
+  .addFlag(
+    "useSafeProxyAddressEnv",
+    "Read the Safe proxy address from the SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact",
+  )
+  .setAction(async function (
+    { useSafeProxyAddressEnv },
+    { getNamedAccounts, deployments, network },
+  ) {
+    const { deploy } = deployments;
+    const { deployer } = await getNamedAccounts();
 
-  const adminAddress = getRequiredEnvVar("ADMIN_ADDRESS");
+    const adminAddress = getRequiredEnvVar("ADMIN_ADDRESS");
 
-  let safeProxyAddress;
-  if (network.name === "hardhat") {
-    safeProxyAddress = getRequiredEnvVar("SAFE_PROXY_ADDRESS");
-  } else {
-    safeProxyAddress = await getDeployedAddress(network.name, "SafeL2Proxy");
-  }
+    let safeProxyAddress;
+    if (useSafeProxyAddressEnv || network.name === "hardhat") {
+      safeProxyAddress = getRequiredEnvVar("SAFE_PROXY_ADDRESS");
+    } else {
+      safeProxyAddress = await getDeployedAddress(network.name, "SafeL2Proxy");
+    }
 
-  const contractName = "AdminModule";
-  console.log(`Deploying ${contractName}...`);
-  const { address } = await deploy(contractName, {
-    from: deployer,
-    args: [adminAddress, safeProxyAddress],
-    log: true,
-    skipIfAlreadyDeployed: false,
+    const contractName = "AdminModule";
+    console.log(`Deploying ${contractName}...`);
+    const { address } = await deploy(contractName, {
+      from: deployer,
+      args: [adminAddress, safeProxyAddress],
+      log: true,
+      skipIfAlreadyDeployed: false,
+    });
+
+    console.log(
+      `Deployed contract: ${contractName}, network: ${network.name}, address: ${address}`,
+    );
   });
-
-  console.log(
-    `Deployed contract: ${contractName}, network: ${network.name}, address: ${address}`,
-  );
-});
 
 // Deploy the MultiSend contract
 // Example usage:
