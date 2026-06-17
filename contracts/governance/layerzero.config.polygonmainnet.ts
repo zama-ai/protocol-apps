@@ -14,7 +14,7 @@ const polygonMainnetContract: OmniPointHardhat = {
 }
 
 // To connect the above chains to each other, we need the following pathway:
-// Sepolia -> Polygon Mainnet
+// Ethereum -> Polygon Mainnet
 
 // We don't use enforce executor gas options here, so we should ensure `options` is set to the correct value through profiling the gas usage of calling GovernanceOAppReceiver._lzReceive(...) on the destination chain.
 // To learn more, read https://docs.layerzero.network/v2/concepts/applications/oapp-standard#execution-options-and-enforced-settings
