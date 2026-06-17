@@ -40,12 +40,17 @@ Currently, most useful scripts are:
 #### Usage
 
 ```bash
+# Mainnet (default): Ethereum, Gateway, Polygon
 npm run get-current-pausers
+
+# Testnet: Sepolia, Gateway Testnet, Polygon Amoy
+npm run get-current-pausers:testnet
+# equivalent to: npm run get-current-pausers -- --testnet
 ```
 
-Returns the current set of active pausers for PauserSet contracts on the configured chains (Ethereum, Gateway, and Polygon) by analyzing on-chain events.
+Returns the current set of active pausers for PauserSet contracts on the configured chains by analyzing on-chain events. Pass `--mainnet` (the default) or `--testnet` to choose the network.
 
-A chain is queried only when both its `RPC_<CHAIN>` and `PAUSER_SET_<CHAIN>` env vars are set, so the script works with any subset of the supported chains.
+A chain is queried only when both its RPC and `PAUSER_SET` env vars are set, so the script works with any subset of the supported chains. Each network reads its own env vars (e.g. `RPC_ETHEREUM`/`PAUSER_SET_ETHEREUM` for mainnet, `RPC_SEPOLIA`/`PAUSER_SET_SEPOLIA` for testnet) — see `.env.example`.
 
 The script will:
 1. Query every configured chain (any of Ethereum, Gateway, Polygon)
@@ -94,6 +99,13 @@ Pausers are IDENTICAL across all 2 configured chains.
 ```
 
 If pausers differ between chains, the script lists each mismatched address with the chains it is present on and the chains it is missing from.
+
+#### Deployment-block detection / archive nodes
+
+By default the script binary-searches for each PauserSet's deployment block using `eth_getCode` at historical blocks, which requires an **archive node**. Many free/public RPCs (notably most Sepolia endpoints) are pruned and either error or return `0x` for old blocks. To avoid this:
+
+- **Pin the deployment block** via the matching `*_FROM_BLOCK` env var (e.g. `PAUSER_SET_SEPOLIA_FROM_BLOCK`). Look the contract-creation block up once on the explorer. This skips detection entirely — fastest and most reliable.
+- Otherwise, if detection fails the script **falls back to scanning events from block 0** (`eth_getLogs` is served from genesis even by pruned nodes — slower but works).
 
 ### getTokenRoles
 

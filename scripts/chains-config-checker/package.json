@@ -5,6 +5,7 @@
   "scripts": {
     "get-deployment-block": "node utils/get-deployment-block.js",
     "get-current-pausers": "node utils/get-current-pausers.js",
+    "get-current-pausers:testnet": "node utils/get-current-pausers.js --testnet",
     "get-token-roles": "node utils/get-token-roles.js",
     "get-oft-owners-evm": "node utils/get-oft-owners-evm.js",
     "get-oft-owners-solana": "node utils/get-oft-owners-solana.js",
