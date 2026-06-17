@@ -49,7 +49,7 @@ describe('GovernanceOApp Test', function () {
         mockEndpointV2A = await EndpointV2Mock.deploy(eidA)
         mockEndpointV2B = await EndpointV2Mock.deploy(eidB)
 
-        governanceOAppSender = await GovernanceOAppSender.deploy(mockEndpointV2A.address, owner.address)
+        governanceOAppSender = await GovernanceOAppSender.deploy(mockEndpointV2A.address, owner.address, eidB)
         governanceOAppReceiver = await GovernanceOAppReceiver.deploy(mockEndpointV2B.address, owner.address)
 
         await mockEndpointV2A.setDestLzEndpoint(governanceOAppReceiver.address, mockEndpointV2B.address)

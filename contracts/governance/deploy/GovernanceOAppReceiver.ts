@@ -15,21 +15,19 @@ const deploy: DeployFunction = async (hre) => {
     console.log(`Network: ${hre.network.name}`)
     console.log(`Deployer: ${deployer}`)
 
-    if (hre.network.name === 'gateway-testnet' || hre.network.name === 'gateway-mainnet') {
-        const endpointV2Deployment = await hre.deployments.get('EndpointV2')
+    const endpointV2Deployment = await hre.deployments.get('EndpointV2')
 
-        const { address } = await deploy(contractName, {
-            from: deployer,
-            args: [
-                endpointV2Deployment.address, // LayerZero's EndpointV2 address
-                deployer, // owner
-            ],
-            log: true,
-            skipIfAlreadyDeployed: false,
-        })
+    const { address } = await deploy(contractName, {
+        from: deployer,
+        args: [
+            endpointV2Deployment.address, // LayerZero's EndpointV2 address
+            deployer, // owner
+        ],
+        log: true,
+        skipIfAlreadyDeployed: false,
+    })
 
-        console.log(`Deployed contract: ${contractName}, network: ${hre.network.name}, address: ${address}`)
-    }
+    console.log(`Deployed contract: ${contractName}, network: ${hre.network.name}, address: ${address}`)
 }
 
 deploy.tags = [contractName]

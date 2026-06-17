@@ -24,8 +24,6 @@ contract GovernanceOAppSender is OAppSender, OAppOptionsType3 {
     error InsufficientBalanceForFee();
     /// @notice Thrown when recipient is the null address.
     error InvalidNullRecipient();
-    /// @notice Thrown when trying to deploy this contract on an unsupported blockchain.
-    error UnsupportedChainID();
 
     /// @notice Thrown when targets array is empty.
     error TargetsIsEmpty();
@@ -53,17 +51,8 @@ contract GovernanceOAppSender is OAppSender, OAppOptionsType3 {
     /// @notice Initialize with Endpoint V2 and owner address.
     /// @param endpoint The local chain's LayerZero Endpoint V2 address.
     /// @param owner    The address permitted to configure this OApp.
-    constructor(address endpoint, address owner) OAppCore(endpoint, owner) Ownable(owner) {
-        uint256 chainID = block.chainid;
-        if (chainID == 1) {
-            // chainID of ethereum-mainnet i.e linked to gateway-mainnet.
-            DESTINATION_EID = 30397;
-        } else if (chainID == 11155111) {
-            // chainID of ethereum-testnet i.e linked to gateway-testnet.
-            DESTINATION_EID = 40424;
-        } else {
-            revert UnsupportedChainID();
-        }
+    constructor(address endpoint, address owner, uint32 dstEid) OAppCore(endpoint, owner) Ownable(owner) {
+        DESTINATION_EID = dstEid;
     }
 
     /// @notice Quotes the gas needed to pay for the full cross-chain transaction in native gas.
