@@ -76,7 +76,8 @@
 | Name                     | Address |
 | ------------------------ | ------- |
 | Protocol DAO             | [`0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52`](https://sepolia.etherscan.io/address/0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52) |
-| Governance OApp Sender   | [`0x909692c2f4979ca3fa11B5859d499308A1ec4932`](https://sepolia.etherscan.io/address/0x909692c2f4979ca3fa11B5859d499308A1ec4932) |
+| Governance OApp Sender To Gateway Testnet   | [`0x909692c2f4979ca3fa11B5859d499308A1ec4932`](https://sepolia.etherscan.io/address/0x909692c2f4979ca3fa11B5859d499308A1ec4932) |
+| Governance OApp Sender To Amoy   | [`0xe57ea2f14f3051296d3965Bae8caAF86acdd6050`](https://sepolia.etherscan.io/address/0xe57ea2f14f3051296d3965Bae8caAF86acdd6050) |
 
 
 ## Pausing

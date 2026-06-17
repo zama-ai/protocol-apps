@@ -49,6 +49,7 @@ Those are LayerZero specific and should not be confused with Chain IDs (see sect
 
 * Ethereum Sepolia: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
 * Gateway Testnet: [https://explorer.testnet.zama.org/](https://explorer.testnet.zama.org/)
+* Polygon Amoy: [https://amoy.polygonscan.com/](https://amoy.polygonscan.com/)
 
 ### RPC endpoints
 
@@ -61,6 +62,7 @@ Those are LayerZero specific and should not be confused with Chain IDs (see sect
 | `Ethereum Sepolia`    | 11155111   |
 | `Gateway Testnet`     |  10901     |
 | `BSC Testnet`         |    97      |
+| `Polygon Amoy`        |  80002     |
 
 ### LayerZero
 
@@ -71,3 +73,4 @@ Those are LayerZero specific and should not be confused with Chain IDs (see sect
 | `Ethereum Sepolia`    |      40161        |
 | `Gateway Testnet`     |      40424        |
 | `BSC Testnet`         |      40102        |
+| `Polygon Amoy`        |      40267        |
