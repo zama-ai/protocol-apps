@@ -7,17 +7,9 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { time } from '@nomicfoundation/hardhat-network-helpers';
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 import { expect } from 'chai';
-import { ethers, fhevm, upgrades } from 'hardhat';
-import { getRequiredEnvVar } from '../tasks/utils/loadVariables';
-import { Addressable } from 'ethers';
-import { CONTRACT_NAME } from '../tasks/deploy';
+import { ethers, fhevm } from 'hardhat';
 import { createRandomAddress } from './utils/inputs';
-
-// Get values of the first confidential wrapper from the environment variables
-const name = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_NAME_0');
-const symbol = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_SYMBOL_0');
-const uri = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_CONTRACT_URI_0');
-const owner = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_0');
+import { deployConfidentialWrapper } from './utils/confidentialWrapper';
 
 // Define ERC20mock values
 const erc20contractName = '$ERC20Mock';
@@ -27,16 +19,6 @@ const erc20mockDecimals = 18;
 
 /* eslint-disable no-unexpected-multiline */
 describe('ERC7984Wrapper', function () {
-  async function deployConfidentialWrapper(token: string | Addressable) {
-    const confidentialWrapperFactory = await ethers.getContractFactory(CONTRACT_NAME);
-    const proxy = await upgrades.deployProxy(confidentialWrapperFactory, [name, symbol, uri, token, owner], {
-      initializer: 'initialize',
-      kind: 'uups',
-    });
-    await proxy.waitForDeployment();
-    return proxy;
-  }
-
   beforeEach(async function () {
     const accounts = await ethers.getSigners();
     const [holder, recipient, operator, anyone] = accounts;

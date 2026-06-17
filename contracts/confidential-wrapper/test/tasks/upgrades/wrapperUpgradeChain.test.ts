@@ -1,124 +1,132 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
-import { CONTRACT_NAME, getConfidentialWrapperProxyName } from '../../../tasks/deploy';
-import {
-  CONFIDENTIAL_WRAPPER_V2_CONTRACT,
-  getConfidentialWrapperV2ImplName,
-} from '../../../tasks/upgrades/confidentialWrapperV2';
-import {
-  CONFIDENTIAL_WRAPPER_V3_CONTRACT,
-  getConfidentialWrapperV3ImplName,
-} from '../../../tasks/upgrades/confidentialWrapperV3';
+import { CONTRACT_NAME } from '../../../tasks/deploy';
 import { expect } from 'chai';
+import { ethers as ethersUtils } from 'ethers';
 import hre from 'hardhat';
-import { FunctionFragment, Interface, ethers } from 'ethers';
+import oldConfidentialWrapperV3Artifact from '../../fixtures/frozen/ConfidentialWrapperV3.mainnet.json';
+import erc1967ProxyArtifact from '@openzeppelin/contracts/build/contracts/ERC1967Proxy.json';
 
 describe('ConfidentialWrapper Upgrade Chain', function () {
   const WRAPPER_NAME = 'Upgrade Chain Test Wrapper';
   const WRAPPER_SYMBOL = 'cUPCHAIN';
   const CONTRACT_URI =
     'data:application/json;utf8,{"name":"Upgrade Chain Test Wrapper","symbol":"cUPCHAIN","description":"Test wrapper for full upgrade chain"}';
-  const ADDRESSES_TO_BLOCK = Array.from({ length: 2 }, () => ethers.getAddress(ethers.hexlify(ethers.randomBytes(20))));
   const SELECTOR_CUSDC = '0xfe575a87';
 
-  let proxyAddress: string;
-  let underlyingAddress: string;
   let deployer: string;
   let deployerSigner: HardhatEthersSigner;
   let user: HardhatEthersSigner;
   let outsider: HardhatEthersSigner;
-  let prevImplAddress: string;
+
+  async function deployUnderlying() {
+    const erc20Factory = await hre.ethers.getContractFactory('ERC20Mock');
+    const underlying = await erc20Factory.deploy('Test Token', 'TEST', 6);
+    await underlying.waitForDeployment();
+    return underlying;
+  }
+
+  async function deployHistoricalV3Proxy(
+    underlyingAddress: string,
+    blockedAddresses: string[],
+    selector = '0x00000000',
+    hasSelector = false,
+  ) {
+    const oldV3Factory = new hre.ethers.ContractFactory(
+      oldConfidentialWrapperV3Artifact.abi as any,
+      oldConfidentialWrapperV3Artifact.bytecode,
+      deployerSigner,
+    );
+    const oldV3Impl = await oldV3Factory.deploy();
+    await oldV3Impl.waitForDeployment();
+
+    const initData = oldV3Factory.interface.encodeFunctionData('initialize', [
+      WRAPPER_NAME,
+      WRAPPER_SYMBOL,
+      CONTRACT_URI,
+      underlyingAddress,
+      deployer,
+    ]);
+    const proxyFactory = new hre.ethers.ContractFactory(
+      (erc1967ProxyArtifact as any).abi,
+      erc1967ProxyArtifact.bytecode,
+      deployerSigner,
+    );
+    const proxy = await proxyFactory.deploy(await oldV3Impl.getAddress(), initData);
+    await proxy.waitForDeployment();
+
+    const proxyAddress = await proxy.getAddress();
+    const wrapper: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
+    await wrapper.connect(deployerSigner).reinitializeV2();
+    await wrapper.connect(deployerSigner).reinitializeV3(blockedAddresses, selector, hasSelector);
+    return proxyAddress;
+  }
+
+  async function deployCurrentImplementation() {
+    await hre.run('task:deployConfidentialWrapperImpl');
+    const implDeployment = await hre.deployments.get(`${CONTRACT_NAME}_Impl`);
+    return implDeployment.address;
+  }
+
+  async function expectCurrentState(
+    proxyAddress: string,
+    underlyingAddress: string,
+    blockedAddresses: string[],
+    selector: string,
+    hasSelector: boolean,
+  ) {
+    const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
+
+    expect(await wrapper.name()).to.equal(WRAPPER_NAME);
+    expect(await wrapper.symbol()).to.equal(WRAPPER_SYMBOL);
+    expect(await wrapper.contractURI()).to.equal(CONTRACT_URI);
+    expect(await wrapper.owner()).to.equal(deployer);
+    expect(await wrapper.underlying()).to.equal(underlyingAddress);
+
+    for (const address of blockedAddresses) {
+      expect(await wrapper.isBlocked(address)).to.be.true;
+    }
+
+    const [isSet, configuredSelector] = await wrapper.getUnderlyingDenyListSelector();
+    expect(isSet).to.equal(hasSelector);
+    expect(configuredSelector).to.equal(selector);
+
+    await expect(wrapper.connect(deployerSigner).blockUser(user.address))
+      .to.emit(wrapper, 'UserBlocked')
+      .withArgs(user.address);
+    await expect(wrapper.connect(outsider).blockUser(outsider.address))
+      .to.be.revertedWithCustomError(wrapper, 'OwnableUnauthorizedAccount')
+      .withArgs(outsider.address);
+    await wrapper.connect(deployerSigner).unblockUser(user.address);
+
+    await expect(wrapper.connect(deployerSigner).reinitializeV3([], '0x00000000', false)).to.be.revertedWithCustomError(
+      wrapper,
+      'InvalidInitialization',
+    );
+  }
 
   before(async function () {
     [user, outsider] = await hre.ethers.getSigners();
     const { deployer: d } = await hre.getNamedAccounts();
     deployer = d;
     deployerSigner = await hre.ethers.getSigner(deployer);
-
-    const erc20Factory = await hre.ethers.getContractFactory('ERC20Mock');
-    const underlying = await erc20Factory.deploy('Test Token', 'TEST', 6);
-    await underlying.waitForDeployment();
-    underlyingAddress = await underlying.getAddress();
-
-    await hre.run('task:deployConfidentialWrapper', {
-      name: WRAPPER_NAME,
-      symbol: WRAPPER_SYMBOL,
-      contractUri: CONTRACT_URI,
-      underlying: underlyingAddress,
-      owner: deployer,
-    });
-
-    const proxyDeployment = await hre.deployments.get(getConfidentialWrapperProxyName(WRAPPER_NAME));
-    proxyAddress = proxyDeployment.address;
-    prevImplAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
   });
 
-  describe('V1 → V2', function () {
-    before(async function () {
-      await hre.run('task:deployConfidentialWrapperV2Impl');
-      const v2Deployment = await hre.deployments.get(getConfidentialWrapperV2ImplName());
-      const v2Selector = FunctionFragment.from('reinitializeV2()').selector;
-      const wrapper = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
-      await wrapper.connect(deployerSigner).upgradeToAndCall(v2Deployment.address, v2Selector);
-    });
+  it('upgrades from historical V3 to the current flat implementation with no calldata', async function () {
+    const underlying = await deployUnderlying();
+    const underlyingAddress = await underlying.getAddress();
+    const blockedAddresses = Array.from({ length: 2 }, () =>
+      ethersUtils.getAddress(ethersUtils.hexlify(ethersUtils.randomBytes(20))),
+    );
 
-    it('upgrades implementation and preserves state', async function () {
-      const wrapperV2 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V2_CONTRACT, proxyAddress);
-      const newImplAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+    const proxyAddress = await deployHistoricalV3Proxy(underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true);
+    const historicalV3ImplAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
+    const currentImplAddress = await deployCurrentImplementation();
+    expect(currentImplAddress).to.not.equal(historicalV3ImplAddress);
 
-      expect(newImplAddress).to.not.equal(prevImplAddress);
-      prevImplAddress = newImplAddress;
+    const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
+    await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, '0x');
 
-      expect(await wrapperV2.name()).to.equal(WRAPPER_NAME);
-      expect(await wrapperV2.symbol()).to.equal(WRAPPER_SYMBOL);
-      expect(await wrapperV2.contractURI()).to.equal(CONTRACT_URI);
-      expect(await wrapperV2.owner()).to.equal(deployer);
-      expect(await wrapperV2.underlying()).to.equal(underlyingAddress);
-
-      await expect(wrapperV2.connect(deployerSigner).reinitializeV2()).to.be.revertedWithCustomError(
-        wrapperV2,
-        'InvalidInitialization',
-      );
-    });
-  });
-
-  describe('V2 → V3', function () {
-    before(async function () {
-      await hre.run('task:deployConfidentialWrapperV3Impl');
-      const v3Deployment = await hre.deployments.get(getConfidentialWrapperV3ImplName());
-      const v3Iface = new Interface(['function reinitializeV3(address[], bytes4, bool)']);
-      const v3Calldata = v3Iface.encodeFunctionData('reinitializeV3', [ADDRESSES_TO_BLOCK, SELECTOR_CUSDC, true]);
-      const wrapperV2 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V2_CONTRACT, proxyAddress);
-      await wrapperV2.connect(deployerSigner).upgradeToAndCall(v3Deployment.address, v3Calldata);
-    });
-
-    it('upgrades implementation, preserves state, and initializes denylist', async function () {
-      const wrapperV3 = await hre.ethers.getContractAt(CONFIDENTIAL_WRAPPER_V3_CONTRACT, proxyAddress);
-      const newImplAddress = await hre.upgrades.erc1967.getImplementationAddress(proxyAddress);
-
-      expect(newImplAddress).to.not.equal(prevImplAddress);
-      prevImplAddress = newImplAddress;
-
-      expect(await wrapperV3.name()).to.equal(WRAPPER_NAME);
-      expect(await wrapperV3.symbol()).to.equal(WRAPPER_SYMBOL);
-      expect(await wrapperV3.contractURI()).to.equal(CONTRACT_URI);
-      expect(await wrapperV3.owner()).to.equal(deployer);
-      expect(await wrapperV3.underlying()).to.equal(underlyingAddress);
-
-      for (const address of ADDRESSES_TO_BLOCK) {
-        expect(await wrapperV3.isBlocked(address)).to.be.true;
-      }
-
-      await expect(wrapperV3.connect(deployerSigner).blockUser(user.address))
-        .to.emit(wrapperV3, 'UserBlocked')
-        .withArgs(user.address);
-      await expect(wrapperV3.connect(outsider).blockUser(outsider.address))
-        .to.be.revertedWithCustomError(wrapperV3, 'OwnableUnauthorizedAccount')
-        .withArgs(outsider.address);
-      await wrapperV3.connect(deployerSigner).unblockUser(user.address);
-
-      await expect(
-        wrapperV3.connect(deployerSigner).reinitializeV3([], '0x00000000', false),
-      ).to.be.revertedWithCustomError(wrapperV3, 'InvalidInitialization');
-    });
+    expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(currentImplAddress);
+    await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true);
   });
 });

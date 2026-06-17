@@ -386,8 +386,12 @@ async function main() {
   console.log('\n═══ 6. Verifying security invariants ═══\n');
 
   await assertReverts(
-    () => upgraded.initialize('hack', 'HACK', 'uri', pre.underlying, pre.owner),
-    'should not be re-initializable',
+    () => upgraded.initializeFromEmptyProxy('hack', 'HACK', 'uri', pre.underlying, pre.owner, [], '0x00000000', false),
+    'initializeFromEmptyProxy should not be replayable',
+  );
+  await assertReverts(
+    () => upgraded.reinitializeV3([], '0x00000000', false),
+    'reinitializeV3 should not be replayable',
   );
   console.log('  Re-initialization blocked: OK');
 

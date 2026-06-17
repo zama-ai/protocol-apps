@@ -53,6 +53,9 @@ Deploy a single confidential wrapper contract.
 | `--contract-uri` | `string` | Yes | The contract URI containing JSON metadata for the wrapper |
 | `--underlying` | `string` | Yes | The address of the underlying ERC20 token to wrap |
 | `--owner` | `string` | Yes | The address that will own the deployed wrapper contract |
+| `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initializeFromEmptyProxy` |
+| `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist |
+| `--has-underlying-deny-list-selector` | `boolean` | Yes | Whether the underlying token denylist selector should be enabled |
 
 **Example:**
 
@@ -63,12 +66,23 @@ npx hardhat task:deployConfidentialWrapper \
   --contract-uri 'data:application/json;utf8,{"name":"Confidential USDT","symbol":"cUSDT","description":"Confidential wrapper of USDT"}' \
   --underlying 0x1234567890123456789012345678901234567890 \
   --owner 0x9876543210987654321098765432109876543210 \
+  --blocked-users '[]' \
+  --underlying-deny-list-selector 0x00000000 \
+  --has-underlying-deny-list-selector false \
   --network testnet
 ```
 
 ### `task:deployAllConfidentialWrappers`
 
 Deploy all confidential wrapper contracts defined in the `.env` file. Reads `NUM_CONFIDENTIAL_WRAPPERS` and iterates over each wrapper's environment variables (`CONFIDENTIAL_WRAPPER_NAME_{i}`, `CONFIDENTIAL_WRAPPER_SYMBOL_{i}`, etc.).
+
+Each wrapper must also provide the V3 initializer configuration:
+
+| Variable | Description |
+| --- | --- |
+| `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
+| `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist |
+| `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Whether the underlying token denylist selector should be enabled |
 
 **Parameters:** None (configuration is read from environment variables).
 
