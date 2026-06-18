@@ -34,7 +34,7 @@ export async function deployConfidentialWrapper(
   const proxy = await upgrades.deployProxy(
     factory,
     [name, symbol, contractUri, token, owner, blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector],
-    { initializer: 'initializeFromEmptyProxy', kind: 'uups' },
+    { initializer: 'initialize', kind: 'uups' },
   );
   await proxy.waitForDeployment();
   return ethers.getContractAt(CONTRACT_NAME, await proxy.getAddress());

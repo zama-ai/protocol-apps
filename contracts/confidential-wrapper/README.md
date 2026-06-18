@@ -53,7 +53,7 @@ Deploy a single confidential wrapper contract.
 | `--contract-uri` | `string` | Yes | The contract URI containing JSON metadata for the wrapper |
 | `--underlying` | `string` | Yes | The address of the underlying ERC20 token to wrap |
 | `--owner` | `string` | Yes | The address that will own the deployed wrapper contract |
-| `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initializeFromEmptyProxy` |
+| `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initialize` |
 | `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist |
 | `--has-underlying-deny-list-selector` | `boolean` | Yes | Whether the underlying token denylist selector should be enabled |
 

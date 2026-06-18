@@ -71,7 +71,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
     ],
-    { initializer: 'initializeFromEmptyProxy', kind: 'uups' },
+    { initializer: 'initialize', kind: 'uups' },
   );
 
   await proxy.waitForDeployment();
@@ -124,7 +124,7 @@ task('task:deployConfidentialWrapper')
   .addParam('owner', 'The owner address of the confidential wrapper contract to deploy', undefined, types.string)
   .addParam(
     'blockedUsers',
-    'JSON array of addresses to seed into the wrapper denylist during initializeFromEmptyProxy',
+    'JSON array of addresses to seed into the wrapper denylist during initialize',
     undefined,
     types.json,
   )

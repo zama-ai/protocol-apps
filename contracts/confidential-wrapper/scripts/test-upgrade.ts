@@ -386,8 +386,8 @@ async function main() {
   console.log('\n═══ 6. Verifying security invariants ═══\n');
 
   await assertReverts(
-    () => upgraded.initializeFromEmptyProxy('hack', 'HACK', 'uri', pre.underlying, pre.owner, [], '0x00000000', false),
-    'initializeFromEmptyProxy should not be replayable',
+    () => upgraded.initialize('hack', 'HACK', 'uri', pre.underlying, pre.owner, [], '0x00000000', false),
+    'initialize should not be replayable',
   );
   await assertReverts(
     () => upgraded.reinitializeV3([], '0x00000000', false),

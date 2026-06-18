@@ -120,7 +120,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
-  describe('initializeFromEmptyProxy initialization', function () {
+  describe('initialize initialization', function () {
     it('blocks addresses passed in the blockedUsers array', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
@@ -130,7 +130,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       expect(await wrapper.isBlocked(BLOCKED_ADDRESSES[2])).to.be.false;
     });
 
-    it('emits UserBlocked events for seeded addresses during initializeFromEmptyProxy', async function () {
+    it('emits UserBlocked events for seeded addresses during initialize', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
       const wrapper = await deployV3(token.target as string, '0x00000000', false, seeds);
@@ -168,7 +168,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       expect(selector).to.equal(SELECTOR_CUSDC);
 
       await expect(
-        wrapper.initializeFromEmptyProxy('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false),
+        wrapper.initialize('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });

@@ -70,7 +70,7 @@ contract ConfidentialWrapper is
     error UnderlyingDenyListedAddress(address user);
 
     /// Constant used for making sure the version number used in the `reinitializer` modifier is
-    /// identical between `initializeFromEmptyProxy` and `reinitializeV3`.
+    /// identical between `initialize` and `reinitializeV3`.
     uint64 private constant REINITIALIZER_VERSION = 3;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -84,17 +84,12 @@ contract ConfidentialWrapper is
         }
     }
 
-    modifier onlyFromEmptyProxy() {
-        require(_getInitializedVersion() == 0, InvalidInitialization());
-        _;
-    }
-
     /**
      * @notice Initializes the contract when deployed behind an empty proxy.
      * @dev Advances the initializer version to {REINITIALIZER_VERSION} so older reinitializers cannot be replayed.
      */
     /// @custom:oz-upgrades-validate-as-initializer
-    function initializeFromEmptyProxy(
+    function initialize(
         string memory name_,
         string memory symbol_,
         string memory contractURI_,
@@ -103,13 +98,13 @@ contract ConfidentialWrapper is
         address[] memory blockedUsers,
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_
-    ) public virtual onlyFromEmptyProxy reinitializer(REINITIALIZER_VERSION) {
+    ) public virtual reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapper_init(name_, symbol_, contractURI_, underlying_, owner_);
         __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
     }
 
     /**
-     * @notice Re-initializes the contract from V3.
+     * @notice Re-initializes the contract from V2.
      * @dev Define a `reinitializeVX` function once the contract needs to be upgraded.
      * Optionally seeds the denylist with `blockedUsers`.
      * Reverts if any entry in `blockedUsers` appears more than once.
