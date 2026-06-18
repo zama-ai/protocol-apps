@@ -22,12 +22,9 @@
     "prettier": "^3.6.2"
   },
   "overrides": {
-    "@trivago/prettier-plugin-sort-imports": {
-      "lodash": "^4.18.0"
-    },
-    "hardhat": {
-      "serialize-javascript": "^7.0.3",
-      "lodash": "^4.18.0"
-    }
+    "@trivago/prettier-plugin-sort-imports": { "lodash": "^4.18.0" },
+    "hardhat": { "serialize-javascript": "^7.0.3", "lodash": "^4.18.0" },
+    "axios": "^1.17.0",
+    "js-yaml": "^4.2.0"
   }
 }
