@@ -28,6 +28,7 @@
 | Confidential tGBP | `ctGBP` | [`0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9`](https://etherscan.io/address/0xa873750ccBafD5ec7Dd13bfD5237d7129832eDD9) | [`0x27f6c8289550fce67f6b50bed1f519966afe5287`](https://etherscan.io/token/0x27f6c8289550fce67f6b50bed1f519966afe5287) |
 | Confidential XAUt | `cXAUt` | [`0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1`](https://etherscan.io/address/0x73cc9aF9d6BEFdb3c3fAf8a5E8c05Cb95FdaEEf1) | [`0x68749665FF8D2d112Fa859AA293F07A622782F38`](https://etherscan.io/token/0x68749665FF8D2d112Fa859AA293F07A622782F38)  |
 | Confidential bbqTGBP | `cbbqTGBP` | [`0xBA4cFF6ED6F7Cb2A58776dECa4E984b498446762`](https://etherscan.io/address/0xBA4cFF6ED6F7Cb2A58776dECa4E984b498446762) | [`0xbeeffABcd0dB09589Dd21854aa760C52aB4bf04F`](https://etherscan.io/token/0xbeeffABcd0dB09589Dd21854aa760C52aB4bf04F)  |
+| Confidential steakcUSDC | `csteakcUSDC` | [`0x66Bf74E96900D1a19c7070D939D124f2F565C458`](https://etherscan.io/address/0x66Bf74E96900D1a19c7070D939D124f2F565C458) | [`0xbEEF00A59B577423653A1526c7009bdE103F542B`](https://etherscan.io/token/0xbEEF00A59B577423653A1526c7009bdE103F542B)  |
 
 
 ## Staking
