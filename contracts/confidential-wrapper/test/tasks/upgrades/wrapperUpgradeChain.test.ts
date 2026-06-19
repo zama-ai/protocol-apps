@@ -12,6 +12,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
   const CONTRACT_URI =
     'data:application/json;utf8,{"name":"Upgrade Chain Test Wrapper","symbol":"cUPCHAIN","description":"Test wrapper for full upgrade chain"}';
   const SELECTOR_CUSDC = '0xfe575a87';
+  const V4_IFACE = new ethersUtils.Interface(['function reinitializeV4(address)']);
 
   let deployer: string;
   let deployerSigner: HardhatEthersSigner;
@@ -67,12 +68,19 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     return implDeployment.address;
   }
 
+  async function deployMockDenyList() {
+    const denyList = await hre.ethers.deployContract('MockConfidentialWrapperDenyList');
+    await denyList.waitForDeployment();
+    return denyList;
+  }
+
   async function expectCurrentState(
     proxyAddress: string,
     underlyingAddress: string,
     blockedAddresses: string[],
     selector: string,
     hasSelector: boolean,
+    denyList: any,
   ) {
     const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
 
@@ -98,7 +106,16 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       .withArgs(outsider.address);
     await wrapper.connect(deployerSigner).unblockUser(user.address);
 
-    await expect(wrapper.connect(deployerSigner).reinitializeV3([], '0x00000000', false)).to.be.revertedWithCustomError(
+    // V4 feature: the centralized deny-list registry is wired and contributes to blocking.
+    const registryAddress = await denyList.getAddress();
+    expect(await wrapper.confidentialWrapperDenyList()).to.equal(registryAddress);
+
+    const registryDenied = ethersUtils.getAddress(ethersUtils.hexlify(ethersUtils.randomBytes(20)));
+    expect(await wrapper.isBlocked(registryDenied)).to.be.false;
+    await denyList.addToDenyList([registryDenied]);
+    expect(await wrapper.isBlocked(registryDenied)).to.be.true;
+
+    await expect(wrapper.connect(deployerSigner).reinitializeV4(ethersUtils.ZeroAddress)).to.be.revertedWithCustomError(
       wrapper,
       'InvalidInitialization',
     );
@@ -111,7 +128,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     deployerSigner = await hre.ethers.getSigner(deployer);
   });
 
-  it('upgrades from historical V3 to the current flat implementation with no calldata', async function () {
+  it('upgrades from historical V3 to the current flat implementation via reinitializeV4', async function () {
     const underlying = await deployUnderlying();
     const underlyingAddress = await underlying.getAddress();
     const blockedAddresses = Array.from({ length: 2 }, () =>
@@ -123,10 +140,15 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     const currentImplAddress = await deployCurrentImplementation();
     expect(currentImplAddress).to.not.equal(historicalV3ImplAddress);
 
+    // The flat implementation is V4 (reinitializer(4)); wire the centralized registry on upgrade.
+    const denyList = await deployMockDenyList();
+    const registryAddress = await denyList.getAddress();
+    const reinitializeV4Calldata = V4_IFACE.encodeFunctionData('reinitializeV4', [registryAddress]);
+
     const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
-    await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, '0x');
+    await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, reinitializeV4Calldata);
 
     expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(currentImplAddress);
-    await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true);
+    await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true, denyList);
   });
 });

@@ -4,7 +4,6 @@ import { ethers, fhevm } from 'hardhat';
 import hre from 'hardhat';
 import { allowHandle, impersonate } from './utils/accounts';
 import { DEFAULT_WRAPPER_OWNER, deployConfidentialWrapper } from './utils/confidentialWrapper';
-import erc1967ProxyArtifact from '@openzeppelin/contracts/build/contracts/ERC1967Proxy.json';
 
 const owner = DEFAULT_WRAPPER_OWNER;
 
@@ -21,23 +20,6 @@ async function deployV3(token: string, selector = '0x00000000', hasSelector = fa
     underlyingDenyListSelector: selector,
     hasUnderlyingDenyListSelector: hasSelector,
   });
-}
-
-async function deployReinitializedWrapperProxy(blockedUsers: string[], selector = '0x00000000', hasSelector = false) {
-  const factory = await ethers.getContractFactory('ConfidentialWrapper');
-  const implementation = await factory.deploy();
-  await implementation.waitForDeployment();
-
-  const initData = factory.interface.encodeFunctionData('reinitializeV3', [blockedUsers, selector, hasSelector]);
-  const [deployer] = await ethers.getSigners();
-  const proxyFactory = new ethers.ContractFactory(
-    (erc1967ProxyArtifact as any).abi,
-    erc1967ProxyArtifact.bytecode,
-    deployer,
-  );
-  const proxy = await proxyFactory.deploy(await implementation.getAddress(), initData);
-  await proxy.waitForDeployment();
-  return ethers.getContractAt('ConfidentialWrapper', await proxy.getAddress());
 }
 
 describe('ConfidentialWrapperV3 DenyList', function () {
@@ -147,29 +129,6 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       await expect(deployV3(token.target as string, '0x00000000', false, [dup, dup]))
         .to.be.revertedWithCustomError(factory, 'UserAlreadyBlocked')
         .withArgs(dup);
-    });
-  });
-
-  describe('reinitializeV3 initialization', function () {
-    it('blocks addresses passed in the blockedUsers array and emits UserBlocked events', async function () {
-      const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
-      const wrapper = await deployReinitializedWrapperProxy(seeds, SELECTOR_CUSDC, true);
-      const events = await wrapper.queryFilter(wrapper.filters.UserBlocked());
-      expect(events.length).to.equal(seeds.length);
-      expect(events[0].args[0]).to.equal(seeds[0]);
-      expect(events[1].args[0]).to.equal(seeds[1]);
-
-      expect(await wrapper.isBlocked(seeds[0])).to.be.true;
-      expect(await wrapper.isBlocked(seeds[1])).to.be.true;
-      expect(await wrapper.isBlocked(BLOCKED_ADDRESSES[2])).to.be.false;
-
-      const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-      expect(isSet).to.equal(true);
-      expect(selector).to.equal(SELECTOR_CUSDC);
-
-      await expect(
-        wrapper.initialize('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false),
-      ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });
 

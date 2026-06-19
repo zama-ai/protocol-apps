@@ -26,6 +26,10 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       );
       const SELECTOR_CUSDC = '0xfe575a87';
 
+      const denyList = await hre.ethers.deployContract('MockConfidentialWrapperDenyList');
+      await denyList.waitForDeployment();
+      const registryAddress = await denyList.getAddress();
+
       const wrapper = await deployConfidentialWrapper(this.underlyingAddress, {
         name: WRAPPER_NAME,
         symbol: WRAPPER_SYMBOL,
@@ -34,6 +38,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         blockedUsers: blockedAddresses,
         underlyingDenyListSelector: SELECTOR_CUSDC,
         hasUnderlyingDenyListSelector: true,
+        confidentialWrapperDenyList: registryAddress,
       });
 
       // Base state is fully initialized
@@ -51,9 +56,16 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       expect(isSet).to.be.true;
       expect(selector).to.equal(SELECTOR_CUSDC);
 
+      // The centralized registry is wired and contributes to blocking
+      expect(await wrapper.confidentialWrapperDenyList()).to.equal(registryAddress);
+      const registryDenied = hre.ethers.getAddress(hre.ethers.hexlify(hre.ethers.randomBytes(20)));
+      expect(await wrapper.isBlocked(registryDenied)).to.be.false;
+      await denyList.addToDenyList([registryDenied]);
+      expect(await wrapper.isBlocked(registryDenied)).to.be.true;
+
       // Current reinitializer is locked and cannot replay
       await expect(
-        wrapper.connect(this.deployer).reinitializeV3([], '0x00000000', false),
+        wrapper.connect(this.deployer).reinitializeV4(hre.ethers.ZeroAddress),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });

@@ -1,4 +1,5 @@
 import { getRequiredEnvVar } from './utils/loadVariables';
+import { ZeroAddress } from 'ethers';
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
@@ -28,6 +29,7 @@ type ConfidentialWrapperInitConfig = {
   blockedUsers: string[];
   underlyingDenyListSelector: string;
   hasUnderlyingDenyListSelector: boolean;
+  confidentialWrapperDenyList: string;
 };
 
 function getRequiredJsonEnvVar<T>(name: string): T {
@@ -55,6 +57,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
     blockedUsers,
     underlyingDenyListSelector,
     hasUnderlyingDenyListSelector,
+    confidentialWrapperDenyList,
   } = initConfig;
 
   // Deploy the proxy contract
@@ -70,6 +73,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      confidentialWrapperDenyList,
     ],
     { initializer: 'initialize', kind: 'uups' },
   );
@@ -86,6 +90,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
       `  - contract URI: ${contractUri}`,
       `  - underlying: ${underlying}`,
       `  - owner: ${owner}`,
+      `  - confidential wrapper deny list: ${confidentialWrapperDenyList}`,
       `  - Deployed by deployer account: ${deployer}`,
       `  - Network: ${hre.network.name}`,
       '',
@@ -110,6 +115,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
 // --blocked-users '["0x1111111111111111111111111111111111111111"]' \
 // --underlying-deny-list-selector "0xfe575a87" \
 // --has-underlying-deny-list-selector true \
+// --confidential-wrapper-deny-list "0x0000000000000000000000000000000000000000" \
 // --network testnet
 task('task:deployConfidentialWrapper')
   .addParam('name', 'The name of the confidential wrapper contract to deploy', undefined, types.string)
@@ -140,6 +146,12 @@ task('task:deployConfidentialWrapper')
     undefined,
     types.boolean,
   )
+  .addOptionalParam(
+    'confidentialWrapperDenyList',
+    'Centralized IConfidentialWrapperDenyList registry address (zero address to disable)',
+    ZeroAddress,
+    types.string,
+  )
   .setAction(async function (
     {
       name,
@@ -150,6 +162,7 @@ task('task:deployConfidentialWrapper')
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      confidentialWrapperDenyList,
     },
     hre,
   ) {
@@ -163,6 +176,7 @@ task('task:deployConfidentialWrapper')
         blockedUsers,
         underlyingDenyListSelector,
         hasUnderlyingDenyListSelector,
+        confidentialWrapperDenyList,
       },
       hre,
     );
@@ -189,6 +203,8 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const hasUnderlyingDenyListSelector = getRequiredBooleanEnvVar(
       `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_${i}`,
     );
+    // Optional: defaults to the zero address (registry disabled) when not provided.
+    const confidentialWrapperDenyList = process.env[`CONFIDENTIAL_WRAPPER_DENY_LIST_ADDRESS_${i}`] ?? ZeroAddress;
 
     await hre.run('task:deployConfidentialWrapper', {
       name,
@@ -199,6 +215,7 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      confidentialWrapperDenyList,
     });
   }
 
@@ -206,8 +223,8 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
 });
 
 // Deploy a bare ConfidentialWrapper implementation (no proxy).
-// Used when preparing an upgrade proposal: deploy the new implementation, then call
-// `upgradeToAndCall(implAddress, reinitializeVX_calldata)` on the existing proxy.
+// Used when preparing an upgrade proposal: deploy the new (V4) implementation, then call
+// `upgradeToAndCall(implAddress, reinitializeV4_calldata)` on the existing proxy.
 // Example usage:
 // npx hardhat task:deployConfidentialWrapperImpl --network testnet
 async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {

@@ -7,6 +7,7 @@ import {ERC7984ERC20WrapperUpgradeable} from "./extensions/ERC7984ERC20WrapperUp
 import {ZamaEthereumConfigUpgradeable} from "./fhevm/ZamaEthereumConfigUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {IConfidentialWrapperDenyList} from "confidential-deny-list/contracts/interfaces/IConfidentialWrapperDenyList.sol";
 
 /**
  * @title ConfidentialWrapper
@@ -39,6 +40,7 @@ contract ConfidentialWrapper is
         mapping(bytes32 unwrapRequestId => UnwrapContext unwrapContext) _unwrapContexts;
         bytes4 _underlyingDenyListSelector;
         bool _hasUnderlyingDenyListSelector;
+        address _confidentialWrapperDenyList;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.ConfidentialWrapperV3")) - 1)) & ~bytes32(uint256(0xff))
@@ -50,6 +52,12 @@ contract ConfidentialWrapper is
 
     /// @dev Emitted when `user` is removed from the denylist.
     event UserUnblocked(address indexed user);
+
+    /// @dev Emitted when the centralized deny-list registry address is updated.
+    event ConfidentialWrapperDenyListUpdated(address indexed registry);
+
+    /// @dev Emitted when the underlying deny-list selector configuration is updated.
+    event UnderlyingDenyListSelectorUpdated(bytes4 indexed selector, bool isSet);
 
     /// @dev Thrown when `user` is on the denylist and attempts a restricted operation.
     error BlockedUser(address user);
@@ -70,8 +78,8 @@ contract ConfidentialWrapper is
     error UnderlyingDenyListedAddress(address user);
 
     /// Constant used for making sure the version number used in the `reinitializer` modifier is
-    /// identical between `initialize` and `reinitializeV3`.
-    uint64 private constant REINITIALIZER_VERSION = 3;
+    /// identical between `initialize` and `reinitializeV4`.
+    uint64 private constant REINITIALIZER_VERSION = 4;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -97,26 +105,23 @@ contract ConfidentialWrapper is
         address owner_,
         address[] memory blockedUsers,
         bytes4 underlyingDenyListSelector,
-        bool hasUnderlyingDenyListSelector_
+        bool hasUnderlyingDenyListSelector_,
+        address confidentialWrapperDenyList_
     ) public virtual reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapper_init(name_, symbol_, contractURI_, underlying_, owner_);
         __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
+        __ConfidentialWrapperV4_init(confidentialWrapperDenyList_);
     }
 
     /**
-     * @notice Re-initializes the contract from V2.
-     * @dev Define a `reinitializeVX` function once the contract needs to be upgraded.
-     * Optionally seeds the denylist with `blockedUsers`.
-     * Reverts if any entry in `blockedUsers` appears more than once.
+     * @notice Re-initializes the contract from V3.
+     * @dev Wires the optional centralized {IConfidentialWrapperDenyList} registry on an existing V3 proxy.
+     * Pass `address(0)` to leave the registry disabled.
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV3(
-        address[] memory blockedUsers,
-        bytes4 underlyingDenyListSelector,
-        bool hasUnderlyingDenyListSelector_
-    ) public virtual reinitializer(REINITIALIZER_VERSION) {
-        __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
+    function reinitializeV4(address confidentialWrapperDenyList_) public virtual reinitializer(REINITIALIZER_VERSION) {
+        __ConfidentialWrapperV4_init(confidentialWrapperDenyList_);
     }
 
     function __ConfidentialWrapper_init(
@@ -152,6 +157,17 @@ contract ConfidentialWrapper is
         $._hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector_;
     }
 
+    /**
+     * @dev V4-specific initialization logic. Wires the optional centralized
+     * {IConfidentialWrapperDenyList} registry. Pass `address(0)` to leave the registry disabled.
+     */
+    /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
+    function __ConfidentialWrapperV4_init(address confidentialWrapperDenyList_) internal onlyInitializing {
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        $._confidentialWrapperDenyList = confidentialWrapperDenyList_;
+        emit ConfidentialWrapperDenyListUpdated(confidentialWrapperDenyList_);
+    }
+
     /// @dev Adds `user` to the denylist.
     function blockUser(address user) external virtual onlyOwner {
         _blockUser(user);
@@ -162,9 +178,37 @@ contract ConfidentialWrapper is
         _unblockUser(user);
     }
 
-    /// @dev Returns whether `user` is currently on the denylist.
+    /**
+     * @dev Returns whether `user` is currently blocked: either locally on the per-wrapper block list,
+     * or denied by the centralized {IConfidentialWrapperDenyList} registry when one is configured.
+     */
     function isBlocked(address user) public view virtual returns (bool) {
-        return _getConfidentialWrapperV3Storage()._blockedUsers[user];
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        if ($._blockedUsers[user]) return true;
+        address registry = $._confidentialWrapperDenyList;
+        return registry != address(0) && IConfidentialWrapperDenyList(registry).isDenied(user);
+    }
+
+    /// @dev Sets the centralized deny-list registry address. Use `address(0)` to disable it.
+    function setConfidentialWrapperDenyList(address registry) external virtual onlyOwner {
+        _getConfidentialWrapperV3Storage()._confidentialWrapperDenyList = registry;
+        emit ConfidentialWrapperDenyListUpdated(registry);
+    }
+
+    /// @dev Returns the centralized deny-list registry address, or `address(0)` if none is configured.
+    function confidentialWrapperDenyList() public view virtual returns (address) {
+        return _getConfidentialWrapperV3Storage()._confidentialWrapperDenyList;
+    }
+
+    /**
+     * @dev Sets the selector and flag used to query the underlying token for deny-list status.
+     * Allows activating, deactivating, or changing the check after deployment.
+     */
+    function setUnderlyingDenyListSelector(bytes4 selector_, bool isSet_) external virtual onlyOwner {
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        $._underlyingDenyListSelector = selector_;
+        $._hasUnderlyingDenyListSelector = isSet_;
+        emit UnderlyingDenyListSelectorUpdated(selector_, isSet_);
     }
 
     /**

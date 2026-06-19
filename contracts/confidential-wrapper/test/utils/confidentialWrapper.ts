@@ -1,4 +1,4 @@
-import { Addressable } from 'ethers';
+import { Addressable, ZeroAddress } from 'ethers';
 import { ethers, upgrades } from 'hardhat';
 import { CONTRACT_NAME } from '../../tasks/deploy';
 import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
@@ -16,6 +16,7 @@ type DeployConfidentialWrapperOptions = {
   blockedUsers?: string[];
   underlyingDenyListSelector?: string;
   hasUnderlyingDenyListSelector?: boolean;
+  confidentialWrapperDenyList?: string;
 };
 
 export async function deployConfidentialWrapper(
@@ -28,12 +29,23 @@ export async function deployConfidentialWrapper(
     blockedUsers = [],
     underlyingDenyListSelector = '0x00000000',
     hasUnderlyingDenyListSelector = false,
+    confidentialWrapperDenyList = ZeroAddress,
   }: DeployConfidentialWrapperOptions = {},
 ) {
   const factory = await ethers.getContractFactory(CONTRACT_NAME);
   const proxy = await upgrades.deployProxy(
     factory,
-    [name, symbol, contractUri, token, owner, blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector],
+    [
+      name,
+      symbol,
+      contractUri,
+      token,
+      owner,
+      blockedUsers,
+      underlyingDenyListSelector,
+      hasUnderlyingDenyListSelector,
+      confidentialWrapperDenyList,
+    ],
     { initializer: 'initialize', kind: 'uups' },
   );
   await proxy.waitForDeployment();

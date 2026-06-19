@@ -225,7 +225,10 @@ async function main() {
   const newImplAddress = await newImpl.getAddress();
 
   const proxyAsOwner = await ethers.getContractAt(CONTRACT_NAME, address, ownerSigner);
-  await proxyAsOwner.upgradeToAndCall(newImplAddress, '0x');
+  // The flat implementation is V4 (reinitializer(4)); advance the initializer version and wire the
+  // centralized deny-list registry (left disabled here) as part of the upgrade.
+  const reinitializeV4Calldata = factory.interface.encodeFunctionData('reinitializeV4', [ethers.ZeroAddress]);
+  await proxyAsOwner.upgradeToAndCall(newImplAddress, reinitializeV4Calldata);
 
   const postImplementation = await getImplementationAddress(address);
   assert(postImplementation === newImplAddress, 'implementation address mismatch after upgrade');
@@ -386,12 +389,12 @@ async function main() {
   console.log('\n═══ 6. Verifying security invariants ═══\n');
 
   await assertReverts(
-    () => upgraded.initialize('hack', 'HACK', 'uri', pre.underlying, pre.owner, [], '0x00000000', false),
+    () => upgraded.initialize('hack', 'HACK', 'uri', pre.underlying, pre.owner, [], '0x00000000', false, ethers.ZeroAddress),
     'initialize should not be replayable',
   );
   await assertReverts(
-    () => upgraded.reinitializeV3([], '0x00000000', false),
-    'reinitializeV3 should not be replayable',
+    () => upgraded.reinitializeV4(ethers.ZeroAddress),
+    'reinitializeV4 should not be replayable',
   );
   console.log('  Re-initialization blocked: OK');
 
