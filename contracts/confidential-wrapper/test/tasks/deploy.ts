@@ -8,6 +8,17 @@ import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
 import { expect } from 'chai';
 import hre from 'hardhat';
 
+function getRequiredJsonEnvVar<T>(name: string): T {
+  return JSON.parse(getRequiredEnvVar(name)) as T;
+}
+
+function getRequiredBooleanEnvVar(name: string): boolean {
+  const value = getRequiredEnvVar(name);
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} must be either "true" or "false"`);
+}
+
 // Helper function to verify that a contract is deployed at the given address.
 // Checks both that the address is valid and that bytecode exists at that address.
 async function expectContractDeployed(address: string) {
@@ -31,6 +42,11 @@ describe('ConfidentialWrapper Deployment', function () {
         const contractUri = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_CONTRACT_URI_${i}`);
         const underlying = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_${i}`);
         const owner = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_${i}`);
+        const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
+        const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
+        const hasUnderlyingDenyListSelector = getRequiredBooleanEnvVar(
+          `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_${i}`,
+        );
 
         // Get the deployed proxy contract
         const proxyDeployment = await hre.deployments.get(getConfidentialWrapperProxyName(name));
@@ -45,6 +61,12 @@ describe('ConfidentialWrapper Deployment', function () {
         expect(await confidentialWrapper.contractURI()).to.equal(contractUri);
         expect(await confidentialWrapper.underlying()).to.equal(underlying);
         expect(await confidentialWrapper.owner()).to.equal(owner);
+        for (const blockedUserAddress of blockedUsers) {
+          expect(await confidentialWrapper.isBlocked(blockedUserAddress)).to.equal(true);
+        }
+        const [isSet, selector] = await confidentialWrapper.getUnderlyingDenyListSelector();
+        expect(isSet).to.equal(hasUnderlyingDenyListSelector);
+        expect(selector).to.equal(underlyingDenyListSelector);
       }
     });
   });

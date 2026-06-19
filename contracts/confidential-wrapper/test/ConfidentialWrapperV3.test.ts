@@ -1,15 +1,12 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
-import { FunctionFragment, Interface } from 'ethers';
-import { ethers, fhevm, upgrades } from 'hardhat';
+import { ethers, fhevm } from 'hardhat';
 import hre from 'hardhat';
 import { allowHandle, impersonate } from './utils/accounts';
-import { getRequiredEnvVar } from '../tasks/utils/loadVariables';
+import { DEFAULT_WRAPPER_OWNER, deployConfidentialWrapper } from './utils/confidentialWrapper';
+import erc1967ProxyArtifact from '@openzeppelin/contracts/build/contracts/ERC1967Proxy.json';
 
-const name = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_NAME_0');
-const symbol = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_SYMBOL_0');
-const uri = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_CONTRACT_URI_0');
-const owner = getRequiredEnvVar('CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_0');
+const owner = DEFAULT_WRAPPER_OWNER;
 
 const BLOCKED_ADDRESSES = Array.from({ length: 5 }, () => ethers.getAddress(ethers.hexlify(ethers.randomBytes(20))));
 
@@ -18,51 +15,29 @@ const SELECTOR_CUSDT = '0x59bf1abe';
 const SELECTOR_TGBP = '0x97f735d5';
 const SELECTOR_XAUT = '0xfbac3951';
 
-const V3_IFACE = new Interface(['function reinitializeV3(address[], bytes4, bool)']);
-
 async function deployV3(token: string, selector = '0x00000000', hasSelector = false, blockedUsers: string[] = []) {
-  const ownerSigner = await ethers.getSigner(owner);
-
-  const v1Factory = await ethers.getContractFactory('ConfidentialWrapper');
-  const proxy = await upgrades.deployProxy(v1Factory, [name, symbol, uri, token, owner], {
-    initializer: 'initialize',
-    kind: 'uups',
+  return deployConfidentialWrapper(token, {
+    blockedUsers,
+    underlyingDenyListSelector: selector,
+    hasUnderlyingDenyListSelector: hasSelector,
   });
-  await proxy.waitForDeployment();
-  const proxyAddress = await proxy.getAddress();
-
-  const v2Impl = await ethers.deployContract('ConfidentialWrapperV2');
-  await v2Impl.waitForDeployment();
-  const v2Selector = FunctionFragment.from('reinitializeV2()').selector;
-  await proxy.connect(ownerSigner).upgradeToAndCall(await v2Impl.getAddress(), v2Selector);
-
-  const v3Impl = await ethers.deployContract('ConfidentialWrapperV3');
-  await v3Impl.waitForDeployment();
-  const v3Calldata = V3_IFACE.encodeFunctionData('reinitializeV3', [blockedUsers, selector, hasSelector]);
-  await proxy.connect(ownerSigner).upgradeToAndCall(await v3Impl.getAddress(), v3Calldata);
-
-  return ethers.getContractAt('ConfidentialWrapperV3', proxyAddress);
 }
 
-async function prepareV2ProxyForV3Upgrade(token: string) {
-  const ownerSigner = await ethers.getSigner(owner);
+async function deployReinitializedWrapperProxy(blockedUsers: string[], selector = '0x00000000', hasSelector = false) {
+  const factory = await ethers.getContractFactory('ConfidentialWrapper');
+  const implementation = await factory.deploy();
+  await implementation.waitForDeployment();
 
-  const v1Factory = await ethers.getContractFactory('ConfidentialWrapper');
-  const proxy = await upgrades.deployProxy(v1Factory, [name, symbol, uri, token, owner], {
-    initializer: 'initialize',
-    kind: 'uups',
-  });
+  const initData = factory.interface.encodeFunctionData('reinitializeV3', [blockedUsers, selector, hasSelector]);
+  const [deployer] = await ethers.getSigners();
+  const proxyFactory = new ethers.ContractFactory(
+    (erc1967ProxyArtifact as any).abi,
+    erc1967ProxyArtifact.bytecode,
+    deployer,
+  );
+  const proxy = await proxyFactory.deploy(await implementation.getAddress(), initData);
   await proxy.waitForDeployment();
-
-  const v2Impl = await ethers.deployContract('ConfidentialWrapperV2');
-  await v2Impl.waitForDeployment();
-  const v2Selector = FunctionFragment.from('reinitializeV2()').selector;
-  await proxy.connect(ownerSigner).upgradeToAndCall(await v2Impl.getAddress(), v2Selector);
-
-  const v3Impl = await ethers.deployContract('ConfidentialWrapperV3');
-  await v3Impl.waitForDeployment();
-
-  return { proxy, v3Impl, ownerSigner };
+  return ethers.getContractAt('ConfidentialWrapper', await proxy.getAddress());
 }
 
 describe('ConfidentialWrapperV3 DenyList', function () {
@@ -145,7 +120,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
-  describe('reinitializeV3 initialization', function () {
+  describe('initialize initialization', function () {
     it('blocks addresses passed in the blockedUsers array', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
@@ -155,27 +130,46 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       expect(await wrapper.isBlocked(BLOCKED_ADDRESSES[2])).to.be.false;
     });
 
-    it('emits UserBlocked events for seeded addresses during upgrade', async function () {
+    it('emits UserBlocked events for seeded addresses during initialize', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
-      const { proxy, v3Impl, ownerSigner } = await prepareV2ProxyForV3Upgrade(token.target as string);
-      const wrapperV3 = await ethers.getContractAt('ConfidentialWrapperV3', await proxy.getAddress());
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
-      const v3Calldata = V3_IFACE.encodeFunctionData('reinitializeV3', [seeds, '0x00000000', false]);
-      await expect(proxy.connect(ownerSigner).upgradeToAndCall(await v3Impl.getAddress(), v3Calldata))
-        .to.emit(wrapperV3, 'UserBlocked')
-        .withArgs(seeds[0])
-        .to.emit(wrapperV3, 'UserBlocked')
-        .withArgs(seeds[1]);
+      const wrapper = await deployV3(token.target as string, '0x00000000', false, seeds);
+      const events = await wrapper.queryFilter(wrapper.filters.UserBlocked());
+      expect(events.length).to.equal(seeds.length);
+      expect(events[0].args[0]).to.equal(seeds[0]);
+      expect(events[1].args[0]).to.equal(seeds[1]);
     });
 
-    it('reverts upgrade when blockedUsers contains duplicate addresses', async function () {
+    it('reverts when blockedUsers contains duplicate addresses', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
-      const { proxy, v3Impl, ownerSigner } = await prepareV2ProxyForV3Upgrade(token.target as string);
+      const factory = await ethers.getContractFactory('ConfidentialWrapper');
       const dup = BLOCKED_ADDRESSES[0];
-      const v3Calldata = V3_IFACE.encodeFunctionData('reinitializeV3', [[dup, dup], '0x00000000', false]);
-      await expect(proxy.connect(ownerSigner).upgradeToAndCall(await v3Impl.getAddress(), v3Calldata))
-        .to.be.revertedWithCustomError(v3Impl, 'UserAlreadyBlocked')
+      await expect(deployV3(token.target as string, '0x00000000', false, [dup, dup]))
+        .to.be.revertedWithCustomError(factory, 'UserAlreadyBlocked')
         .withArgs(dup);
+    });
+  });
+
+  describe('reinitializeV3 initialization', function () {
+    it('blocks addresses passed in the blockedUsers array and emits UserBlocked events', async function () {
+      const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
+      const wrapper = await deployReinitializedWrapperProxy(seeds, SELECTOR_CUSDC, true);
+      const events = await wrapper.queryFilter(wrapper.filters.UserBlocked());
+      expect(events.length).to.equal(seeds.length);
+      expect(events[0].args[0]).to.equal(seeds[0]);
+      expect(events[1].args[0]).to.equal(seeds[1]);
+
+      expect(await wrapper.isBlocked(seeds[0])).to.be.true;
+      expect(await wrapper.isBlocked(seeds[1])).to.be.true;
+      expect(await wrapper.isBlocked(BLOCKED_ADDRESSES[2])).to.be.false;
+
+      const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
+      expect(isSet).to.equal(true);
+      expect(selector).to.equal(SELECTOR_CUSDC);
+
+      await expect(
+        wrapper.initialize('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false),
+      ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });
 
