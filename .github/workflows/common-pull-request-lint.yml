@@ -54,8 +54,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title  }}
         run: |
-          npm install @commitlint/config-conventional@^19 conventional-changelog-conventionalcommits @commitlint/types@^19
-          npm install -g @commitlint/cli@^19
+          npm ci
           echo "$PR_TITLE" | npx commitlint --verbose
 
       - name: Run zizmor 🌈
