@@ -6,9 +6,12 @@ on:
       - '.github/workflows/dependency-safe-chain-check.yml'
       - '**/package-lock.json'
       - '**/pnpm-lock.yaml'
-      - '**/yarn.lock'
 
 permissions: {}
+
+concurrency:
+  group: ci-dependency-safe-chain-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   safe-chain-scan:
@@ -64,7 +67,7 @@ jobs:
           git fetch origin "$BASE_REF"
           changed_dirs=$(
             git diff --name-only "origin/${BASE_REF}...HEAD" \
-              | { grep -E '(^|/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$' || true; } \
+              | { grep -E '(^|/)(package-lock\.json|pnpm-lock\.yaml)$' || true; } \
               | xargs -r -n1 dirname \
               | sort -u
           )
@@ -85,8 +88,6 @@ jobs:
               (cd "$dir" && pnpm install --frozen-lockfile)
             elif [ -f "$dir/package-lock.json" ]; then
               (cd "$dir" && npm ci)
-            elif [ -f "$dir/yarn.lock" ]; then
-              (cd "$dir" && yarn install --frozen-lockfile)
             fi
             echo "::endgroup::"
           done <<< "$changed_dirs"

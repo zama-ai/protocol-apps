@@ -54,7 +54,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title  }}
         run: |
-          npm ci
+          npm ci --ignore-scripts
           echo "$PR_TITLE" | npx commitlint --verbose
 
       - name: Run zizmor 🌈
