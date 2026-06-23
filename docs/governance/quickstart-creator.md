@@ -66,6 +66,6 @@ cp .env.example .env
 
 ## What's Next
 
-- Track cross-chain proposals on [LayerZeroScan](https://layerzeroscan.com/tx/<TX_HASH>)
+- Track cross-chain proposals on [LayerZeroScan](https://layerzeroscan.com/)
 - If a proposal was executed on Ethereum but delivery to Gateway failed, see [Manual execution](manual-execution-gateway.md)
 - Ask a reviewer to verify your proposal — see [Quickstart: Reviewer](quickstart-reviewer.md)

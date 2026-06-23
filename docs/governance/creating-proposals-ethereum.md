@@ -52,7 +52,7 @@ Proposals are created and voted on via the Aragon App UI:
 
 3. Fill in function arguments.
 
-> **Warning:** ⚠️ Do not use quotes around function signature strings (unlike Remix IDE).
+> **Warning:** ⚠️ Do not use quotes around string arguments (unlike Remix IDE).
 
 ![Function arguments](images/aragon-function-args.png)
 

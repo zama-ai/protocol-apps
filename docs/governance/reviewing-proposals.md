@@ -165,7 +165,7 @@ Example output:
 
 ## Part 3 (cross-chain only): Track status
 
-After execution on Ethereum, track the cross-chain message on LayerZeroScan:
+After execution on Ethereum, track the cross-chain message on [LayerZeroScan](https://layerzeroscan.com/):
 
 ```
 https://layerzeroscan.com/tx/<TX_HASH_OF_PROPOSAL_EXECUTION_ON_ETHEREUM>

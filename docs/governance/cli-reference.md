@@ -20,7 +20,7 @@ Edit `.env` with the required values:
 | `RPC_ETHEREUM` | Yes | Ethereum RPC URL (mainnet or Sepolia). Use your own node when possible. |
 | `RPC_GATEWAY_MAINNET` | No | Gateway mainnet RPC. Default: `https://rpc.mainnet.zama.org` |
 | `RPC_GATEWAY_TESTNET` | No | Gateway testnet RPC. Default: `https://rpc-zama-testnet-0.t.conduit.xyz` |
-| `ETHERSCAN_API_KEY` | No | Etherscan API key. Enables ABI fetching for human-readable logs in the inspector. |
+| `ETHERSCAN_API_KEY` | Yes (verification step) | Etherscan API key. Enables ABI fetching for human-readable logs in the inspector. |
 
 ---
 
