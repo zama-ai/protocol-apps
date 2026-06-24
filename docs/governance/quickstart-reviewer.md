@@ -40,7 +40,7 @@ cp .env.example .env
 ### Run the inspector
 
 1. Get the two required inputs:
-   - **Plugin address** (`0xPLUGIN`): from the [protocol-registry repo](https://github.com/zama-ai/protocol-registry/blob/main/data/mainnet/contracts.yaml) (not the DAO address).
+   - **Plugin address** (`0xPLUGIN`): from the [protocol-registry repo](https://github.com/zama-ai/protocol-registry) (not the DAO address).
    - **Proposal ID**: from the Aragon frontend: click "Published: \<DATE\>" to go to Etherscan, then find the `proposalId` in the **Logs** tab.
 2. Run:
    ```bash

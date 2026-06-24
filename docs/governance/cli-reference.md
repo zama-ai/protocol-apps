@@ -44,7 +44,7 @@ Optional flags:
 
 | Input | Description | Where to find it |
 |---|---|---|
-| `--plugin` | Multisig Plugin contract address (**not** the DAO address) | [protocol-registry repo](https://github.com/zama-ai/protocol-registry/blob/main/data/mainnet/contracts.yaml) |
+| `--plugin` | Multisig Plugin contract address (**not** the DAO address) | [protocol-registry repo](https://github.com/zama-ai/protocol-registry) |
 | `--id` | Proposal ID (`uint256`) | Aragon frontend → click "Published: \<DATE\>" → Etherscan Logs tab → `proposalId` field |
 
 ### Expected output

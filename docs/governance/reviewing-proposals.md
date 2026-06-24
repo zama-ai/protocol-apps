@@ -52,10 +52,21 @@ For each action, check:
 Some contracts use ERC1967 proxies:
 
 1. On the block explorer, mark the contract as a proxy.
-2. Use "Read as Proxy" to find the implementation address.
+2. Find the latest implementation address.
 3. Inspect the implementation's source code.
 
-![Proxy verification](images/review-proxy-check.png)
+#### Blockscout 
+
+Latest implementation can be found in the `Contract` tab next to the `Implementation` label.
+
+![Blockscout proxy verification](images/review-proxy-check-blockscout.png)
+
+
+#### Etherscan
+
+Latest implementation can be found in the `Contract` tab in the `Past Implementations` section, with status `Active`.
+
+![Etherscan proxy verification](images/review-proxy-check-etherscan.png)
 
 ### Verifying magic constants
 
@@ -117,7 +128,7 @@ Edit `.env`:
 You need two values:
 
 **1. Plugin address (`0xPLUGIN`)**
-- Source: [protocol-registry repo](https://github.com/zama-ai/protocol-registry/blob/main/data/mainnet/contracts.yaml)
+- Source: [protocol-registry repo](https://github.com/zama-ai/protocol-registry)
 - This is the Multisig Plugin address, **not** the DAO contract address.
 - Do not get this from the Aragon frontend — that defeats the purpose of independent verification.
 
@@ -188,7 +199,7 @@ Proposal: grant the pausing role on the $ZAMA token to the `PauserSetWrapper` co
 **Verify the contract address:**
 
 1. Follow the link to the block explorer → confirm the full address.
-2. Compare against the [protocol-registry repo](https://github.com/zama-ai/protocol-registry/blob/main/data/mainnet/contracts.yaml).
+2. Compare against the [protocol-registry repo](https://github.com/zama-ai/protocol-registry).
 
 ![Etherscan address](images/review-etherscan-address.png)
 
@@ -216,7 +227,7 @@ Proposal: grant the pausing role on the $ZAMA token to the `PauserSetWrapper` co
 
 **Verify the account address:**
 
-1. Look up `PAUSER_SET_WRAPPER` in [protocol-registry repo](https://github.com/zama-ai/protocol-registry/blob/main/data/mainnet/contracts.yaml) → matches `PAUSER_SET_WRAPPER` on mainnet.
+1. Look up `PAUSER_SET_WRAPPER` in [protocol-registry repo](https://github.com/zama-ai/protocol-registry) → matches `PAUSER_SET_WRAPPER` on mainnet.
 2. Check the [documentation diagrams](https://docs.zama.org/protocol/protocol-apps/governance/pausing#structure) to confirm it should have the pausing role.
 
 ### Example B: Cross-Chain Gateway Proposal
