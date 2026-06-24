@@ -65,10 +65,11 @@ describe('ConfidentialWrapperDenyList', function () {
       }
     });
 
-    it('adding an already-denied address does nothing', async function () {
+    it('reverts with AccountAlreadyDenied when adding an already-denied address', async function () {
       await this.denyList.connect(this.ownerSigner).addToDenyList([this.accounts[0]]);
-      await expect(this.denyList.connect(this.ownerSigner).addToDenyList([this.accounts[0]])).not.to.be.reverted;
-      expect(await this.denyList.isDenied(this.accounts[0])).to.be.true;
+      await expect(this.denyList.connect(this.ownerSigner).addToDenyList([this.accounts[0]]))
+        .to.be.revertedWithCustomError(this.denyList, 'AccountAlreadyDenied')
+        .withArgs(this.accounts[0]);
     });
 
     it('accepts an empty array without reverting', async function () {
@@ -106,9 +107,10 @@ describe('ConfidentialWrapperDenyList', function () {
       }
     });
 
-    it('removing a non-denied address does not revert', async function () {
-      await expect(this.denyList.connect(this.ownerSigner).removeFromDenyList([this.accounts[4]])).not.to.be.reverted;
-      expect(await this.denyList.isDenied(this.accounts[4])).to.be.false;
+    it('reverts with AccountNotDenied when removing an address that is not on the deny-list', async function () {
+      await expect(this.denyList.connect(this.ownerSigner).removeFromDenyList([this.accounts[4]]))
+        .to.be.revertedWithCustomError(this.denyList, 'AccountNotDenied')
+        .withArgs(this.accounts[4]);
     });
 
     it('accepts an empty array without reverting', async function () {

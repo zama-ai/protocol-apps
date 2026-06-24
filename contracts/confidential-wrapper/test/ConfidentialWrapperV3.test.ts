@@ -877,7 +877,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     it('allows wrap even when underlying would return blacklisted = true', async function () {
       const [holder] = await ethers.getSigners();
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, false);
+      const wrapper = await deployV3(token.target as string, '0x00000000', false);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await token.setDenyListed(holder.address, true);

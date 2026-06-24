@@ -24,6 +24,12 @@ contract ConfidentialWrapperDenyList is IConfidentialWrapperDenyList, UUPSUpgrad
     event DeniedAddressesAdded(address[] accounts);
     event DeniedAddressesRemoved(address[] accounts);
 
+    /// @dev Thrown when attempting to add an account that is already on the deny-list.
+    error AccountAlreadyDenied(address account);
+
+    /// @dev Thrown when attempting to remove an account that is not on the deny-list.
+    error AccountNotDenied(address account);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -49,21 +55,23 @@ contract ConfidentialWrapperDenyList is IConfidentialWrapperDenyList, UUPSUpgrad
         return "Confidential Wrapper DenyList";
     }
 
-    /// @dev Adds `accounts` to the deny-list.
+    /// @dev Adds `accounts` to the deny-list. Reverts if any account is already denied.
     function addToDenyList(address[] calldata accounts) external onlyOwner {
         ConfidentialWrapperDenyListStorage storage $ = _getConfidentialWrapperDenyListStorage();
         uint256 length = accounts.length;
         for (uint256 i = 0; i < length; i++) {
+            if ($._denied[accounts[i]]) revert AccountAlreadyDenied(accounts[i]);
             $._denied[accounts[i]] = true;
         }
         emit DeniedAddressesAdded(accounts);
     }
 
-    /// @dev Removes `accounts` from the deny-list.
+    /// @dev Removes `accounts` from the deny-list. Reverts if any account is not currently denied.
     function removeFromDenyList(address[] calldata accounts) external onlyOwner {
         ConfidentialWrapperDenyListStorage storage $ = _getConfidentialWrapperDenyListStorage();
         uint256 length = accounts.length;
         for (uint256 i = 0; i < length; i++) {
+            if (!$._denied[accounts[i]]) revert AccountNotDenied(accounts[i]);
             $._denied[accounts[i]] = false;
         }
         emit DeniedAddressesRemoved(accounts);

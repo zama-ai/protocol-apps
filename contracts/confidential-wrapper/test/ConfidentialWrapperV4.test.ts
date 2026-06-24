@@ -74,6 +74,20 @@ describe('ConfidentialWrapperV4 DenyList', function () {
       expect(await this.wrapper.confidentialWrapperDenyList()).to.equal(ethers.ZeroAddress);
     });
 
+    it('reverts with ConfidentialWrapperDenyListAlreadySet when setting the same registry address', async function () {
+      const registryAddress = await this.denyList.getAddress();
+      await this.wrapper.connect(this.ownerSigner).setConfidentialWrapperDenyList(registryAddress);
+      await expect(this.wrapper.connect(this.ownerSigner).setConfidentialWrapperDenyList(registryAddress))
+        .to.be.revertedWithCustomError(this.wrapper, 'ConfidentialWrapperDenyListAlreadySet')
+        .withArgs(registryAddress);
+    });
+
+    it('reverts with ConfidentialWrapperDenyListAlreadySet when re-setting address(0) when no registry is configured', async function () {
+      await expect(this.wrapper.connect(this.ownerSigner).setConfidentialWrapperDenyList(ethers.ZeroAddress))
+        .to.be.revertedWithCustomError(this.wrapper, 'ConfidentialWrapperDenyListAlreadySet')
+        .withArgs(ethers.ZeroAddress);
+    });
+
     it('reverts for non-owner', async function () {
       const registryAddress = await this.denyList.getAddress();
       await expect(this.wrapper.connect(this.outsider).setConfidentialWrapperDenyList(registryAddress))
@@ -556,15 +570,28 @@ describe('ConfidentialWrapperV4 DenyList', function () {
         .withArgs(this.holder.address);
     });
 
-    it('deactivates the underlying check when isSet is false', async function () {
+    it('deactivates the underlying check by setting a zero selector with isSet false', async function () {
       await this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true);
       await this.token.setDenyListed(this.holder.address, true);
       await expect(this.wrapper.connect(this.holder).wrap(this.holder.address, ethers.parseUnits('100', 6))).to.be
         .reverted;
 
-      await this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, false);
+      await this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector('0x00000000', false);
       await expect(this.wrapper.connect(this.holder).wrap(this.holder.address, ethers.parseUnits('100', 6))).not.to.be
         .reverted;
+    });
+
+    it('reverts with NonZeroSelectorRequiresIsSet when a non-zero selector is paired with isSet false', async function () {
+      await expect(this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, false))
+        .to.be.revertedWithCustomError(this.wrapper, 'NonZeroSelectorRequiresIsSet')
+        .withArgs(SELECTOR_CUSDC);
+    });
+
+    it('reverts with UnderlyingDenyListSelectorAlreadySet when the same (selector, isSet) pair is re-sent', async function () {
+      await this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true);
+      await expect(this.wrapper.connect(this.ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true))
+        .to.be.revertedWithCustomError(this.wrapper, 'UnderlyingDenyListSelectorAlreadySet')
+        .withArgs(SELECTOR_CUSDC, true);
     });
 
     it('changes the selector to a different one', async function () {
@@ -618,6 +645,15 @@ describe('ConfidentialWrapperV4 DenyList', function () {
         wrapper,
         'InvalidInitialization',
       );
+    });
+
+    it('reverts with NonZeroSelectorRequiresIsSet when initialized with a non-zero selector and hasSelector false', async function () {
+      await expect(deployWrapper(this.token.target as string, SELECTOR_CUSDC, false))
+        .to.be.revertedWithCustomError(
+          await ethers.getContractFactory('ConfidentialWrapper'),
+          'NonZeroSelectorRequiresIsSet',
+        )
+        .withArgs(SELECTOR_CUSDC);
     });
   });
 

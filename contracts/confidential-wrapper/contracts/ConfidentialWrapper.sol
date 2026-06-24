@@ -77,6 +77,15 @@ contract ConfidentialWrapper is
     /// @dev Thrown when the underlying denylist call returns a true value for the given address.
     error UnderlyingDenyListedAddress(address user);
 
+    /// @dev Thrown when the centralized deny-list registry is already set to the given address.
+    error ConfidentialWrapperDenyListAlreadySet(address registry);
+
+    /// @dev Thrown when the underlying deny-list selector is already configured with the given (selector, isSet) pair.
+    error UnderlyingDenyListSelectorAlreadySet(bytes4 selector, bool isSet);
+
+    /// @dev Thrown when a non-zero selector is provided with `isSet = false`, which is an invalid configuration.
+    error NonZeroSelectorRequiresIsSet(bytes4 selector);
+
     /// Constant used for making sure the version number used in the `reinitializer` modifier is
     /// identical between `initialize` and `reinitializeV4`.
     uint64 private constant REINITIALIZER_VERSION = 4;
@@ -148,6 +157,9 @@ contract ConfidentialWrapper is
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_
     ) internal onlyInitializing {
+        if (underlyingDenyListSelector != bytes4(0) && !hasUnderlyingDenyListSelector_) {
+            revert NonZeroSelectorRequiresIsSet(underlyingDenyListSelector);
+        }
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
@@ -191,7 +203,9 @@ contract ConfidentialWrapper is
 
     /// @dev Sets the centralized deny-list registry address. Use `address(0)` to disable it.
     function setConfidentialWrapperDenyList(address registry) external virtual onlyOwner {
-        _getConfidentialWrapperV3Storage()._confidentialWrapperDenyList = registry;
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        if ($._confidentialWrapperDenyList == registry) revert ConfidentialWrapperDenyListAlreadySet(registry);
+        $._confidentialWrapperDenyList = registry;
         emit ConfidentialWrapperDenyListUpdated(registry);
     }
 
@@ -206,6 +220,10 @@ contract ConfidentialWrapper is
      */
     function setUnderlyingDenyListSelector(bytes4 selector_, bool isSet_) external virtual onlyOwner {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        if ($._underlyingDenyListSelector == selector_ && $._hasUnderlyingDenyListSelector == isSet_) {
+            revert UnderlyingDenyListSelectorAlreadySet(selector_, isSet_);
+        }
+        if (selector_ != bytes4(0) && !isSet_) revert NonZeroSelectorRequiresIsSet(selector_);
         $._underlyingDenyListSelector = selector_;
         $._hasUnderlyingDenyListSelector = isSet_;
         emit UnderlyingDenyListSelectorUpdated(selector_, isSet_);
