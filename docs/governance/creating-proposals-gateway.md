@@ -14,6 +14,10 @@ On the Gateway, `GovernanceOAppReceiver` calls functions through the Gateway Saf
 
 ---
 
+## Step 0: Create a community forum post
+
+Before creating the on-chain proposal, publish a post in the [governance community forum](https://community.zama.org/c/protocol/governance/) to present and add context on the proposal so DAO members can review it. Use the [forum post template](forum-post-template.md). Keep the post's URL — you'll link it in the proposal's **Resources** when filling in the proposal details (Step 5).
+
 ## One-time setup.
 
 ```bash

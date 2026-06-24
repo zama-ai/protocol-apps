@@ -12,6 +12,10 @@ Proposals are created and voted on via the Aragon App UI:
 
 ---
 
+## Step 0: Create a community forum post
+
+Before creating the on-chain proposal, publish a post in the [governance community forum](https://community.zama.org/c/protocol/governance/) to present and add context on the proposal so DAO members can review it. Use the [forum post template](forum-post-template.md). Keep the post's URL — you'll link it in the proposal's **Resources** in Step 1.
+
 ## Step 1: Initialize the proposal
 
 1. Open the Aragon DAO dashboard and click **Proposals**.
@@ -32,6 +36,7 @@ Proposals are created and voted on via the Aragon App UI:
    - **Summary**: one-line summary
    - **Body**: detailed description
    - **Resources**: links to help reviewers understand the proposal. Examples:
+      - The [community forum post](https://community.zama.org/c/protocol/governance/)  created in Step 0
       - [protocol-registry repo](https://github.com/zama-ai/protocol-registry)
 
 ![Proposal details form 1](images/aragon-proposal-details-1.png)

@@ -7,6 +7,10 @@ This page gets you from zero to a submitted governance proposal. For full detail
 - Wallet connected to the Aragon [mainnet DAO](https://app.aragon.org/dao/ethereum-mainnet/zama.dao.eth/dashboard) or [testnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52/dashboard)
 - For cross-chain proposals: Node.js v18+, npm, and an Ethereum RPC URL
 
+## Before you start: post on the forum
+
+Publish a post in the [governance community forum](https://community.zama.org/c/protocol/governance/) to present and add context on your proposal before creating it on-chain, using the [forum post template](forum-post-template.md). Keep the post URL — add it to the proposal's **Resources** below.
+
 ## Create an Ethereum Proposal
 
 For full details, see [Creating Ethereum Proposals](creating-proposals-ethereum.md).
@@ -14,7 +18,7 @@ For full details, see [Creating Ethereum Proposals](creating-proposals-ethereum.
 1. Open the Aragon DAO dashboard and click **Proposals** > **+ Proposal**.
 2. Pick the proposal type:
    - **Operators**: requires 9/17 operator approvals.
-3. Fill in **Title**, **Summary**, **Body** and **Resources**.
+3. Fill in **Title**, **Summary**, **Body** and **Resources** (include the forum post link).
 4. Add actions:
    - Enter the target contract address and wait for green checks.
    - Select the function to call.
@@ -62,7 +66,7 @@ cp .env.example .env
    - Output: `aragonProposal.json` (upload to Aragon) + `gateway-proposal-filled.json` (record)
 5. In the Aragon frontend, click the **Upload** button and select `aragonProposal.json`.
 6. Verify the UI decodes the `sendRemoteProposal` call correctly.
-7. **Simulate**, then submit.
+7. Fill in the proposal **Resources** (include the forum post link), then **Simulate** and submit.
 
 ## What's Next
 
