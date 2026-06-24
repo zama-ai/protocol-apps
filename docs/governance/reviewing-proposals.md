@@ -129,7 +129,7 @@ You need two values:
 
 **1. Plugin address (`0xPLUGIN`)**
 - Source: [protocol-registry repo](https://github.com/zama-ai/protocol-registry)
-- This is the Multisig Plugin address, **not** the DAO contract address.
+- This is the Multisig Plugin address, **not** the DAO contract address. Ex: `GOV_MULTISIG`.
 - Do not get this from the Aragon frontend — that defeats the purpose of independent verification.
 
 **2. Proposal ID (`PROPOSAL_ID`)**
@@ -147,6 +147,11 @@ Two ways to find it:
 
 ```bash
 npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id PROPOSAL_ID
+```
+
+**Note:** For testnet, override the RPC URL directly:
+```bash
+npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id PROPOSAL_ID --rpc https://your.rpc
 ```
 
 Example output:

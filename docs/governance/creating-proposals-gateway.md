@@ -48,11 +48,13 @@ Open `gateway-proposal-temp.json` and edit **only** these fields:
 - `arguments.functionSignatures[i]`: human-readable signature of the function to call
 - `arguments.datas[i]`: ABI-encoded arguments **without** the 4-byte selector
 
+Duplicate the following fields (**but keep them "0"s**) to match the length of `targets`:
+- `arguments.values`: array of `"0"`
+- `arguments.operations`: array of `"0"`
+
 **⚠️ Important: Do not modify:**
 - `to`: must stay equal to the canonical `GovernanceOAppSender` for the network
 - `method`: must stay `"sendRemoteProposal"`
-- `arguments.values`: array of `"0"` strings, same length as `targets`
-- `arguments.operations`: array of `"0"` strings, same length as `targets`
 - `arguments.options`: must stay `"0x"` (the script fills this)
 
 Example:

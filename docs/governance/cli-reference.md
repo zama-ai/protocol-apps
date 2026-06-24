@@ -122,7 +122,11 @@ Edit these fields in the JSON:
 - `arguments.functionSignatures[i]`: e.g. `addOwnerWithThreshold(address,uint256)`
 - `arguments.datas[i]`: ABI-encoded arguments without the 4-byte selector
 
-Do **not** modify: `to`, `method`, `arguments.values`, `arguments.operations`, `arguments.options`.
+Duplicate the following fields (**but keep them "0"s**) to match the length of `targets`:
+- `arguments.values`: array of `"0"`
+- `arguments.operations`: array of `"0"`
+
+Do **not** modify: `to`, `method`, `arguments.options`.
 
 ### Expected output
 

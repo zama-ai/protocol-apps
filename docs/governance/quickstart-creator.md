@@ -54,6 +54,7 @@ cp .env.example .env
    - `arguments.targets[i]`: contract address on Gateway
    - `arguments.functionSignatures[i]`: e.g. `addOwnerWithThreshold(address,uint256)`
    - `arguments.datas[i]`: ABI-encoded arguments (without 4-byte selector)
+   - duplicate `arguments.values` and `arguments.operations` to match the length of `arguments.targets`.
 3. Sanity-check each `datas[i]`:
    - types after `f()` must match types from `functionSignatures[i]`.
    ```bash

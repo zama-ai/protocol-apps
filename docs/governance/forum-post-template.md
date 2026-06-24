@@ -37,7 +37,7 @@ For how to create and review the on-chain proposal itself, see [Quickstart: Crea
 
 - **Network:** [Ethereum mainnet / Gateway / Sepolia testnet]
 - **Target contract(s) & addresses:** [list addresses; note where they are documented — e.g. protocol-registry]
-- **Magic constants / role hashes:** [e.g. `keccak256("ROLE_NAME")` = 0x...]
+- **Magic constants / encoded data:** [e.g. for upgrades, `cast calldata "reinitializeV2()"` = 0x...]
 - **Cross-chain:** [if `sendRemoteProposal`, note the destination and how to track delivery (LayerZeroScan)]
 - **Code / PR references:** [links to the relevant code, PR, or commit]
 
