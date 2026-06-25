@@ -34,7 +34,7 @@ Before creating the on-chain proposal, publish a post in the [governance communi
 4. Connect your wallet and fill in:
    - **Title**: short description of the proposal
    - **Summary**: one-line summary
-   - **Body**: detailed description
+   - **Body**: detailed description. Voters should be able to verify the proposal on their own or in the context of linked resources
    - **Resources**: links to help reviewers understand the proposal. Examples:
       - The [community forum post](https://community.zama.org/c/protocol/governance/)  created in Step 0
       - [protocol-registry repo](https://github.com/zama-ai/protocol-registry)

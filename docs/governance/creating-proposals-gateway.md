@@ -106,7 +106,7 @@ npm run fill-options-gateway-proposal:testnet
 
 > **Important:** The script won't overwrite existing output files. Delete `gateway-proposal-filled.json` and `aragonProposal.json` before regenerating new ones.
 
-## Step 5: Upload and submit
+## Step 5: Upload and submit the proposal
 
 1. Step 1 is the same as in [Creating Ethereum Proposals](creating-proposals-ethereum.md#step-3-simulate-and-submit).
 
@@ -119,3 +119,8 @@ npm run fill-options-gateway-proposal:testnet
 ![Decoded proposal](images/aragon-decoded-proposal.png)
 
 3. Same as in step 3 of [Creating Ethereum Proposals](creating-proposals-ethereum.md#step-3-simulate-and-submit): **simulate** the proposal, then submit. 
+
+
+## Step 6: Upload the json files to the community forum
+
+Upload the `aragonProposal.json` and `gateway-proposal-filled.json` files to the community forum post created in Step 0.

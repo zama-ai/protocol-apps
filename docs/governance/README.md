@@ -2,19 +2,6 @@
 
 Operational runbooks for creating, reviewing, and managing governance proposals on the Protocol DAO (Aragon-based, on Ethereum mainnet and Sepolia testnet).
 
-## Quickstart Guides
-
-Start here depending on your role:
-
-| # | Guide | Audience | Description |
-|---|-------|----------|-------------|
-| 1 | [Quickstart: Creator](quickstart-creator.md) | Proposal authors | Step-by-step to submit an Ethereum or cross-chain Gateway proposal. |
-| 2 | [Quickstart: Reviewer](quickstart-reviewer.md) | DAO members & code owners | Step-by-step to verify a proposal via UI and CLI before signing. |
-
-## Detailed Runbooks
-
-For the full procedures with screenshots, edge cases, and troubleshooting:
-
 | # | Runbook | Description |
 |---|---------|-------------|
 | 3a | [Creating Ethereum Proposals](creating-proposals-ethereum.md) | Full guide for creating Ethereum proposals via the Aragon frontend (wallet setup, actions, simulation). |
@@ -34,17 +21,18 @@ For the full procedures with screenshots, edge cases, and troubleshooting:
 Creator                          Reviewer                          Anyone
 ───────                          ────────                          ──────
 1. Read creator runbooks
-2. Create proposal via Aragon frontend
-3. Submit proposal
-4. Notify reviewers
+2. Create a community forum post
+3. Create proposal via Aragon frontend
+4. Submit proposal
+5. Notify reviewers
   - First code owners
   - Then DAO members
-                                 5. Read reviewer runbooks
-                                 6. Verify via Aragon frontend
-                                 7. Verify via CLI inspector
-                                 8. (DAO member only) Sign 
+                                 6. Read reviewer runbooks
+                                 7. Verify via Aragon frontend
+                                 8. Verify via CLI inspector
+                                 9. (DAO member only) Sign 
                                     proposal in wallet
-                                                                  9. (In case of failure)
+                                                                  10. (In case of failure)
                                                                      Execute lzReceive
                                                                      on Gateway manually
                            

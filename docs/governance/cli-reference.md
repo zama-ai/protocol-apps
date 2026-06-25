@@ -28,7 +28,7 @@ Edit `.env` with the required values:
 
 Independently verifies an Aragon Multisig proposal using only an RPC endpoint. Bypasses all Aragon-hosted infrastructure (subgraph, API, frontend).
 
-**Used by:** [Reviewers](quickstart-reviewer.md) (independent proposal verification)
+**Used by:** [Reviewers](reviewing-proposals.md) (independent proposal verification)
 
 ### Usage
 
@@ -96,7 +96,7 @@ foundryup
 
 Computes LayerZero gas options for a cross-chain Gateway proposal and produces an Aragon-uploadable JSON file.
 
-**Used by:** [Creators](quickstart-creator.md) (building proposals), [Reviewers](quickstart-reviewer.md) (verifying proposals)
+**Used by:** [Creators](creating-proposals-ethereum.md) (building proposals), [Reviewers](reviewing-proposals.md) (verifying proposals)
 
 ### Usage
 
@@ -152,7 +152,7 @@ Two files:
 
 Decodes a LayerZero `options` hex string into human-readable `gasLimit` and `nativeValue`.
 
-**Used by:** [Reviewers](quickstart-reviewer.md) (comparing gas options)
+**Used by:** [Reviewers](reviewing-proposals.md) (comparing gas options)
 
 ### Usage
 

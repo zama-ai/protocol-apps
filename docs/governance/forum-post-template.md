@@ -2,7 +2,7 @@
 
 Use this template to draft a community forum post that presents a new DAO proposal and gives reviewers the context they need for reviewing it.
 
-For how to create and review the on-chain proposal itself, see [Quickstart: Creator](quickstart-creator.md) and [Quickstart: Reviewer](quickstart-reviewer.md).
+For how to create and review the on-chain proposal itself, see [Creating Ethereum Proposals](creating-proposals-ethereum.md) and [Reviewing Proposals](reviewing-proposals.md).
 
 ## How to use this template
 
@@ -22,7 +22,7 @@ For how to create and review the on-chain proposal itself, see [Quickstart: Crea
 
 ## Motivation & Context
 
-<!-- Why is this needed now? What problem does it solve, or what opportunity does it capture? Link to any prior discussion, RFC, incident, or audit that prompted it. -->
+<!-- Why is this needed now? What problem does it solve, or what opportunity does it capture? Link to any prior discussion, RFC, incident, or audit that prompted it. If proposals should be executed in a specific order, mention it here. -->
 
 ## Proposed Changes
 

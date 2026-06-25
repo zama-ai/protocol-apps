@@ -21,7 +21,7 @@ Proposals are reviewed and voted on via the Aragon App UI:
 ### Understanding proposals and actions
 
 Each proposal includes:
-- A **description**: treat it as a comment, not as a source of truth. Never trust addresses or values in the description.
+- A **title, summary, and body**: treat it as a comment, not as a source of truth. Never trust addresses or values in these fields.
 - One or more **actions**: contract function calls executed when the proposal is approved.
 
 Each action consists of:
