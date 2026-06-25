@@ -127,6 +127,10 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * @dev See {IERC7984ERC20Wrapper-unwrap}. `amount * rate()` underlying tokens are sent to `to`.
      *
      * NOTE: The unwrap request created by this function must be finalized by calling {finalizeUnwrap}.
+     *
+     * NOTE: The amount carried by the resulting `UnwrapRequested` event is denominated in confidential
+     * wrapper tokens (this contract's units), not in underlying ERC-20 tokens. The corresponding underlying
+     * amount is the wrapper amount multiplied by {rate}.
      */
     function unwrap(
         address from,
@@ -137,7 +141,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
-    /// @inheritdoc IERC7984ERC20Wrapper
+    /**
+     * @inheritdoc IERC7984ERC20Wrapper
+     *
+     * NOTE: `unwrapAmountCleartext` is the decrypted unwrap amount denominated in confidential wrapper tokens
+     * (this contract's units), not in underlying ERC-20 tokens. The amount of underlying tokens transferred to
+     * `to` is `unwrapAmountCleartext * rate()`. The same cleartext value (in wrapper units) is carried by the
+     * emitted `UnwrapFinalized` event.
+     */
     function finalizeUnwrap(
         bytes32 unwrapRequestId,
         uint64 unwrapAmountCleartext,
