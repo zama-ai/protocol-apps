@@ -60,7 +60,28 @@ An onchain registry contract maps ERC-20 tokens to their corresponding verified 
 
 ### Wrap ERC-20 → Confidential token
 
-**Important:** Prior to wrapping, the confidential wrapper contract must be approved by the `msg.sender` on the underlying token.
+There are two ways to wrap. The single-transaction `transferAndCall` path is **recommended** whenever the underlying token supports it.
+
+#### Recommended: single transaction with `transferAndCall` (ERC-1363)
+
+If the underlying token implements the [ERC-1363](https://eips.ethereum.org/EIPS/eip-1363) extension (`transferAndCall`), wrapping can be done in a **single transaction** without a prior approval. The wrapper implements `IERC1363Receiver`, so transferring the underlying token directly to the wrapper triggers its `onTransferReceived` callback, which mints the confidential token and refunds any excess.
+
+```solidity
+// `data` is the abi-encoded recipient address; pass empty bytes to wrap to msg.sender.
+underlyingToken.transferAndCall(address(wrapper), amount, abi.encodePacked(to));
+```
+
+This avoids the two-transaction `approve` + `wrap` flow and its associated allowance management. The recipient is read from `data` (the abi-encoded `to` address); if `data` is shorter than 20 bytes, tokens are wrapped to the sender. The same `Wrap` event is emitted and excess tokens are refunded to the original sender.
+
+{% hint style="info" %}
+### **ERC-1363 support**
+
+Only tokens that implement the ERC-1363 `transferAndCall` extension can use this path. For tokens without it, use the `approve` + `wrap` flow below.
+{% endhint %}
+
+#### Fallback: `approve` + `wrap`
+
+For underlying tokens that do not support ERC-1363, prior to wrapping the confidential wrapper contract must be approved by the `msg.sender` on the underlying token.
 
 ```solidity
 wrapper.wrap(to, amount);
@@ -68,7 +89,7 @@ wrapper.wrap(to, amount);
 
 The wrapper will mint the corresponding confidential token to the `to` address and refund the excess tokens to the `msg.sender` (due to decimal conversion).
 
-It emits a `Wrap` event where `roundedAmount` is the actual amount of underlying tokens wrapped (i.e. `amount` rounded down to the nearest multiple of `rate()`):
+Both paths emit a `Wrap` event where `roundedAmount` is the actual amount of underlying tokens wrapped (i.e. `amount` rounded down to the nearest multiple of `rate()`):
 
 ```solidity
 event Wrap(address indexed to, uint256 roundedAmount, euint64 encryptedWrappedAmount);
@@ -177,6 +198,12 @@ Similarly to the unwrap process, transfers can be made with or without an input 
 Accounts with a zero balance that have never held tokens cannot be the `from` address in confidential transfers.
 {% endhint %}
 
+{% hint style="info" %}
+#### **Transferring to a contract**
+
+When transferring to a contract that needs to react to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over granting an operator allowance and having the contract pull funds. The callback delivers the tokens and notifies the recipient in a single transaction, avoiding the extra approval step and the standing operator permission.
+{% endhint %}
+
 #### Direct transfer
 
 ```solidity
@@ -198,6 +225,8 @@ Considerations:
 * `msg.sender` must be `from` or an approved operator for `from`.
 
 #### Transfer with callback
+
+This is the **recommended** way to move confidential tokens into a contract: it combines the transfer and the recipient notification into a single transaction, so there is no need to grant a standing operator allowance and have the recipient pull the funds.
 
 The callback can be used along an ERC-7984 receiver contract. After the transfer, the receiver's `onTransferReceived` callback is invoked. If the callback returns an encrypted `false`, the contract attempts to refund the transferred amount back to the sender.
 
@@ -291,6 +320,10 @@ wrapper.setOperator(operatorAddress, validUntilTimestamp);
 // Check if an address is an authorized operator
 bool isAuthorized = wrapper.isOperator(holder, spender);
 ```
+
+{% hint style="info" %}
+For moving tokens into a contract that reacts to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over the operator pattern: it delivers the tokens and notifies the recipient in a single transaction without a standing operator allowance.
+{% endhint %}
 
 ### Query ongoing unwrap request details
 
