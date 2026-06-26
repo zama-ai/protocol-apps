@@ -43,7 +43,7 @@ For each action, check:
 
 1. **Contract name**: verify on the block explorer.
 2. **Contract address**: verify against the protocol-registry repo. Confirm you're on the correct chain (mainnet/testnet).
-3. **Source code**: inspect on the block explorer. For proxied contracts (see below), also check the implementation.
+3. **Source code**: For new contracts or new proxied implementations (see below), inspect on the block explorer.
 4. **Contract relationships**: use diagrams in protocol-registry to verify ownership, roles, and other relationships.
 5. **All arguments**: including magic constants (role hashes) and ABI-encoded values.
 
