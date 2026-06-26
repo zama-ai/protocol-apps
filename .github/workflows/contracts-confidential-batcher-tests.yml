@@ -1,11 +1,11 @@
 # Run tests
-name: contracts-fees-burner-tests
+name: contracts-confidential-batcher-tests
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/contracts-fees-burner-tests.yml'
-      - 'contracts/feesBurner/**'
+      - '.github/workflows/contracts-confidential-batcher-tests.yml'
+      - 'contracts/confidential-batcher/**'
   push:
     branches:
       - main
@@ -14,12 +14,12 @@ on:
 permissions: {}
 
 concurrency:
-  group: ci-contracts-fees-burner-tests-${{ github.ref }}
+  group: ci-contracts-confidential-batcher-tests-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   tests:
-    name: contracts-fees-burner-tests/tests (bpr)
+    name: contracts-confidential-batcher-tests/tests (bpr)
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code
@@ -43,17 +43,21 @@ jobs:
         run: curl -fsSL https://github.com/AikidoSec/safe-chain/releases/download/1.5.3/install-safe-chain.sh | sh -s -- --ci
 
       - name: Install dependencies
-        working-directory: contracts/feesBurner
+        working-directory: contracts/confidential-batcher
         run: npm ci
 
+      - name: Run lint
+        working-directory: contracts/confidential-batcher
+        run: make conformance
+
       - name: Run unit tests
-        working-directory: contracts/feesBurner
-        run: npx hardhat test
+        working-directory: contracts/confidential-batcher
+        run: make test
 
       - name: Run coverage
-        working-directory: contracts/feesBurner
+        working-directory: contracts/confidential-batcher
         run: npm run coverage
 
       - name: Check coverage thresholds (core contracts only)
-        working-directory: contracts/feesBurner
+        working-directory: contracts/confidential-batcher
         run: npm run coverage:check

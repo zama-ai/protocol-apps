@@ -53,3 +53,11 @@ jobs:
       - name: Run unit tests
         working-directory: contracts/confidential-wrapper
         run: make test
+
+      - name: Run coverage
+        working-directory: contracts/confidential-wrapper
+        run: npm run coverage
+
+      - name: Check coverage thresholds (core contracts only)
+        working-directory: contracts/confidential-wrapper
+        run: npm run coverage:check

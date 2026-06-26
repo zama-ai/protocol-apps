@@ -69,3 +69,11 @@ jobs:
       - name: Run unit tests
         working-directory: contracts/token
         run: pnpm test
+
+      - name: Run coverage
+        working-directory: contracts/token
+        run: pnpm run coverage
+
+      - name: Check coverage thresholds (core contracts only)
+        working-directory: contracts/token
+        run: pnpm run coverage:check

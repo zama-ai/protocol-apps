@@ -49,3 +49,11 @@ jobs:
       - name: Run unit tests
         working-directory: contracts/pauserSetWrapper
         run: make test
+
+      - name: Run coverage
+        working-directory: contracts/pauserSetWrapper
+        run: npm run coverage
+
+      - name: Check coverage thresholds (core contracts only)
+        working-directory: contracts/pauserSetWrapper
+        run: npm run coverage:check

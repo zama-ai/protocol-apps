@@ -58,3 +58,11 @@ jobs:
         working-directory: contracts/confidential-token-wrappers-registry
         run: make test
 
+      - name: Run coverage
+        working-directory: contracts/confidential-token-wrappers-registry
+        run: npm run coverage
+
+      - name: Check coverage thresholds (core contracts only)
+        working-directory: contracts/confidential-token-wrappers-registry
+        run: npm run coverage:check
+

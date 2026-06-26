@@ -68,3 +68,11 @@ jobs:
       - name: Run tasks tests
         working-directory: contracts/staking
         run: make test-tasks
+
+      - name: Run coverage
+        working-directory: contracts/staking
+        run: npm run coverage
+
+      - name: Check coverage thresholds (core contracts only)
+        working-directory: contracts/staking
+        run: npm run coverage:check

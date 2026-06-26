@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "license": "BSD-3-Clause-Clear",
   "scripts": {
+    "coverage": "DOTENV_CONFIG_PATH=.env.example hardhat coverage",
+    "coverage:check": "istanbul check-coverage ./coverage.json",
     "lint": "$npm_execpath run lint:js && $npm_execpath run lint:sol",
     "lint:fix": "eslint --fix '**/*.{js,ts,json}' && prettier --write . && solhint 'contracts/**/*.sol' --fix --noPrompt",
     "lint:js": "eslint '**/*.{js,ts,json}' && prettier --check .",
@@ -30,6 +32,7 @@
     "hardhat": "^2.26.0",
     "hardhat-deploy": "^0.12.4",
     "hardhat-gas-reporter": "^2.3.0",
+    "sc-istanbul": "^0.4.6",
     "solidity-coverage": "^0.8.16",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",

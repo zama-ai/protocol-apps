@@ -6,6 +6,7 @@
 import 'dotenv/config'
 
 import 'hardhat-deploy'
+import 'solidity-coverage'
 import 'hardhat-contract-sizer'
 import '@nomiclabs/hardhat-ethers'
 import '@layerzerolabs/toolbox-hardhat'

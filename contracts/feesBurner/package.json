@@ -2,6 +2,10 @@
   "name": "feesBurner",
   "version": "1.0.0",
   "license": "BSD-3-Clause-Clear",
+  "scripts": {
+    "coverage": "hardhat coverage",
+    "coverage:check": "istanbul check-coverage ./coverage.json"
+  },
   "overrides": {
     "hardhat-deploy": "^1.0.4",
     "@eth-optimism/contracts@0.6.0": {
@@ -28,6 +32,8 @@
     "ethers": "^6.15.0",
     "hardhat": "^2.26.3",
     "hardhat-deploy": "^1.0.4",
+    "sc-istanbul": "^0.4.6",
+    "solidity-coverage": "^0.8.17",
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
     "typescript": "^5.9.3"
