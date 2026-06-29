@@ -1,12 +1,12 @@
 const { Options } = require('@layerzerolabs/lz-v2-utilities')
 
-const SCRIPT_NAME = 'decodeOptionsGatewayProposal.js'
+const SCRIPT_NAME = 'decodeOptionsRemoteProposal.js'
 const EMPTY_OPTIONS = '0x'
 
 function printUsage() {
   console.log(
     `Usage:
-  npm run decode-options-gateway-proposal -- --options <hex>
+  npm run decode-options-remote-proposal -- --options <hex>
   node ${SCRIPT_NAME} --options <hex>
 
 Flags:
@@ -14,7 +14,7 @@ Flags:
                          (e.g. 0x000301001101000000000000000000000000000493e0).
   -h, --help             Show this help.
 
-Reverse of computeLZOptions in fillOptionsGatewayProposal.js: takes a
+Reverse of computeLZOptions in fillOptionsRemoteProposal.js: takes a
 LayerZero options hex string (a single executor lzReceive option) and prints
 the decoded gas limit and native value.
 `
@@ -50,7 +50,7 @@ function parseArgs(argv) {
 }
 
 /**
- * Reverse of computeLZOptions in fillOptionsGatewayProposal.js.
+ * Reverse of computeLZOptions in fillOptionsRemoteProposal.js.
  *
  * Decodes a LayerZero options hex string produced by
  *   Options.newOptions().addExecutorLzReceiveOption(gasLimit, nativeValue).toHex()

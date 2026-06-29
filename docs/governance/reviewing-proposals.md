@@ -10,7 +10,7 @@ Proposals are reviewed and voted on via the Aragon App UI:
 
 **Related guides:**
 - [Creating Ethereum proposals](creating-proposals-ethereum.md): how to create and submit Ethereum proposals
-- [Creating Gateway proposals](creating-proposals-gateway.md): how to create and submit cross-chain Gateway proposals
+- [Creating remote proposals](creating-proposals-remote.md): how to create and submit cross-chain proposals to EVM destinations
 - [CLI reference](cli-reference.md): detailed CLI tool documentation
 
 > **Both** the Aragon frontend review and the CLI inspector check should be performed for every proposal. The CLI check protects against a compromised Aragon frontend.
@@ -81,16 +81,17 @@ Some functions take hash values as inputs (e.g. role assignments):
 
 For proposals calling `sendRemoteProposal` on `GovernanceOAppSender`:
 
-1. In `gateway-proposal-temp.json`, replace `targets[i]`, `functionSignatures[i]`, and `datas[i]` with the values shown in the Aragon frontend. Keep `options` as `"0x"`.
-2. Run the fill script:
+1. Copy the minimal template (`cp remote-proposal-temp.example.json remote-proposal-temp.json`) and fill `targets[i]`, `functionSignatures[i]`, and `datas[i]` with the values shown in the Aragon frontend.
+2. Run the fill script for the matching destination:
    ```bash
-   npm run fill-options-gateway-proposal:mainnet   # or :testnet or :devnet
+   npm run fill-options-remote-proposal -- --destination gateway-mainnet   # or gateway-testnet, gateway-devnet, amoy-testnet, …
    ```
-3. Compare the generated `options` value in `gateway-proposal-filled.json` with the Aragon frontend:
+   Read the **sanity-check** output it prints — each `datas[i]` decoded against its `functionSignatures[i]` — and confirm every decoded call matches the Aragon frontend. (The script aborts on a `datas`/signature mismatch.)
+3. Compare the generated `options` value in `remote-proposal-filled.json` with the Aragon frontend:
    - **Match**: gas estimation is correct. The proposal is likely valid.
    - **Mismatch**: decode and compare both values. Options can drift by a a few gas as it depends on several factors like the gas price oracle used by LayerZero. Both values must stay close:
      ```bash
-     npm run decode-options-gateway-proposal -- --options <OPTIONS_HEX>
+     npm run decode-options-remote-proposal -- --options <OPTIONS_HEX>
      ```
      Output example:
      ```
@@ -100,7 +101,7 @@ For proposals calling `sendRemoteProposal` on `GovernanceOAppSender`:
      ```
      - Both `nativeValue`s should be 0.
      - `gasLimit` values should differ by at most a few percentage points.
-4. Sanity-check each `datas[i]` by ABI-decoding (see [Step 3 of the gateway runbook](creating-proposals-gateway.md#step-3-sanity-check-each-datasi)).
+4. Optionally cross-check any `datas[i]` independently with `cast abi-decode 'f()(<types>)' <DATA>` (types must match `functionSignatures[i]`).
 5. **Also** run the `aragon-proposal-inspector` CLI tool (see [Part 2](#part-2-verify-via-the-cli-inspector)).
 
 ---
@@ -188,9 +189,9 @@ After execution on Ethereum, track the cross-chain message on [LayerZeroScan](ht
 https://layerzeroscan.com/tx/<TX_HASH_OF_PROPOSAL_EXECUTION_ON_ETHEREUM>
 ```
 
-- Delivery to Gateway takes ~15 Ethereum blocks (~3–4 minutes).
+- Delivery to the destination takes ~15 Ethereum blocks (~3–4 minutes).
 
-If delivery to Gateway failed, see [Manual Execution: Gateway](manual-execution-gateway.md).
+If delivery to the destination failed, see [Manual Execution: Remote](manual-execution-remote.md).
 
 ---
 

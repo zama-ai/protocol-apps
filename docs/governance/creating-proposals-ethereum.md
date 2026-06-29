@@ -7,7 +7,7 @@ Proposals are created and voted on via the Aragon App UI:
 - [Devnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x41d84D9F00263eaF80f3526C157CD49c263CAd59/dashboard)
 
 **Related guides:**
-- [Creating cross-chain Gateway proposals](creating-proposals-gateway.md): how to create and submit Gateway proposals
+- [Creating cross-chain (remote) proposals](creating-proposals-remote.md): how to create and submit cross-chain proposals to EVM destinations
 - [Reviewing proposals](reviewing-proposals.md): how to verify proposals before approving
 - [CLI reference](cli-reference.md): detailed CLI tool documentation
 

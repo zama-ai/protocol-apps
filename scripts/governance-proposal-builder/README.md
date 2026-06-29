@@ -20,71 +20,95 @@ Create a `.env` file based on `.env.example`:
 cp .env.example .env
 ```
 
+## Destinations
+
+Cross-chain proposals target an EVM **destination** chain. Each destination has
+its own `GovernanceOAppSender` (on Ethereum/Sepolia), `GovernanceOAppReceiver`,
+`AdminModule`, and multisig on the destination. They are defined in
+[`destinations.js`](./destinations.js):
+
+```bash
+npm run list-destinations   # prints the registry (ids, addresses, RPC vars)
+```
+
+To add a new EVM destination, append an entry to `destinations.js` and add its
+RPC var to `.env.example` — no script code changes and no per-destination
+template are required (the single minimal input file works for every
+destination; the script fills the per-destination `to`).
+
 ## Available scripts
 
-Currently availabe scripts are:
+Currently available scripts are:
 ```
-[*] fill-options-gateway-proposal
-[*] decode-options-gateway-proposal
+[*] fill-options-remote-proposal
+[*] decode-options-remote-proposal
+[*] list-destinations
 [*] aragon-proposal-inspector
 ```
 
-### fillOptionsGatewayProposal
+### fillOptionsRemoteProposal
 
 #### Workflow
 
-1. Edit `gateway-proposal-temp.json` (see one of the
-   `gateway-proposal-temp.<network>-example.json` files as a starting point) to
-   describe the proposal you want to send. Leave `arguments.options` set to
-   `"0x"` — that field is what this script fills in.
-2. Run the fill script for the target network:
+1. Describe the calls in a **minimal** input file — you provide **only** three
+   equal-length arrays; the script fills everything else (`to`, `method`,
+   `values`=0, `operations`=0, `options`):
 
    ```bash
-   npm run fill-options-gateway-proposal:mainnet
-   # or
-   npm run fill-options-gateway-proposal:testnet
+   cp remote-proposal-temp.example.json remote-proposal-temp.json
+   ```
+   ```json
+   { "targets": ["0x…"], "functionSignatures": ["addOwnerWithThreshold(address,uint256)"], "datas": ["0x…"] }
+   ```
+   (`functionSignatures[i]` may be `""` if `datas[i]` already begins with the selector.)
+
+   > **Out of scope (by design):** every governance proposal to date is
+   > `value` `0` / `Call`, so the tool only builds that shape. Proposals that
+   > need a non-zero native `value` or a `delegatecall` (`operation` `1`) are
+   > **not** supported here and must be hand-crafted; a `--custom` escape hatch
+   > will be re-added if/when a concrete need appears.
+
+2. Run the fill script for the target destination:
+
+   ```bash
+   npm run fill-options-remote-proposal -- --destination gateway-mainnet
+   # or --destination gateway-testnet, gateway-devnet, amoy-testnet, …
    ```
 
 3. The script writes two files in current directory:
-   - `gateway-proposal-filled.json` — the validated proposal mirroring the
-     input shape, with `arguments.options` filled in. Useful as a
-     human-readable record of what was generated.
+   - `remote-proposal-filled.json` — the full filled proposal
+     (`to`/`method`/`arguments` with `options` populated). Human-readable record.
    - `aragonProposal.json` — the same call rendered as a single Aragon
      transaction (`[{ to, value, data }]`) where `data` is the ABI-encoded
      `sendRemoteProposal(...)` calldata. **This is the file to upload via the
-     Aragon DAO front-end** when creating the proposal that calls
-     `sendRemoteProposal` on the `GovernanceOAppSender` contract.
+     Aragon DAO front-end.**
 
 #### What the script checks
 
-Before computing options, the script enforces that the input matches the
-canonical structure of `gateway-proposal-temp.json`:
-
-- Top-level keys are exactly `to`, `method`, `arguments`.
-- `arguments` keys are exactly `targets`, `values`, `functionSignatures`,
-  `datas`, `operations`, `options`.
-- `targets`, `values`, `functionSignatures`, `datas`, `operations` are arrays
-  of strings of identical length.
-- `options` is a string equal to `"0x"` : empty placeholder — **the whole point
-  of the script is to fill it**.
-- `method` is exactly `"sendRemoteProposal"`.
-- `to` matches the canonical `GovernanceOAppSender` for the chosen network:
-  - mainnet: `0x1c5D750D18917064915901048cdFb2dB815e0910`
-  - testnet: `0x909692c2f4979ca3fa11B5859d499308A1ec4932`
-- currently it only allows `values` and `operations` to be arrays of `"0"`s.
-- each `targets[i]` has non-empty bytecode on the Gateway chain.
+- **Input:** exactly the keys `targets`, `functionSignatures`, `datas`;
+  equal-length string arrays; `targets[i]` are valid addresses. (An old
+  full-shape `{ to, method, arguments }` file is rejected with a hint to convert
+  it to the minimal shape.)
+- **Sanity check:** decodes each `datas[i]` against `functionSignatures[i]`,
+  prints the resolved call + arguments, and **aborts** on a `datas`/signature
+  mismatch.
+- each `targets[i]` has non-empty bytecode on the destination chain.
 
 #### How `options` is computed
 
 The script uses `@layerzerolabs/lz-v2-utilities` to build a LayerZero
-option containing a single executor `lzReceive` action. To do this it forks the Gateway chain and impersonates the `SafeProxy` account to estimate the gas needed, and adds some constant and proportional buffers.
+option containing a single executor `lzReceive` action. To do this it runs
+`eth_estimateGas` against the destination chain (RPC from the destination's
+`rpcEnvVar` in `.env`, falling back to the registry default) with the
+destination multisig as the (unsigned) `from` to estimate the gas needed, and
+adds some constant and proportional buffers.
 
 #### Output
 
 The script writes two files next to the input:
 
 ```
-./gateway-proposal-filled.json
+./remote-proposal-filled.json
 ./aragonProposal.json
 ```
 
@@ -92,12 +116,13 @@ It **refuses to overwrite** either file if it already exists, and exits
 with a non-zero status before writing anything. Delete the file(s) first if
 you want to regenerate.
 
-#### RECOMMENDED MANUAL STEP: Decoding individual `datas` entries
+#### OPTIONAL CROSS-CHECK: Decoding individual `datas` entries
 
-Independently from this script, when doing a cross-chain proposal, it is highly recommended to always sanity-check what each `arguments.datas[i]` actually calls (using the matching
-`arguments.functionSignatures[i]`) — note that usually datas are encoded **without**
-the 4-byte selector, so use `cast abi-decode` and treat the bytes as the
-"return-value" tuple, for example:
+The script already decodes and prints every `arguments.datas[i]` (against the
+matching `arguments.functionSignatures[i]`) and aborts on a mismatch. As an
+independent cross-check you can also decode them yourself — note datas are
+encoded **without** the 4-byte selector, so use `cast abi-decode` and treat the
+bytes as the "return-value" tuple, for example:
 
 ```bash
 DATA=0x00000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000002
@@ -110,17 +135,17 @@ cast abi-decode 'f()(address,uint256)' "$DATA"
 The `f()` is just a placeholder; only the parameter-types tuple matters. Pass
 the same types as the matching `functionSignatures[i]`.
 
-### decodeOptionsGatewayProposal
+### decodeOptionsRemoteProposal
 
-Reverse of the `computeLZOptions` step inside `fillOptionsGatewayProposal`:
+Reverse of the `computeLZOptions` step inside `fillOptionsRemoteProposal`:
 takes a LayerZero options hex string
 and prints the decoded `gasLimit` and `nativeValue`. Useful to sanity-check
-what's in `arguments.options` of a Gateway proposal and to use before voting on a pending DAO Gateway proposal.
+what's in `arguments.options` of a remote proposal and to use before voting on a pending DAO cross-chain proposal.
 
 #### Usage
 
 ```bash
-npm run decode-options-gateway-proposal -- --options 0x000301001101000000000000000000000000000493e0
+npm run decode-options-remote-proposal -- --options 0x000301001101000000000000000000000000000493e0
 ```
 
 The leading `--` is required so npm forwards the flag to the script instead
