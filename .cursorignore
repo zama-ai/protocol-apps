@@ -1,0 +1,92 @@
+# Environment and Secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Crypto and Keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.keypair
+*-id.json
+junk-id.json
+
+# Dependencies
+node_modules/
+
+# Lock Files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build Artifacts
+artifacts/
+cache/
+cache_forge/
+out/
+build/
+dist/
+typechain/
+typechain-types/
+types/
+contracts-exposed/
+*.tsbuildinfo
+
+# Test and Coverage Artifacts
+coverage/
+coverage.json
+.nyc_output/
+junit/
+coverageEnv
+.coverage_artifacts
+.coverage_cache
+.coverage_contracts
+
+# Framework Specific
+.openzeppelin/
+.layerzero/
+.anchor/
+broadcast/
+fhevmTemp/
+ignition/deployments/
+
+# Deployment State
+deployments/
+
+# Generated Proposal Files
+gateway-proposal-filled.json
+gateway-proposal-temp.json
+aragonProposal.json
+ethereum-wiring.json
+
+# IDE and Editors
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+*.log.*
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-error.log
+
+# Temporary and Cache
+temp/
+tmp/
+.cache/
+.buildx-cache/
+.local/
+
+# Hardhat/Foundry Generated
+allFiredEvents
+scTopics
