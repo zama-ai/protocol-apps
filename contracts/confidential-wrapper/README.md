@@ -183,34 +183,6 @@ npx hardhat task:verifyAllWrapperImplementations --network testnet
 
 ## Scripts
 
-### `test-upgrade`
-
-Simulates an upgrade on a forked network. Captures all on-chain state before the upgrade, deploys a new implementation, executes `upgradeToAndCall`, and verifies that all storage (public getters, raw ERC7201 slots, `_unwrapRequests` mapping entries) is preserved. Also checks that new function signatures are present and security invariants hold (re-initialization blocked, non-owner upgrade blocked).
-
-Uses a dedicated hardhat config (`hardhat.config.fork.ts`) that omits `@fhevm/hardhat-plugin` to avoid genesis storage overrides that conflict with forking.
-
-**Required environment variables:**
-
-| Variable | Description |
-| --- | --- |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` | RPC URL for the network to fork |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_ADDRESS` | Address of the deployed wrapper proxy to test against |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_DEPLOY_BLOCK` | Block number at which the wrapper was deployed (for event scanning) |
-
-The deployed wrapper proxy contract addresses can be found in the [address directory](https://github.com/zama-ai/protocol-apps/tree/main/docs/addresses).
-
-**Optional environment variables:**
-
-| Variable | Description |
-| --- | --- |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_FORK_BLOCK_NUMBER` | If set, the Hardhat fork pins to this block. If unset, Hardhat forks at the latest block returned by the RPC with a "safe block number" head offset of 32 blocks for Ethereum mainnet and 128 for unknown networks (testnet, L2s, etc.). |
-
-**Example:**
-
-```bash
-npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
-```
-
 ### Foundry mainnet-fork fixture tests
 
 The committed fixture tests live in `test/foundry`. They load a baked Anvil state fixture by
