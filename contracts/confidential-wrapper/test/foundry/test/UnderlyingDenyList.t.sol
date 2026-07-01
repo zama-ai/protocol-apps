@@ -47,7 +47,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice Uses real baked blacklist membership from mainnet state and checks 
+     * @notice Uses real baked blacklist membership from mainnet state and checks
      * that the wrapper's direct wrap path rejects a known blacklisted depositor.
      */
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrap() public {
@@ -76,7 +76,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
-            (address w,, address token, address denied) = _configuredDenyListCase(wrappers[i]);
+            (address w, , address token, address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
             string memory sym = _label(w);
@@ -98,7 +98,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
-            (address w,,, address denied) = _configuredDenyListCase(wrappers[i]);
+            (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
             string memory sym = _label(w);
@@ -120,7 +120,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
-            (address w,,, address denied) = _configuredDenyListCase(wrappers[i]);
+            (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
             string memory sym = _label(w);
@@ -186,7 +186,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         string memory json = vm.readFile(path);
         uint256 checked;
 
-        for (uint256 ti = 0;; ti++) {
+        for (uint256 ti = 0; ; ti++) {
             string memory base = string.concat(".tokens[", vm.toString(ti), "]");
             if (!vm.keyExistsJson(json, base)) break;
 
@@ -211,7 +211,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         if (!vm.exists(path)) return address(0);
 
         string memory json = vm.readFile(path);
-        for (uint256 ti = 0;; ti++) {
+        for (uint256 ti = 0; ; ti++) {
             string memory base = string.concat(".tokens[", vm.toString(ti), "]");
             if (!vm.keyExistsJson(json, base)) break;
             if (vm.parseJsonAddress(json, string.concat(base, ".token")) != token) continue;
@@ -226,11 +226,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
         return address(0);
     }
 
-    function _configuredDenyListCase(address w)
-        internal
-        view
-        returns (address wrapper, bytes4 selector, address token, address denied)
-    {
+    function _configuredDenyListCase(
+        address w
+    ) internal view returns (address wrapper, bytes4 selector, address token, address denied) {
         bool isSet;
         (isSet, selector) = _wrapper(w).getUnderlyingDenyListSelector();
         if (!isSet) return (address(0), bytes4(0), address(0), address(0));

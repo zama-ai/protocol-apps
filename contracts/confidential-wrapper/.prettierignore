@@ -21,3 +21,4 @@ package-lock.json
 yarn.lock
 README.md
 fhevmTemp
+test/foundry/dependencies/*

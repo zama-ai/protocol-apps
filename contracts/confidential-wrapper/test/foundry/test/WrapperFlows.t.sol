@@ -73,8 +73,9 @@ contract WrapperFlowsTest is BaseForkTest {
             _assertNonEmptyStringCall(underlying, abi.encodeCall(IERC20Metadata.name, ()), sym, "name");
             _assertNonEmptyStringCall(underlying, abi.encodeCall(IERC20Metadata.symbol, ()), sym, "symbol");
 
-            (bool decimalsOk, bytes memory decimalsData) =
-                underlying.staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
+            (bool decimalsOk, bytes memory decimalsData) = underlying.staticcall(
+                abi.encodeCall(IERC20Metadata.decimals, ())
+            );
             assertTrue(decimalsOk && decimalsData.length == 32, string.concat(sym, ": decimals static call failed"));
             assertGt(abi.decode(decimalsData, (uint8)), 0, string.concat(sym, ": underlying decimals not baked"));
 
@@ -117,8 +118,15 @@ contract WrapperFlowsTest is BaseForkTest {
 
         _runWrapPath(w, sym, holder, startingBalance, rate);
         _runOperatorTransferPath(w, sym, holder, recipient, operator, startingBalance, amount);
-        bytes32 unwrapId =
-            _runOperatorUnwrapPath(w, sym, recipient, operator, operatorRecipient, startingBalance, amount);
+        bytes32 unwrapId = _runOperatorUnwrapPath(
+            w,
+            sym,
+            recipient,
+            operator,
+            operatorRecipient,
+            startingBalance,
+            amount
+        );
         _runFinalizeUnwrapPath(w, sym, operatorRecipient, unwrapId, amount, rate);
     }
 
@@ -130,7 +138,11 @@ contract WrapperFlowsTest is BaseForkTest {
 
         _dealAndWrap(w, alice, underlyingAmount);
 
-        assertEq(underlying.balanceOf(alice), aliceUnderlyingBefore, string.concat(sym, ": user underlying after wrap"));
+        assertEq(
+            underlying.balanceOf(alice),
+            aliceUnderlyingBefore,
+            string.concat(sym, ": user underlying after wrap")
+        );
         assertEq(
             underlying.balanceOf(w) - wrapperUnderlyingBefore,
             underlyingAmount,
@@ -154,7 +166,9 @@ contract WrapperFlowsTest is BaseForkTest {
         _wrapper(w).confidentialTransfer(bob, enc, proof);
 
         assertEq(
-            _decryptBalance(w, alice), startingBalance - amount, string.concat(sym, ": alice balance after transfer")
+            _decryptBalance(w, alice),
+            startingBalance - amount,
+            string.concat(sym, ": alice balance after transfer")
         );
         assertEq(_decryptBalance(w, bob), amount, string.concat(sym, ": bob balance after transfer"));
     }
@@ -182,14 +196,19 @@ contract WrapperFlowsTest is BaseForkTest {
             string.concat(sym, ": holder balance after operator transfer")
         );
         assertEq(
-            _decryptBalance(w, recipient), amount, string.concat(sym, ": recipient balance after operator transfer")
+            _decryptBalance(w, recipient),
+            amount,
+            string.concat(sym, ": recipient balance after operator transfer")
         );
     }
 
-    function _runUnwrapPath(address w, string memory sym, address bob, uint64 totalSupplyBefore, uint64 amount)
-        internal
-        returns (bytes32 unwrapId)
-    {
+    function _runUnwrapPath(
+        address w,
+        string memory sym,
+        address bob,
+        uint64 totalSupplyBefore,
+        uint64 amount
+    ) internal returns (bytes32 unwrapId) {
         (externalEuint64 enc, bytes memory proof) = encryptUint64(amount, bob, w);
         vm.prank(bob);
         unwrapId = _wrapper(w).unwrap(bob, bob, enc, proof);
@@ -267,10 +286,12 @@ contract WrapperFlowsTest is BaseForkTest {
         );
     }
 
-    function _assertNonEmptyStringCall(address target, bytes memory callData, string memory sym, string memory label)
-        internal
-        view
-    {
+    function _assertNonEmptyStringCall(
+        address target,
+        bytes memory callData,
+        string memory sym,
+        string memory label
+    ) internal view {
         (bool ok, bytes memory data) = target.staticcall(callData);
         assertTrue(ok, string.concat(sym, ": ", label, " static call failed"));
         assertGe(data.length, 64, string.concat(sym, ": ", label, " returned bad data"));
@@ -278,16 +299,18 @@ contract WrapperFlowsTest is BaseForkTest {
     }
 
     function _assertErc165StaticStorageIfImplemented(address underlying, string memory sym) internal view {
-        (bool ok, bytes memory data) =
-            underlying.staticcall(abi.encodeCall(IERC165.supportsInterface, (type(IERC165).interfaceId)));
+        (bool ok, bytes memory data) = underlying.staticcall(
+            abi.encodeCall(IERC165.supportsInterface, (type(IERC165).interfaceId))
+        );
 
         // Most deployed ERC-20s do not implement ERC-165. If the call does return
         // a normal bool, ERC-165 requires the IERC165 interface id to be supported.
         if (!ok || data.length != 32) return;
         assertTrue(abi.decode(data, (bool)), string.concat(sym, ": ERC165 support not baked"));
 
-        (bool erc1363Ok, bytes memory erc1363Data) =
-            underlying.staticcall(abi.encodeCall(IERC165.supportsInterface, (type(IERC1363).interfaceId)));
+        (bool erc1363Ok, bytes memory erc1363Data) = underlying.staticcall(
+            abi.encodeCall(IERC165.supportsInterface, (type(IERC1363).interfaceId))
+        );
         assertTrue(erc1363Ok && erc1363Data.length == 32, string.concat(sym, ": IERC1363 support check failed"));
     }
 }

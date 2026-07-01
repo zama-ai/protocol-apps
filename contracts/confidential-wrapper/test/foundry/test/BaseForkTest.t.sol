@@ -34,11 +34,9 @@ abstract contract BaseForkTest is FhevmTest {
     /// @dev ERC-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1).
     bytes32 internal constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
     /// @dev ERC7984Upgradeable ERC-7201 storage base (name/symbol/contractURI/balances/operators/totalSupply).
-    bytes32 internal constant ERC7984_STORAGE_BASE =
-        0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
+    bytes32 internal constant ERC7984_STORAGE_BASE = 0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
     /// @dev ERC7984ERC20WrapperUpgradeable ERC-7201 storage base (underlying+decimals packed, rate, unwrapRequests).
-    bytes32 internal constant WRAPPER_STORAGE_BASE =
-        0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
+    bytes32 internal constant WRAPPER_STORAGE_BASE = 0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
 
     /// @notice Blacklist interface for an underlying token.
     /// @dev Each token declares its own getter explicitly in the shared config.
@@ -173,14 +171,14 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Returns the explicit blacklist interface for `token`, read from the shared
     /// config file (not hardcoded). `supported == false` for tokens with no entry.
-    function _underlyingDenyListInterface(address token)
-        internal
-        view
-        returns (UnderlyingDenyListInterface memory iface)
-    {
+    function _underlyingDenyListInterface(
+        address token
+    ) internal view returns (UnderlyingDenyListInterface memory iface) {
         if (!vm.exists(DENY_LIST_INTERFACES_PATH)) return iface;
         string memory json = vm.readFile(DENY_LIST_INTERFACES_PATH);
-        for (uint256 i = 0;; i++) {
+        // Foundry JSON cheatcodes are index-addressed here; config tokens are a dense array, so
+        // the first missing `.tokens[i]` marks the end.
+        for (uint256 i = 0; ; i++) {
             string memory base = string.concat(".tokens[", vm.toString(i), "]");
             if (!vm.keyExistsJson(json, base)) break;
             if (vm.parseJsonAddress(json, string.concat(base, ".token")) != token) continue;
@@ -210,7 +208,9 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Approves tokens that either return true or return no value, like USDT.
     function _approve(IERC20 token, address spender, uint256 amount) internal {
-        (bool success, bytes memory returndata) = address(token).call(abi.encodeCall(IERC20.approve, (spender, amount)));
+        (bool success, bytes memory returndata) = address(token).call(
+            abi.encodeCall(IERC20.approve, (spender, amount))
+        );
         require(success && (returndata.length == 0 || abi.decode(returndata, (bool))), "approve failed");
     }
 

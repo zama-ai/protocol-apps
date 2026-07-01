@@ -59,5 +59,4 @@ contract DenyListTest is BaseForkTest {
             vm.stopPrank();
         }
     }
-
 }

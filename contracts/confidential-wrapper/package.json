@@ -71,8 +71,14 @@
     "@fhevm/solidity": "^0.10.0",
     "axios": "^1.17.0",
     "qs": "^6.15.2",
-    "hardhat": { "serialize-javascript": "^7.0.3" },
-    "mocha": { "serialize-javascript": "^7.0.3" },
-    "solidity-coverage": { "serialize-javascript": "^7.0.3" }
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "mocha": {
+      "serialize-javascript": "^7.0.3"
+    },
+    "solidity-coverage": {
+      "serialize-javascript": "^7.0.3"
+    }
   }
 }

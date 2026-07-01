@@ -1,6 +1,8 @@
 [profile.default]
 src = 'contracts'
+# Parent Foundry commands are used for selectors only; keep them from scanning
+# nested fork-test dependencies under test/foundry.
+test = 'foundry-test'
 libs = ['node_modules']
 solc = '0.8.27'
 optimizer_runs = 200
-
