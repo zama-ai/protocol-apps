@@ -95,10 +95,12 @@ const config: HardhatUserConfig = {
   networks: {
     "gateway-testnet": {
       url: process.env.RPC_URL_ZAMA_GATEWAY_TESTNET || "",
+      chainId: 10901,
       accounts,
     },
     "gateway-mainnet": {
       url: process.env.RPC_URL_ZAMA_GATEWAY_MAINNET || "",
+      chainId: 261131,
       accounts,
     },
     "polygon-amoy-testnet": {
@@ -150,7 +152,9 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API || "",
+    // Hardhat Verify now expects a single Etherscan V2 API key for all networks.
+    // For blockscout custom chains, a non-empty placeholder is still accepted.
+    apiKey: process.env.ETHERSCAN_API || "abc",
     customChains: [
       {
         network: "gateway-mainnet",
