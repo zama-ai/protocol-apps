@@ -1,0 +1,46 @@
+{
+  "_doc": "Single source of truth shared by script/bake.mjs, script/bake-blacklist.mjs, and test/BaseForkTest.t.sol. Fields: getter = the bool-returning view selector; deployBlock = first deployed-code block used as the full-scan start; baseSlot = optional blacklist mapping base slot when it is not discoverable in 0..255; addEvent/removeEvent = the add/remove log signatures; addrIndexed = true when the affected address rides in an event topic (false = it is in the event data); encoding = 'word' (slot holds whole-word 1/0) or 'highBit' (flag packed in bit 255, read-modify-write).",
+  "tokens": [
+    {
+      "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "name": "USDC",
+      "deployBlock": 6082465,
+      "getter": "isBlacklisted(address)",
+      "addEvent": "Blacklisted(address indexed _account)",
+      "removeEvent": "UnBlacklisted(address indexed _account)",
+      "addrIndexed": true,
+      "encoding": "highBit"
+    },
+    {
+      "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "name": "USDT",
+      "deployBlock": 4634748,
+      "getter": "isBlackListed(address)",
+      "addEvent": "AddedBlackList(address _user)",
+      "removeEvent": "RemovedBlackList(address _user)",
+      "addrIndexed": false,
+      "encoding": "word"
+    },
+    {
+      "token": "0x68749665ff8d2d112fa859aa293f07a622782f38",
+      "name": "XAUT",
+      "deployBlock": 13524498,
+      "getter": "isBlocked(address)",
+      "addEvent": "BlockPlaced(address indexed _user)",
+      "removeEvent": "BlockReleased(address indexed _user)",
+      "addrIndexed": true,
+      "encoding": "word"
+    },
+    {
+      "token": "0x27f6c8289550fCE67f6B50BeD1F519966aFE5287",
+      "name": "TGBP",
+      "deployBlock": 23046391,
+      "baseSlot": "0xc570069450541cbafa33b546085c421153a2f00786cad22bec4f4eb838578e01",
+      "getter": "isBanned(address)",
+      "addEvent": "Banned(address indexed account)",
+      "removeEvent": "UnBanned(address indexed account)",
+      "addrIndexed": true,
+      "encoding": "word"
+    }
+  ]
+}

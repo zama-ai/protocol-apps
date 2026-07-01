@@ -211,6 +211,31 @@ The deployed wrapper proxy contract addresses can be found in the [address direc
 npx hardhat --config hardhat.config.fork.ts run scripts/test-upgrade.ts
 ```
 
+### Foundry mainnet-fork fixture tests
+
+The committed fixture tests live in `test/foundry`. They load a baked Anvil state fixture by
+default, so CI and local regression runs do not need mainnet RPC access:
+
+```bash
+cd test/foundry
+npm run setup
+make test
+```
+
+To refresh the fixture after deployment, storage-coverage, or blacklist changes, run:
+
+```bash
+cd test/foundry
+make teardown-anvil
+make bake
+make test
+```
+
+`make bake` reads `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` from this package's `.env`, writes
+`test/foundry/deployments/mainnet-fork/{anvil-state.json,manifest.json,blacklist-cache.json}`,
+and uses `script/bake.mjs` for the materialization pass. See
+[`test/foundry/README.md`](test/foundry/README.md) for details.
+
 ## Deployment Steps
 
 ### Deploy wrapper(s)

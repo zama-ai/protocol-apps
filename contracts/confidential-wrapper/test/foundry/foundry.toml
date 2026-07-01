@@ -1,0 +1,23 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+script = "script"
+libs = ["dependencies"]
+solc_version = "0.8.27"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 100
+
+# The remappings resolve monorepo contract packages outside this package root, so
+# the compiler must be allowed to read from the confidential-wrapper sources two
+# directories up and the sibling registry package three directories up.
+allow_paths = ["../../contracts", "../../../confidential-token-wrappers-registry"]
+
+# Tests read the committed Anvil fixture + manifest from disk.
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+[fmt]
+line_length = 120
+
+[dependencies]
