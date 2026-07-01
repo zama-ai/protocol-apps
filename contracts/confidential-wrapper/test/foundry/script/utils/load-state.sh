@@ -9,16 +9,24 @@ if [[ ! -s "${STATE_FILE}" ]]; then
   exit 1
 fi
 
-STATE="$(tr -d '\n' < "${STATE_FILE}")"
-if [[ "${STATE}" != 0x* ]]; then
+if [[ "$(head -c 2 "${STATE_FILE}")" != "0x" ]]; then
   echo "${STATE_FILE} is not a raw anvil_dumpState hex string" >&2
   exit 1
 fi
 
+PAYLOAD="$(mktemp "${TMPDIR:-/tmp}/anvil-load-state.XXXXXX.json")"
+trap 'rm -f "${PAYLOAD}"' EXIT
+
+{
+  printf '{"jsonrpc":"2.0","method":"anvil_loadState","params":["'
+  tr -d '\n' < "${STATE_FILE}"
+  printf '"],"id":1}'
+} > "${PAYLOAD}"
+
 RESPONSE="$(
   curl -fsS \
     -H 'content-type: application/json' \
-    --data "{\"jsonrpc\":\"2.0\",\"method\":\"anvil_loadState\",\"params\":[\"${STATE}\"],\"id\":1}" \
+    --data-binary @"${PAYLOAD}" \
     "${RPC}"
 )"
 

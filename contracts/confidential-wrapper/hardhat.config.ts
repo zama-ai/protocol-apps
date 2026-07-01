@@ -9,9 +9,10 @@ import 'hardhat-deploy';
 import 'hardhat-gas-reporter';
 import 'hardhat-ignore-warnings';
 import '@fhevm/hardhat-plugin';
-import { task } from 'hardhat/config';
+import { subtask, task } from 'hardhat/config';
+import { TASK_TEST_GET_TEST_FILES } from 'hardhat/builtin-tasks/task-names';
 import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from 'hardhat/types';
-import { resolve } from 'path';
+import { sep, resolve } from 'path';
 import 'solidity-coverage';
 import 'hardhat-exposed';
 
@@ -55,6 +56,12 @@ task('test', 'Runs the test suite with environment variables from .env.example')
     dotenv.config({ path: envExamplePath, override: true });
   }
   await runSuper();
+});
+
+subtask(TASK_TEST_GET_TEST_FILES).setAction(async (args, _hre, runSuper) => {
+  const testFiles = (await runSuper(args)) as string[];
+  const foundryTestDir = `${sep}test${sep}foundry${sep}`;
+  return testFiles.filter((file) => !file.includes(foundryTestDir));
 });
 
 const config: HardhatUserConfig = {
