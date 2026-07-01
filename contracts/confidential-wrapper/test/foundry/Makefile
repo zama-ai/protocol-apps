@@ -1,10 +1,11 @@
 STATE_FILE := deployments/mainnet-fork/anvil-state.json
+ANVIL_PORT := 8545
 RPC := http://localhost:8545
 ANVIL_PID := .anvil.pid
 ANVIL_LOG := /tmp/foundry-tests-anvil.log
 REGISTRY := eb5015ff021db115ace010f23f55c2591059bba0
 
-.PHONY: bake bake-blacklists test test-live anvil teardown-anvil build clean validate-state wait-anvil
+.PHONY: bake bake-blacklists test test-live anvil teardown-anvil build clean validate-state check-anvil-free wait-anvil
 
 # Manual, network-bound step. Reads CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL
 # from contracts/confidential-wrapper/.env (see .env.example). Commits the fixture.
@@ -24,10 +25,26 @@ validate-state:
 	@head -c 2 $(STATE_FILE) | grep -q '0x' || \
 		(echo "$(STATE_FILE) must be a raw anvil_dumpState hex string."; exit 1)
 
+check-anvil-free:
+	@if command -v lsof >/dev/null 2>&1; then \
+		listener="$$(lsof -tiTCP:$(ANVIL_PORT) -sTCP:LISTEN 2>/dev/null || true)"; \
+		if [ -n "$$listener" ]; then \
+			echo "TCP port $(ANVIL_PORT) is already in use by pid(s): $$listener"; \
+			echo "Run 'make teardown-anvil' or stop the existing listener before make test."; \
+			exit 1; \
+		fi; \
+	elif curl -fsS -H 'content-type: application/json' \
+		--data '{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}' \
+		$(RPC) > /dev/null 2>&1; then \
+		echo "Ethereum RPC is already listening on $(RPC)."; \
+		echo "Run 'make teardown-anvil' or stop the existing listener before make test."; \
+		exit 1; \
+	fi
+
 # Boots blank Anvil, loads the committed fixture through anvil_loadState, and serves it.
 anvil: validate-state
 	@rm -f $(ANVIL_PID) $(ANVIL_LOG)
-	@anvil --chain-id 31337 --port 8545 > $(ANVIL_LOG) 2>&1 & echo $$! > $(ANVIL_PID)
+	@anvil --chain-id 31337 --port $(ANVIL_PORT) > $(ANVIL_LOG) 2>&1 & echo $$! > $(ANVIL_PID)
 	@$(MAKE) wait-anvil
 	@./script/utils/load-state.sh $(RPC) $(STATE_FILE)
 	@echo "Anvil ready on $(RPC). Press Ctrl-C to stop."
@@ -37,7 +54,7 @@ anvil: validate-state
 	exit $$status
 
 teardown-anvil:
-	@./script/teardown-anvil.sh --port 8545
+	@./script/teardown-anvil.sh --port $(ANVIL_PORT)
 
 # Network-bound test run against a live mainnet fork. Reads
 # CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL from contracts/confidential-wrapper/.env
@@ -59,9 +76,9 @@ test-live:
 
 # Self-contained test run: start fixture-loaded Anvil in the background, wait
 # for it to accept connections, run the suite against it, then tear it down.
-test: validate-state
+test: validate-state check-anvil-free
 	@rm -f $(ANVIL_PID) $(ANVIL_LOG)
-	@anvil --chain-id 31337 --port 8545 > $(ANVIL_LOG) 2>&1 & echo $$! > $(ANVIL_PID)
+	@anvil --chain-id 31337 --port $(ANVIL_PORT) > $(ANVIL_LOG) 2>&1 & echo $$! > $(ANVIL_PID)
 	@$(MAKE) wait-anvil
 	@./script/utils/load-state.sh $(RPC) $(STATE_FILE)
 	@node script/utils/list-wrappers.mjs $(RPC)
