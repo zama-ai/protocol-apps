@@ -6,8 +6,8 @@ Foundry tests that exercise the **live** Confidential Wrappers deployed on Ether
 
 - direct wrap, confidential transfer, unwrap, finalize, and ERC-1363 receiver flows;
 - per-wrapper deny-list behavior (owner gating, block/unblock, blocked-wrap guard);
-- configured underlying-token deny-list selectors against real underlying token code;
-- underlying-token deny-list gating against **real baked blacklist state**, including known
+- configured underlying-token deny-list selectors against the deployed underlying token code;
+- underlying-token deny-list gating against baked blacklist state, including known
   blacklisted mainnet addresses.
 
 Tests run **offline by default**: they load a committed Anvil state fixture rather than
@@ -110,9 +110,9 @@ is a one-entry config edit.
 | `addrIndexed` | `true` if the affected address rides in an event topic; `false` if in event data (USDT). |
 | `encoding` | `word` (slot holds a whole-word `1`/`0`, e.g. USDT/XAUT) or `highBit` (flag in **bit 255** of a slot shared with the balance, e.g. USDC; written read-modify-write so the balance bits survive). |
 
-Slot layout is config-validated, not guessed blindly: if `baseSlot` is omitted, the bake traces
-the declared getter and tries simple mapping bases `0..255`; if `baseSlot` is present, the bake
-checks that it maps the probe address to a slot touched by the getter.
+Slot layout is config-validated against the declared getter trace. If `baseSlot` is omitted, the
+bake tries simple mapping bases `0..255`; if `baseSlot` is present, the bake checks that
+`keccak256(probe, baseSlot)` is one of the getter-touched storage slots.
 
 ## Layout
 
@@ -139,13 +139,8 @@ checks that it maps the probe address to a slot touched by the getter.
 - `delegatecall 0x000...000` from an underlying token: its proxy implementation code was not
   materialized. Add a documented token-specific implementation slot only after a trace proves
   it is required.
-- `KMSInvalidSigner`: the cleartext ABI payload used to build the proof does not match the
-  payload passed to `FHE.checkSignatures`.
 - `baked address not denied by real token state`: `blacklist-cache.json` is out of sync with
   `anvil-state.json`. Re-run `make bake` or `make bake-blacklists` and commit both.
-- `make test-live` fails only with an older `FORK_BLOCK`: the sidecar may contain addresses
-  blacklisted after that block. Use a block at or after `blacklistScannedBlock`, or run the
-  default offline fixture test.
 
 ## How it works
 
@@ -155,16 +150,17 @@ The deployed wrappers point their FHE config at the real Zama mainnet coprocesso
 happens off-chain), so a bare fork can't produce usable ciphertext/decryptions. Zama's
 [`forge-fhevm`](https://github.com/zama-ai/forge-fhevm) closes the gap:
 
-- `FhevmTest.setUp()` deploys the real fhEVM host contracts in-process at canonical local
-  addresses, sets `chainId = 31337`, and records executor logs into an in-memory plaintext DB.
-- `script/bake.mjs` points each baked wrapper's three FHE config slots at this local host and
-  **zeroes the cached total-supply handle**. A mainnet handle has no entry in the local plaintext
-  DB, so the first local mint/burn must rebuild it against the local executor.
+- `script/bake.mjs` points each baked wrapper's three FHE config slots at the local
+  `forge-fhevm` host addresses and **zeroes the cached total-supply handle**. A mainnet handle has
+  no entry in the local plaintext DB, so the first local mint/burn must rebuild it against the
+  local executor.
+- The inherited `FhevmTest.setUp()` initializes the local fhEVM host stack and plaintext DB that
+  those baked wrapper slots target.
 - `finalizeUnwrap` verifies a scalar `abi.encode(uint64)` payload, so tests use
   `buildDecryptionProof(handle, abi.encode(cleartext))` rather than the generic
   `publicDecrypt(handles)` proof (which signs `abi.encode(uint256[])`).
 
-### The committed fixture (ADR-010: bake + commit)
+### The committed fixture
 
 `anvil_dumpState` serializes **only the local overlay**, never lazy fork-cache reads. So an
 account or slot survives `anvil_loadState` only if `script/bake.mjs` wrote it explicitly with
@@ -178,7 +174,7 @@ account or slot survives `anvil_loadState` only if `script/bake.mjs` wrote it ex
   configured static metadata/supply/ERC-165 calls;
 - USDC's legacy ZeppelinOS implementation pointer at
   `keccak256("org.zeppelinos.proxy.implementation")` (mainnet USDC is not an EIP-1967 proxy);
-- the **real blacklist membership** of every blacklist-bearing underlying, so a loaded fixture
+- the blacklist membership of every blacklist-bearing underlying, so a loaded fixture
   reports the same denied/not-denied result the token would on mainnet.
 
 The bake keeps source reads and overlay writes deliberately separate: source code/storage comes
