@@ -14,6 +14,13 @@ on:
 
 permissions: {}
 
+env:
+  # Safe-chain enforces its own minimum-package-age check independently,
+  # mirror both the age (72 h) and the exclusion here. This job installs every
+  # contract package, including confidential-wrapper's @zama-fhe/relayer-sdk.
+  SAFE_CHAIN_MINIMUM_PACKAGE_AGE_HOURS: "72"
+  SAFE_CHAIN_MINIMUM_PACKAGE_AGE_EXCLUSIONS: "@zama-fhe/relayer-sdk"
+
 concurrency:
   group: ci-contracts-check-selectors-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -36,7 +43,7 @@ jobs:
           fi
 
       - name: Checkout project
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: 'false'
 
@@ -46,9 +53,9 @@ jobs:
           version: 9
 
       - name: Setup Node
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 20.x
+          node-version: 22
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1.7.0
@@ -72,7 +79,7 @@ jobs:
 
       - name: Install safe-chain (Aikido malicious-package guard)
         shell: bash
-        run: curl -fsSL https://github.com/AikidoSec/safe-chain/releases/download/1.5.3/install-safe-chain.sh | sh -s -- --ci
+        run: curl -fsSL https://github.com/AikidoSec/safe-chain/releases/download/1.5.8/install-safe-chain.sh | sh -s -- --ci
 
       - name: Check selectors
         working-directory: contracts
