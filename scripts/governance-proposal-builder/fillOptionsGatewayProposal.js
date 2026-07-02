@@ -95,7 +95,8 @@ next to the input:
 
 Required env vars (one per network, set via .env, see .env.example):
   - RPC_GATEWAY_MAINNET   (used when --network mainnet)
-  - RPC_GATEWAY_TESTNET   (used when --network testnet or devnet)
+  - RPC_GATEWAY_TESTNET   (used when --network testnet)
+  - RPC_GATEWAY_DEVNET    (used when --network devnet)
 
 Refuses to overwrite either file if it already exists.
 `
