@@ -49,7 +49,7 @@ const SAFE_PROXY = {
 const RPC_ENV_VAR = {
   mainnet: 'RPC_GATEWAY_MAINNET',
   testnet: 'RPC_GATEWAY_TESTNET',
-  devnet: 'RPC_GATEWAY_TESTNET',
+  devnet: 'RPC_GATEWAY_DEVNET',
 }
 
 // Canonical proposal shape (mirrors gateway-proposal-temp.json):
