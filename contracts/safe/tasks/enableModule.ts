@@ -53,7 +53,12 @@ task("task:enableAdminModule")
   });
 
 task("task:verifyAdminModuleEnabled")
-  .addOptionalParam("module", "The address of the AdminModule contract to verify", undefined, types.string)
+  .addOptionalParam(
+    "module",
+    "The address of the AdminModule contract to verify",
+    undefined,
+    types.string,
+  )
   .addFlag(
     "useSafeProxyAddressEnv",
     "Read the Safe proxy address from the SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact",
@@ -62,10 +67,8 @@ task("task:verifyAdminModuleEnabled")
     { useSafeProxyAddressEnv, module },
     { ethers, network },
   ) {
-    const adminModuleAddress = module || await getDeployedAddress(
-      network.name,
-      "AdminModule",
-    );
+    const adminModuleAddress =
+      module || (await getDeployedAddress(network.name, "AdminModule"));
     const safeProxyAddress =
       useSafeProxyAddressEnv || network.name === "hardhat"
         ? getRequiredEnvVar("SAFE_PROXY_ADDRESS")
@@ -74,14 +77,15 @@ task("task:verifyAdminModuleEnabled")
       "SafeL2",
       safeProxyAddress,
     );
-    const isEnabled = await safeProxyContract.isModuleEnabled(adminModuleAddress);
+    const isEnabled =
+      await safeProxyContract.isModuleEnabled(adminModuleAddress);
     if (isEnabled) {
       console.log(
-        `✅ AdminModule (${adminModuleAddress}) is enabled in Safe proxy (${safeProxyAddress})`
+        `✅ AdminModule (${adminModuleAddress}) is enabled in Safe proxy (${safeProxyAddress})`,
       );
     } else {
       console.log(
-        `❌ AdminModule (${adminModuleAddress}) is NOT enabled in Safe proxy (${safeProxyAddress})`
+        `❌ AdminModule (${adminModuleAddress}) is NOT enabled in Safe proxy (${safeProxyAddress})`,
       );
       process.exitCode = 1;
     }

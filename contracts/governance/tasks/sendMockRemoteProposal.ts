@@ -5,10 +5,7 @@ import { createLogger } from '@layerzerolabs/io-devtools'
 
 const logger = createLogger()
 
-task(
-    'task:sendMockRemoteProposal',
-    'Sends one mock proposal entry via GovernanceOAppSender.sendRemoteProposal'
-)
+task('task:sendMockRemoteProposal', 'Sends one mock proposal entry via GovernanceOAppSender.sendRemoteProposal')
     .addParam('sender', 'GovernanceOAppSender address', undefined, types.string)
     .addParam('target', 'Mock target address', undefined, types.string)
     .addParam('options', 'LayerZero options bytes from task:getLZOptions', undefined, types.string)

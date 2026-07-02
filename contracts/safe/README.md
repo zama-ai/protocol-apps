@@ -83,10 +83,12 @@ npx hardhat task:verifyAdminModuleEnabled --network <NETWORK>
 ```
 
 Available options:
+
 - `--module`: The address of the AdminModule contract to verify. Defaults to the one in `deployments/<NETWORK>/AdminModule.json`
 - `--use-safe-proxy-address-env`: Read the Safe proxy address from the `SAFE_PROXY_ADDRESS` env variable instead of the `deployments/<NETWORK>/SafeL2Proxy.json` artifact
 
 Example usage:
+
 ```
 npx hardhat task:verifyAdminModuleEnabled --module <ADMIN_MODULE_ADDRESS> --use-safe-proxy-address-env --network <NETWORK>
 ```

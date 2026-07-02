@@ -106,7 +106,10 @@ task("task:addOwnersToSafe").setAction(async function (
 // Log the owners of the Safe and its threshold
 // Example usage:
 // npx hardhat task:getSafeOwnersAndThreshold --network gateway-mainnet
-task("task:getSafeOwnersAndThreshold").setAction(async function (_, { ethers }) {
+task("task:getSafeOwnersAndThreshold").setAction(async function (
+  _,
+  { ethers },
+) {
   // Get the Safe proxy
   const { safeProxy } = await getSafeProxyAddress(ethers);
 
