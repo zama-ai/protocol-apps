@@ -18,4 +18,5 @@ ignorePatterns:
   - pattern: "^https://rpc.testnet.zama.org.*$"
   - pattern: "^https://solscan.io.*$"
   - pattern: "^https://layerzeroscan.com.*$"
+  - pattern: "^https://bscscan.com.*$"
 useGitIgnore: true
