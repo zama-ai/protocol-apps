@@ -5,6 +5,7 @@ import { createLogger } from '@layerzerolabs/io-devtools'
 
 const logger = createLogger()
 
+// npx hardhat task:sendMockRemoteProposal --sender 0x... --target 0x... --options 0x... --network gateway-mainnet
 task('task:sendMockRemoteProposal', 'Sends one mock proposal entry via GovernanceOAppSender.sendRemoteProposal')
     .addParam('sender', 'GovernanceOAppSender address', undefined, types.string)
     .addParam('target', 'Mock target address', undefined, types.string)

@@ -5,6 +5,7 @@ import { createLogger } from '@layerzerolabs/io-devtools'
 
 const logger = createLogger()
 
+// npx hardhat task:deployGatewayConfigMock --owner 0x... --network gateway-mainnet
 task('task:deployGatewayConfigMock', 'Deploys the GatewayConfigMock contract')
     .addParam('owner', 'Initial owner address', undefined, types.string)
     .setAction(async ({ owner }: { owner: string }, hre: HardhatRuntimeEnvironment) => {

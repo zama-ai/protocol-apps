@@ -4,6 +4,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { createLogger } from '@layerzerolabs/io-devtools'
 const logger = createLogger()
 
+// npx hardhat task:setAdminSafeModule --module 0x... --receiver 0x... --network gateway-mainnet
 task('task:setAdminSafeModule', 'Sets GovernanceOAppReceiver.adminSafeModule')
     .addParam('module', 'AdminModule address to authorize', undefined, types.string)
     .addOptionalParam('receiver', 'GovernanceOAppReceiver address (defaults to deployment)', undefined, types.string)
