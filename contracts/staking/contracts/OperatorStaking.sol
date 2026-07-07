@@ -43,6 +43,7 @@ contract OperatorStaking is ERC1363Upgradeable, ReentrancyGuardTransient, UUPSUp
         mapping(address controller => uint256 sharesReleased) _sharesReleased;
         mapping(address controller => Checkpoints.Trace208 redeemRequests) _redeemRequests;
         mapping(address controller => mapping(address operator => bool approved)) _operator;
+        address _legacyRewarder;
     }
 
     // keccak256(abi.encode(uint256(keccak256("fhevm_protocol.storage.OperatorStaking")) - 1)) & ~bytes32(uint256(0xff))
@@ -295,7 +296,9 @@ contract OperatorStaking is ERC1363Upgradeable, ReentrancyGuardTransient, UUPSUp
         // Shutdown old rewarder first to claim any pending rewards before initializing the new one
         OperatorRewarder(oldRewarder).shutdown();
 
-        _getOperatorStakingStorage()._rewarder = newRewarder;
+        OperatorStakingStorage storage $ = _getOperatorStakingStorage();
+        $._legacyRewarder = oldRewarder;
+        $._rewarder = newRewarder;
         protocolStaking().setRewardsRecipient(newRewarder);
 
         // Start the new rewarder after shutting down the old one to ensure proper reward snapshot
@@ -456,7 +459,12 @@ contract OperatorStaking is ERC1363Upgradeable, ReentrancyGuardTransient, UUPSUp
      * @dev Updates shares while notifying the rewarder that shares were transferred.
      */
     function _update(address from, address to, uint256 amount) internal virtual override {
-        OperatorRewarder(rewarder()).transferHook(from, to, amount);
+        OperatorStakingStorage storage $ = _getOperatorStakingStorage();
+        OperatorRewarder($._rewarder).transferHook(from, to, amount);
+        address legacyRewarder_ = $._legacyRewarder;
+        if (legacyRewarder_ != address(0)) {
+            OperatorRewarder(legacyRewarder_).transferHook(from, to, amount);
+        }
         super._update(from, to, amount);
     }
 
