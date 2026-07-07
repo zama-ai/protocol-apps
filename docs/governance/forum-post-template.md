@@ -26,7 +26,7 @@ For how to create and review the on-chain proposal itself, see [Creating Ethereu
 
 ## Proposed Changes
 
-<!-- What exactly will happen on-chain if this passes. List each action: target contract, function called, and key arguments, in plain language. Note whether it targets Ethereum mainnet, the Gateway (cross-chain), or testnet. -->
+<!-- What exactly will happen on-chain if this passes. List each action: target contract, function called, and key arguments, in plain language. Note whether it targets Ethereum or other chains (e.g. the Gateway). -->
 
 - **Action 1:** [contract / function / args + what it does]
 - **Action 2:** ...
@@ -35,7 +35,7 @@ For how to create and review the on-chain proposal itself, see [Creating Ethereu
 
 <!-- For reviewers verifying the proposal. Fill in what applies: -->
 
-- **Network:** [Ethereum mainnet / Gateway / Sepolia testnet]
+- **Network:** [Ethereum / Gateway]
 - **Target contract(s) & addresses:** [list addresses; note where they are documented — e.g. protocol-registry]
 - **Magic constants / encoded data:** [e.g. for upgrades, `cast calldata "reinitializeV2()"` = 0x...]
 - **Cross-chain:** [if `sendRemoteProposal`, note the destination and how to track delivery (LayerZeroScan)]

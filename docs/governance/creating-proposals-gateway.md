@@ -38,6 +38,9 @@ cp gateway-proposal-temp.mainnet-example.json gateway-proposal-temp.json
 
 # Testnet
 cp gateway-proposal-temp.testnet-example.json gateway-proposal-temp.json
+
+# Devnet
+cp gateway-proposal-temp.devnet-example.json gateway-proposal-temp.json
 ```
 
 ## Step 2: Describe the Gateway calls
@@ -93,11 +96,7 @@ cast abi-decode 'f()(address,uint256)' "$DATA"
 ## Step 4: Run the fill script
 
 ```bash
-# Mainnet
-npm run fill-options-gateway-proposal:mainnet
-
-# Testnet
-npm run fill-options-gateway-proposal:testnet
+npm run fill-options-gateway-proposal:mainnet   # or :testnet or :devnet
 ```
 
 **Output files:**
