@@ -96,7 +96,8 @@ CONFIDENTIAL_WRAPPER_NAME_{i}=
 CONFIDENTIAL_WRAPPER_SYMBOL_{i}=
 CONFIDENTIAL_WRAPPER_CONTRACT_URI_{i}=
 CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}=
-CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}=
+# Ethereum mainnet DAO address
+CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3"   
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
 CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, e.g. 0xfe575a87
 CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false
@@ -111,6 +112,8 @@ npx hardhat task:deployAllConfidentialWrappers --network mainnet
 ```
 
 **Single wrapper:**
+
+> ⚠️ The values in the example below are taken from the existing Ethereum mainnet **cUSDT** wrapper at `0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50` and are here for reference. Update them for the new wrapper you are deploying.
 
 ```bash
 npx hardhat task:deployConfidentialWrapper \
@@ -168,7 +171,7 @@ registry.registerConfidentialToken(
 );
 ```
 
-See the [Creating Ethereum Proposals](/docs/governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
+See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
 
 ### Step 5 — Update the addresses directory
 
@@ -235,7 +238,7 @@ proxy.upgradeToAndCall(newImplementationAddress, reinitializeCalldata);
 
 `reinitializeCalldata` is the ABI-encoded call to the reinitializer function in the new implementation.
 
-See the [Creating Ethereum Proposals](/docs/governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
+See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
 
 
 #### Getting calldata bytes

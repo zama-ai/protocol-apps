@@ -16,6 +16,19 @@ This runbook combines a V1 fresh deployment with a single DAO proposal that both
 
 The DAO proposal at Step 4 replaces both Option 1 Step 4 (registry) and Option 2 Step 5 (upgrade) from the main runbook.
 
+To find the currently deployed implementation, deployed wrappers can be found for each chain:
+
+Ethereum mainnet: [addresses](../addresses/mainnet/ethereum.md)
+
+Sepolia testnet: [addresses](../addresses/testnet/sepolia.md)
+
+Click any wrapper address to go to it's etherscan page. From there:
+
+1. Click the `Contract` tab
+2. Next to **Source Code Verified**, click the address next to `Implementation`
+3. On the Implementation contract page, click `Contract` again and check that the `Contract Name` matches the version that you need.
+4. Copy the address of the Implementation contract
+
 ---
 
 ## Step 1 — Check out the pinned V1 commit
@@ -122,7 +135,7 @@ registry.registerConfidentialToken(
 
 For encoding `reinitializeV3Calldata`, see [Getting calldata bytes](./deploy-wrapper-runbook.md#getting-calldata-bytes) in the main runbook.
 
-See the [Creating Ethereum Proposals](/docs/governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
+See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.md) guide for help on creating a new proposal.
 
 ## Step 5 — Update the addresses directory
 
