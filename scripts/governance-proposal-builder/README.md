@@ -27,6 +27,7 @@ Currently availabe scripts are:
 [*] fill-options-gateway-proposal
 [*] decode-options-gateway-proposal
 [*] aragon-proposal-inspector
+[*] verify-bytecode
 ```
 
 ### fillOptionsGatewayProposal
@@ -206,3 +207,51 @@ For the human-readable mode:
   - `data`: the full raw calldata, 
   - (optional) `function`: the decoded signature and arguments (when Etherscan is enabled and
   the calldata can be decoded).
+
+### verifyBytecode
+
+Checks that the runtime bytecode deployed at a given address matches a locally compiled Hardhat artifact. Useful when reviewing a governance upgrade proposal: confirm the implementation it points to is the code you compiled from source. Unlike the other scripts, it takes positional arguments rather than reading from `.env`.
+
+#### Usage
+
+```bash
+node verifyBytecode.js <address> <artifact-path> [--rpc <url>]
+# or via npm (the -- forwards args to the script):
+npm run verify-bytecode -- <address> <artifact-path> [--rpc <url>]
+```
+
+- `<address>` — the deployed contract address (for a proxied contract, pass the **implementation** address, not the proxy).
+- `<artifact-path>` — path to the compiled Hardhat artifact JSON (the file containing `deployedBytecode`).
+- `--rpc <url>` — optional RPC endpoint. Defaults to `https://ethereum-rpc.publicnode.com`.
+
+#### What the script does
+
+1. Reads `deployedBytecode` from the artifact and the on-chain runtime code via `eth_getCode`.
+2. Resolves the artifact's sibling `.dbg.json` → build-info to load the `immutableReferences` map.
+3. Masks those immutable byte-ranges on both sides before comparing, since immutables (e.g. OpenZeppelin `UUPSUpgradeable`'s `address(this)` self-reference) are written at deployment time and legitimately differ from the zeroed artifact.
+4. Reports whether the bytecode matches, and on mismatch prints the first differing byte offset.
+
+Exit codes: `0` match, `1` no match, `2` usage/error — suitable for CI.
+
+#### Example
+
+```bash
+node verifyBytecode.js 0x5226fe30fa7bf20c1cd33f125f77d0c42d3c23b5 \
+  ../../contracts/confidential-wrapper/artifacts/contracts/upgrades/ConfidentialWrapperV3.sol/ConfidentialWrapperV3.json
+```
+
+Example output (a UUPS implementation with 3 self-address immutable slots):
+
+```
+Verifying ConfidentialWrapperV3.json against 0x5226fe30fa7bf20c1cd33f125f77d0c42d3c23b5...
+  immutable slots: 3
+
+✅ MATCH — deployed runtime bytecode matches the artifact (the 3 immutable slot(s) hold deployment-time values, as expected).
+```
+
+A mismatch (e.g. checking against the proxy address instead of the implementation) looks like:
+
+```
+❌ NO MATCH — first differing byte at offset 6 (onchain=0a local=04).
+   Likely a different compiler version/settings, different source, or unmapped immutables.
+```
