@@ -15,8 +15,9 @@ import { EndpointId } from '@layerzerolabs/lz-definitions'
 
 import './tasks/getLZOptions'
 import './tasks/getSafeOwnerChangeArgs'
-import './tasks/sendRemoteProposal'
 import './tasks/setAdminSafeModule'
+import './tasks/deployGatewayConfigMock'
+import './tasks/sendMockRemoteProposal'
 
 // Set your preferred authentication method
 //
@@ -60,21 +61,25 @@ const config: HardhatUserConfig = {
         'ethereum-mainnet': {
             eid: EndpointId.ETHEREUM_V2_MAINNET,
             url: process.env.MAINNET_RPC_URL || '',
+            chainId: 1,
             accounts,
         },
         'ethereum-testnet': {
             eid: EndpointId.SEPOLIA_V2_TESTNET,
             url: process.env.SEPOLIA_RPC_URL || '',
+            chainId: 11155111,
             accounts,
         },
         'gateway-mainnet': {
             eid: EndpointId.ZAMA_V2_MAINNET,
             url: process.env.RPC_URL_ZAMA_GATEWAY_MAINNET || '',
+            chainId: 261131,
             accounts,
         },
         'gateway-testnet': {
             eid: EndpointId.ZAMA_V2_TESTNET,
             url: process.env.RPC_URL_ZAMA_GATEWAY_TESTNET || '',
+            chainId: 10901,
             accounts,
         },
         'polygon-mainnet': {

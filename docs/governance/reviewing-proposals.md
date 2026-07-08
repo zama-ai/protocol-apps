@@ -4,6 +4,7 @@ Proposals are reviewed and voted on via the Aragon App UI:
 
 - [Mainnet DAO](https://app.aragon.org/dao/ethereum-mainnet/zama.dao.eth/dashboard)
 - [Testnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52/dashboard)
+- [Devnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x41d84D9F00263eaF80f3526C157CD49c263CAd59/dashboard)
 
 **Source of truth for addresses:** the [protocol-registry](https://github.com/zama-ai/protocol-registry) repo.
 
@@ -42,7 +43,7 @@ Expand an action to see all arguments:
 For each action, check:
 
 1. **Contract name**: verify on the block explorer.
-2. **Contract address**: verify against the protocol-registry repo. Confirm you're on the correct chain (mainnet/testnet).
+2. **Contract address**: verify against the protocol-registry repo. Confirm you're on the correct chain (mainnet/testnet/devnet).
 3. **Source code**: For new contracts or new proxied implementations (see below), inspect on the block explorer.
 4. **Contract relationships**: use diagrams in protocol-registry to verify ownership, roles, and other relationships.
 5. **All arguments**: including magic constants (role hashes) and ABI-encoded values.
@@ -83,11 +84,11 @@ For proposals calling `sendRemoteProposal` on `GovernanceOAppSender`:
 1. In `gateway-proposal-temp.json`, replace `targets[i]`, `functionSignatures[i]`, and `datas[i]` with the values shown in the Aragon frontend. Keep `options` as `"0x"`.
 2. Run the fill script:
    ```bash
-   npm run fill-options-gateway-proposal:mainnet   # or :testnet
+   npm run fill-options-gateway-proposal:mainnet   # or :testnet or :devnet
    ```
 3. Compare the generated `options` value in `gateway-proposal-filled.json` with the Aragon frontend:
    - **Match**: gas estimation is correct. The proposal is likely valid.
-   - **Mismatch**: decode and compare both values:
+   - **Mismatch**: decode and compare both values. Options can drift by a a few gas as it depends on several factors like the gas price oracle used by LayerZero. Both values must stay close:
      ```bash
      npm run decode-options-gateway-proposal -- --options <OPTIONS_HEX>
      ```
@@ -149,7 +150,7 @@ Two ways to find it:
 npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id PROPOSAL_ID
 ```
 
-**Note:** For testnet, override the RPC URL directly:
+**Note:** For testnet or devnet, override the RPC URL directly:
 ```bash
 npm run aragon-proposal-inspector -- --plugin 0xPLUGIN --id PROPOSAL_ID --rpc https://your.rpc
 ```

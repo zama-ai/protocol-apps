@@ -37,16 +37,19 @@ const GAS_BUFFER_BPS = 3000 // 30% safety margin on top of the total
 const GOVERNANCE_OAPP_SENDER = {
   mainnet: '0x1c5D750D18917064915901048cdFb2dB815e0910',
   testnet: '0x909692c2f4979ca3fa11B5859d499308A1ec4932',
+  devnet: '0x369CDAD997981C06aa02f82b74564C1F4A4D36ae',
 }
 
 const SAFE_PROXY = {
   mainnet: '0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE',
   testnet: '0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9',
+  devnet: '0xb8E03De46F3539aEA7FEb072eEAE6A8f4A14913B',
 }
 
 const RPC_ENV_VAR = {
   mainnet: 'RPC_GATEWAY_MAINNET',
   testnet: 'RPC_GATEWAY_TESTNET',
+  devnet: 'RPC_GATEWAY_DEVNET',
 }
 
 // Canonical proposal shape (mirrors gateway-proposal-temp.json):
@@ -71,10 +74,10 @@ function printUsage() {
     `Usage:
   npm run fill-options-gateway-proposal:<network>
   npm run fill-options-gateway-proposal:<network> -- --tempProposal <file>
-  node ${SCRIPT_NAME} --network <mainnet|testnet> [--tempProposal <file>]
+  node ${SCRIPT_NAME} --network <mainnet|testnet|devnet> [--tempProposal <file>]
 
 Flags:
-  --network        REQUIRED  "mainnet" or "testnet".
+  --network        REQUIRED  "mainnet" or "testnet" or "devnet".
   --tempProposal   OPTIONAL  Path to the proposal JSON file.
                              Default: ${DEFAULT_TEMP_PROPOSAL}
   -h, --help                 Show this help.
@@ -93,6 +96,7 @@ next to the input:
 Required env vars (one per network, set via .env, see .env.example):
   - RPC_GATEWAY_MAINNET   (used when --network mainnet)
   - RPC_GATEWAY_TESTNET   (used when --network testnet)
+  - RPC_GATEWAY_DEVNET    (used when --network devnet)
 
 Refuses to overwrite either file if it already exists.
 `
@@ -121,8 +125,8 @@ function parseArgs(argv) {
       case '--network': {
         const value = argv[++i]
         if (!value) throw new Error(`Missing value for ${flag}`)
-        if (value !== 'mainnet' && value !== 'testnet') {
-          throw new Error(`--network must be "mainnet" or "testnet" (got: "${value}")`)
+        if (value !== 'mainnet' && value !== 'testnet' && value !== 'devnet') {
+          throw new Error(`--network must be "mainnet" or "testnet" or "devnet" (got: "${value}")`)
         }
         args.network = value
         break
@@ -133,7 +137,7 @@ function parseArgs(argv) {
   }
 
   if (!args.network) {
-    throw new Error('Missing required flag: --network <mainnet|testnet>')
+    throw new Error('Missing required flag: --network <mainnet|testnet|devnet>')
   }
 
   return args

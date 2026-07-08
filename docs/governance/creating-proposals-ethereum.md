@@ -4,6 +4,7 @@ Proposals are created and voted on via the Aragon App UI:
 
 - [Mainnet DAO](https://app.aragon.org/dao/ethereum-mainnet/zama.dao.eth/dashboard)
 - [Testnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52/dashboard)
+- [Devnet DAO](https://app.aragon.org/dao/ethereum-sepolia/0x41d84D9F00263eaF80f3526C157CD49c263CAd59/dashboard)
 
 **Related guides:**
 - [Creating cross-chain Gateway proposals](creating-proposals-gateway.md): how to create and submit Gateway proposals

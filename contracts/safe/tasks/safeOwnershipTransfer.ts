@@ -4,7 +4,6 @@ import { Network, HardhatEthersHelpers } from "hardhat/types";
 
 import { getRequiredEnvVar } from "./utils/loadVariables";
 import { getSafeProxyAddress } from "./utils/addresses";
-import { safeProxySol } from "../typechain-types/@safe-global/safe-contracts/contracts/proxies";
 
 async function getSafeKitDeployer(
   deployer: string,
@@ -100,14 +99,16 @@ task("task:addOwnersToSafe").setAction(async function (
   });
   await safeKitDeployer.signTransaction(batch);
   await safeKitDeployer.executeTransaction(batch);
+
+  console.log("The new owners have been added to the Safe");
 });
 
 // Log the owners of the Safe and its threshold
 // Example usage:
 // npx hardhat task:getSafeOwnersAndThreshold --network gateway-mainnet
 task("task:getSafeOwnersAndThreshold").setAction(async function (
-  { includeDeployer },
-  { getNamedAccounts, ethers },
+  _,
+  { ethers },
 ) {
   // Get the Safe proxy
   const { safeProxy } = await getSafeProxyAddress(ethers);
@@ -178,6 +179,10 @@ task("task:checkSafeOwners")
         );
       }
     }
+
+    console.log("The owners of the Safe are correctly set");
+    console.log("Expected owners:", expectedOwnersAsArray);
+    console.log("Actual owners:", owners);
   });
 
 // Remove deployer from the Safe and update the threshold
