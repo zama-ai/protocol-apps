@@ -18,7 +18,7 @@
     "test:tasks": "hardhat test:tasks",
     "test:gas": "REPORT_GAS=true hardhat test",
     "test:pragma": "npm run compile && scripts/checks/pragma-validity.js artifacts/build-info/*",
-    "coverage": "SOLIDITY_COVERAGE=true hardhat coverage",
+    "coverage": "hardhat coverage",
     "coverage:check": "istanbul check-coverage ./coverage.json"
   },
   "devDependencies": {
