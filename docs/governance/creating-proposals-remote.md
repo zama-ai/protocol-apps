@@ -67,7 +67,7 @@ Pass the destination id (`npm run list-destinations` lists them; see [Destinatio
 
 ```bash
 npm run fill-options-remote-proposal -- --destination gateway-mainnet
-# or gateway-testnet, gateway-devnet, polygon-amoy-testnet, …
+# or gateway-testnet, gateway-devnet, polygon-amoy-testnet, polygon-amoy-devnet, …
 ```
 
 The script **decodes each `datas[i]` against its `functionSignatures[i]` and

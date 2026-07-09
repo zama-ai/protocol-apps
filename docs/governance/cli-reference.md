@@ -101,7 +101,7 @@ Computes LayerZero gas options for a cross-chain (remote) proposal to an EVM des
 
 ```bash
 npm run fill-options-remote-proposal -- --destination <id>
-# e.g. --destination gateway-mainnet | gateway-testnet | gateway-devnet | polygon-amoy-testnet
+# e.g. --destination gateway-mainnet | gateway-testnet | gateway-devnet | polygon-amoy-testnet | polygon-amoy-devnet
 # run `npm run list-destinations` to see all ids (see destinations.md)
 ```
 

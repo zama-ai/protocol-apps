@@ -71,6 +71,15 @@ const DESTINATIONS = {
     rpcEnvVar: 'RPC_POLYGON_AMOY_TESTNET',
     defaultRpc: 'https://rpc-amoy.polygon.technology',
   },
+  'polygon-amoy-devnet': {
+    displayName: 'Polygon Amoy (devnet)',
+    // GovernanceOAppSender on Sepolia -> Polygon Amoy (devnet).
+    oappSender: '0xbB0D1F2982cb1073e934695c78ADC45dE46d873a',
+    // Amoy devnet multisig.
+    destinationExecutor: '0xb8E03De46F3539aEA7FEb072eEAE6A8f4A14913B',
+    rpcEnvVar: 'RPC_POLYGON_AMOY_DEVNET',
+    defaultRpc: 'https://rpc-amoy.polygon.technology',
+  },
   // Polygon mainnet governance is coming soon (LayerZero config already exists
   // at contracts/governance/layerzero.config.polygonmainnet.ts). Add a
   // `polygon-mainnet` entry here once the sender/receiver/multisig are deployed

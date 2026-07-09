@@ -72,7 +72,7 @@ Currently available scripts are:
 
    ```bash
    npm run fill-options-remote-proposal -- --destination gateway-mainnet
-   # or --destination gateway-testnet, gateway-devnet, polygon-amoy-testnet, …
+   # or --destination gateway-testnet, gateway-devnet, polygon-amoy-testnet, polygon-amoy-devnet, …
    ```
 
 3. The script writes two files in current directory:

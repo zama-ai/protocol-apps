@@ -84,7 +84,7 @@ For proposals calling `sendRemoteProposal` on `GovernanceOAppSender`:
 1. Copy the minimal template (`cp remote-proposal-temp.example.json remote-proposal-temp.json`) and fill `targets[i]`, `functionSignatures[i]`, and `datas[i]` with the values shown in the Aragon frontend.
 2. Run the fill script for the matching destination:
    ```bash
-   npm run fill-options-remote-proposal -- --destination gateway-mainnet   # or gateway-testnet, gateway-devnet, polygon-amoy-testnet, …
+   npm run fill-options-remote-proposal -- --destination gateway-mainnet   # or gateway-testnet, gateway-devnet, polygon-amoy-testnet, polygon-amoy-devnet, …
    ```
    Read the **sanity-check** output it prints — each `datas[i]` decoded against its `functionSignatures[i]` — and confirm every decoded call matches the Aragon frontend. (The script aborts on a `datas`/signature mismatch.)
 3. Compare the generated `options` value in `remote-proposal-filled.json` with the Aragon frontend:
