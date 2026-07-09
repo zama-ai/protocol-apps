@@ -188,7 +188,16 @@ function validateSimpleInput(input) {
       continue
     }
     input[key].forEach((v, idx) => {
-      if (typeof v !== 'string') errors.push(`"${key}[${idx}]" must be a string (got ${typeof v}).`)
+      if (typeof v !== 'string') {
+        errors.push(`"${key}[${idx}]" must be a string (got ${typeof v}).`)
+      } else if (key === 'functionSignatures' && v.trim() === '') {
+        // Enforced on purpose: even though the receiver accepts raw calldata
+        // (empty signature), we require the human-readable signature here so
+        // every proposal decodes to an auditable call.
+        errors.push(
+          `"functionSignatures[${idx}]" must not be empty — always provide the human-readable signature, e.g. "addOwnerWithThreshold(address,uint256)".`
+        )
+      }
     })
   }
   if (Array.isArray(input.targets)) {
@@ -235,12 +244,6 @@ function sanityCheckAndReport(args) {
     }
     console.log(`  [${i}] target:    ${targets[i]}`)
     console.log(`      value:     ${values[i]}   operation: ${operations[i]}`)
-    if (sig === '') {
-      const byteLen = (data.length - 2) / 2
-      if (byteLen < 4) fail(`datas[${i}] has empty functionSignature but is < 4 bytes (no selector): ${data}`)
-      console.log(`      selector:  ${data.slice(0, 10)} (raw calldata, no signature provided — not decoded)`)
-      continue
-    }
     let fragment
     try {
       fragment = FunctionFragment.from(sig)
@@ -269,7 +272,6 @@ function computeLZOptions(gasLimit, nativeValue) {
 }
 
 function buildOnChainCalldata(functionSignature, data) {
-  if (functionSignature === '') return data
   const selector = dataSlice(keccak256(toUtf8Bytes(functionSignature)), 0, 4)
   return concat([selector, data])
 }

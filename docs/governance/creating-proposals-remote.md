@@ -46,7 +46,7 @@ cp remote-proposal-temp.example.json remote-proposal-temp.json
 
 Edit `remote-proposal-temp.json`:
 - `targets[i]`: contract address **on the destination chain**
-- `functionSignatures[i]`: human-readable signature, e.g. `addOwnerWithThreshold(address,uint256)` (leave `""` if `datas[i]` already begins with the 4-byte selector)
+- `functionSignatures[i]`: human-readable signature, e.g. `addOwnerWithThreshold(address,uint256)` (**required** — never leave empty, so every call is auditable; the script builds the 4-byte selector from it)
 - `datas[i]`: ABI-encoded arguments **without** the 4-byte selector
 
 That's all you provide. For the destination you pick in Step 2, the script

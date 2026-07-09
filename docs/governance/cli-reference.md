@@ -121,7 +121,7 @@ cp remote-proposal-temp.example.json remote-proposal-temp.json
   "datas": ["0x…"]
 }
 ```
-- `functionSignatures[i]` may be `""` if `datas[i]` already begins with the 4-byte selector.
+- `functionSignatures[i]` is **required** (never empty): the script builds the 4-byte selector from it, and it keeps every call auditable. `datas[i]` is the ABI-encoded arguments **without** the selector.
 - Override the file path with `--input <file>`.
 - **Out of scope (by design):** every governance proposal is `value` `0` / `Call`, so no other shape is supported. Proposals needing a non-zero native `value` or a `delegatecall` (`operation` `1`) must be hand-crafted; a `--custom` escape hatch will be re-added if/when a concrete need appears.
 

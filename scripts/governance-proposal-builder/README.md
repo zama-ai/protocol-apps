@@ -60,7 +60,7 @@ Currently available scripts are:
    ```json
    { "targets": ["0x…"], "functionSignatures": ["addOwnerWithThreshold(address,uint256)"], "datas": ["0x…"] }
    ```
-   (`functionSignatures[i]` may be `""` if `datas[i]` already begins with the selector.)
+   (`functionSignatures[i]` is **required** — never empty; the script derives the 4-byte selector from it and `datas[i]` carries the ABI-encoded args **without** the selector.)
 
    > **Out of scope (by design):** every governance proposal to date is
    > `value` `0` / `Call`, so the tool only builds that shape. Proposals that
