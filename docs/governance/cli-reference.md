@@ -18,8 +18,7 @@ Edit `.env` with the required values:
 | Variable | Required | Description |
 |---|---|---|
 | `RPC_ETHEREUM` | Yes | Ethereum RPC URL (mainnet or Sepolia). Use your own node when possible. |
-| `RPC_GATEWAY_MAINNET` | No | Gateway mainnet RPC. Default: `https://rpc.mainnet.zama.org` |
-| `RPC_GATEWAY_TESTNET` | No | Gateway testnet RPC. Default: `https://rpc-zama-testnet-0.t.conduit.xyz` |
+| `RPC_<DESTINATION>` | No | RPC for each cross-chain destination (e.g. `RPC_GATEWAY_MAINNET`, `RPC_GATEWAY_TESTNET`, `RPC_POLYGON_AMOY_TESTNET`). Falls back to the registry default in `destinations.js` when unset. See [Destinations](destinations.md). |
 | `ETHERSCAN_API_KEY` | Yes (verification step) | Etherscan API key. Enables ABI fetching for human-readable logs in the inspector. |
 
 ---
@@ -92,41 +91,46 @@ curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
 
-## `fill-options-gateway-proposal`
+## `fill-options-remote-proposal`
 
-Computes LayerZero gas options for a cross-chain Gateway proposal and produces an Aragon-uploadable JSON file.
+Computes LayerZero gas options for a cross-chain (remote) proposal to an EVM destination and produces an Aragon-uploadable JSON file.
 
-**Used by:** [Creators](creating-proposals-ethereum.md) (building proposals), [Reviewers](reviewing-proposals.md) (verifying proposals)
+**Used by:** [Creators](creating-proposals-remote.md) (building proposals), [Reviewers](reviewing-proposals.md) (verifying proposals)
 
 ### Usage
 
 ```bash
-npm run fill-options-gateway-proposal:mainnet
-npm run fill-options-gateway-proposal:testnet
+npm run fill-options-remote-proposal -- --destination <id>
+# e.g. --destination gateway-mainnet | gateway-testnet | gateway-devnet | polygon-amoy-testnet | polygon-amoy-devnet
+# run `npm run list-destinations` to see all ids (see destinations.md)
 ```
 
 ### Expected input
 
-A `gateway-proposal-temp.json` file in the current directory. Start from a template:
+A `remote-proposal-temp.json` file with **only** three equal-length arrays. The
+script fills `to` (the destination's `GovernanceOAppSender`), `method`, `values`
+(all `0`), `operations` (all `0`) and `options`:
 
 ```bash
-# Mainnet
-cp gateway-proposal-temp.mainnet-example.json gateway-proposal-temp.json
-
-# Testnet
-cp gateway-proposal-temp.testnet-example.json gateway-proposal-temp.json
+cp remote-proposal-temp.example.json remote-proposal-temp.json
 ```
+```json
+{
+  "targets": ["0x…"],
+  "functionSignatures": ["addOwnerWithThreshold(address,uint256)"],
+  "datas": ["0x…"]
+}
+```
+- `functionSignatures[i]` is **required** (never empty): the script builds the 4-byte selector from it, and it keeps every call auditable. `datas[i]` is the ABI-encoded arguments **without** the selector.
+- Override the file path with `--input <file>`.
+- **Out of scope (by design):** every governance proposal is `value` `0` / `Call`, so no other shape is supported. Proposals needing a non-zero native `value` or a `delegatecall` (`operation` `1`) must be hand-crafted; a `--custom` escape hatch will be re-added if/when a concrete need appears.
 
-Edit these fields in the JSON:
-- `arguments.targets[i]`: Gateway contract address
-- `arguments.functionSignatures[i]`: e.g. `addOwnerWithThreshold(address,uint256)`
-- `arguments.datas[i]`: ABI-encoded arguments without the 4-byte selector
+### Built-in sanity check
 
-Duplicate the following fields (**but keep them "0"s**) to match the length of `targets`:
-- `arguments.values`: array of `"0"`
-- `arguments.operations`: array of `"0"`
-
-Do **not** modify: `to`, `method`, `arguments.options`.
+For every call, the script decodes `datas[i]` against `functionSignatures[i]`
+and prints the resolved function + arguments, then **aborts** if a
+`datas`/signature pair does not match. This replaces the manual `cast abi-decode`
+step (still usable as an independent cross-check).
 
 ### Expected output
 
@@ -135,20 +139,22 @@ Two files:
 | File | Purpose |
 |---|---|
 | `aragonProposal.json` | Upload to the Aragon DAO frontend. Contains the ABI-encoded `sendRemoteProposal(...)` calldata as a single Aragon transaction. |
-| `gateway-proposal-filled.json` | Human-readable record. Same shape as input, with `arguments.options` populated. |
+| `remote-proposal-filled.json` | Human-readable record: the full filled proposal (`to`/`method`/`arguments` with `options` populated). |
 
 ### Common errors
 
 | Error | Cause | Fix |
 |---|---|---|
-| Output file already exists | Script refuses to overwrite | Delete `aragonProposal.json` and `gateway-proposal-filled.json`, then retry. |
-| Target has no bytecode | `targets[i]` address has no contract on Gateway | Verify the address is correct and on the right network. |
-| Invalid `to` address | `to` does not match canonical `GovernanceOAppSender` | Do not modify the `to` field — keep the value from the template. |
-| Missing `.env` values | `RPC_ETHEREUM` or Gateway RPC not set | Set the required values in `.env`. |
+| Unknown destination | `--destination` id not in the registry | Run `npm run list-destinations`; use a known id (see [Destinations](destinations.md)). |
+| `datas[i]` does not match `functionSignatures[i]` | Wrong types, or `datas` includes the selector | `datas` must be ABI-encoded **without** the 4-byte selector; ensure types match the signature. |
+| Looks like an old full proposal file | A `{ to, method, arguments }` file was passed to `--input` | Convert it to the minimal `{ targets, functionSignatures, datas }` shape; the script fills the rest. |
+| Output file already exists | Script refuses to overwrite | Delete `aragonProposal.json` and `remote-proposal-filled.json`, then retry. |
+| Target has no bytecode | `targets[i]` address has no contract on the destination | Verify the address is correct and on the right chain. |
+| RPC connection error | The destination RPC is unset/unreachable | Set `RPC_<DESTINATION>` in `.env` (see [Destinations](destinations.md)). |
 
 ---
 
-## `decode-options-gateway-proposal`
+## `decode-options-remote-proposal`
 
 Decodes a LayerZero `options` hex string into human-readable `gasLimit` and `nativeValue`.
 
@@ -157,7 +163,7 @@ Decodes a LayerZero `options` hex string into human-readable `gasLimit` and `nat
 ### Usage
 
 ```bash
-npm run decode-options-gateway-proposal -- --options <OPTIONS_HEX>
+npm run decode-options-remote-proposal -- --options <OPTIONS_HEX>
 ```
 
 > The leading `--` after the script name is required so npm forwards the flag to the script.
