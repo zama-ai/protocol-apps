@@ -35,7 +35,7 @@ table below combines both for convenience.
 | `gateway-mainnet` | Zama Gateway | mainnet | `0x1c5D750D18917064915901048cdFb2dB815e0910` | `0x5f0F86BcEad6976711C9B131bCa5D30E767fe2bE` | `RPC_GATEWAY_MAINNET` | 30397 | https://explorer.mainnet.zama.org |
 | `gateway-testnet` | Zama Gateway | testnet | `0x909692c2f4979ca3fa11B5859d499308A1ec4932` | `0x3241b3A4036a356c5D7e36a432Da2B8e5739D9c9` | `RPC_GATEWAY_TESTNET` | 40424 | https://explorer.testnet.zama.org |
 | `gateway-devnet` | Zama Gateway (devnet, on the testnet chain) | devnet | `0x369CDAD997981C06aa02f82b74564C1F4A4D36ae` | `0xb8E03De46F3539aEA7FEb072eEAE6A8f4A14913B` | `RPC_GATEWAY_DEVNET` | 40424 | https://explorer.testnet.zama.org |
-| `amoy-testnet` | Polygon Amoy | testnet | `0xe57ea2f14f3051296d3965Bae8caAF86acdd6050` | `0xF0b1FE5DecfFe400fb141BBEAF9B181bCF76E3Cb` | `RPC_AMOY_TESTNET` | 40267 | https://amoy.polygonscan.com |
+| `polygon-amoy-testnet` | Polygon Amoy | testnet | `0xe57ea2f14f3051296d3965Bae8caAF86acdd6050` | `0xF0b1FE5DecfFe400fb141BBEAF9B181bCF76E3Cb` | `RPC_POLYGON_AMOY_TESTNET` | 40267 | https://amoy.polygonscan.com |
 
 > The LZ EID and the destination's `EndpointV2` address (needed only for
 > [manual execution recovery](manual-execution-remote.md)) are **not** used by

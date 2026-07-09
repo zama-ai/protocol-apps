@@ -18,7 +18,7 @@ Edit `.env` with the required values:
 | Variable | Required | Description |
 |---|---|---|
 | `RPC_ETHEREUM` | Yes | Ethereum RPC URL (mainnet or Sepolia). Use your own node when possible. |
-| `RPC_<DESTINATION>` | No | RPC for each cross-chain destination (e.g. `RPC_GATEWAY_MAINNET`, `RPC_GATEWAY_TESTNET`, `RPC_AMOY_TESTNET`). Falls back to the registry default in `destinations.js` when unset. See [Destinations](destinations.md). |
+| `RPC_<DESTINATION>` | No | RPC for each cross-chain destination (e.g. `RPC_GATEWAY_MAINNET`, `RPC_GATEWAY_TESTNET`, `RPC_POLYGON_AMOY_TESTNET`). Falls back to the registry default in `destinations.js` when unset. See [Destinations](destinations.md). |
 | `ETHERSCAN_API_KEY` | Yes (verification step) | Etherscan API key. Enables ABI fetching for human-readable logs in the inspector. |
 
 ---
@@ -101,7 +101,7 @@ Computes LayerZero gas options for a cross-chain (remote) proposal to an EVM des
 
 ```bash
 npm run fill-options-remote-proposal -- --destination <id>
-# e.g. --destination gateway-mainnet | gateway-testnet | gateway-devnet | amoy-testnet
+# e.g. --destination gateway-mainnet | gateway-testnet | gateway-devnet | polygon-amoy-testnet
 # run `npm run list-destinations` to see all ids (see destinations.md)
 ```
 

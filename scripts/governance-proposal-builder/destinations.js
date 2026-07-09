@@ -62,13 +62,13 @@ const DESTINATIONS = {
     rpcEnvVar: 'RPC_GATEWAY_DEVNET',
     defaultRpc: 'https://rpc-zama-testnet-0.t.conduit.xyz',
   },
-  'amoy-testnet': {
+  'polygon-amoy-testnet': {
     displayName: 'Polygon Amoy (testnet)',
     // GovernanceOAppSender on Sepolia -> Polygon Amoy.
     oappSender: '0xe57ea2f14f3051296d3965Bae8caAF86acdd6050',
     // Amoy multisig.
     destinationExecutor: '0xF0b1FE5DecfFe400fb141BBEAF9B181bCF76E3Cb',
-    rpcEnvVar: 'RPC_AMOY_TESTNET',
+    rpcEnvVar: 'RPC_POLYGON_AMOY_TESTNET',
     defaultRpc: 'https://rpc-amoy.polygon.technology',
   },
   // Polygon mainnet governance is coming soon (LayerZero config already exists
