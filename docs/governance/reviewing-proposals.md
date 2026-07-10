@@ -87,6 +87,8 @@ For proposals calling `sendRemoteProposal` on `GovernanceOAppSender`:
    npm run fill-options-remote-proposal -- --destination gateway-mainnet   # or gateway-testnet, gateway-devnet, polygon-amoy-testnet, polygon-amoy-devnet, …
    ```
    Read the **sanity-check** output it prints — each `datas[i]` decoded against its `functionSignatures[i]` — and confirm every decoded call matches the Aragon frontend. (The script aborts on a `datas`/signature mismatch.)
+
+   > If the original proposal contains raw-calldata calls (empty `functionSignatures[i]`), reproduce it with `--allowEmptyFunctionSignatures`; those entries print as raw calldata (not decoded), so compare the raw `datas[i]` byte-for-byte against the Aragon frontend instead.
 3. Compare the generated `options` value in `remote-proposal-filled.json` with the Aragon frontend:
    - **Match**: gas estimation is correct. The proposal is likely valid.
    - **Mismatch**: decode and compare both values. Options can drift by a a few gas as it depends on several factors like the gas price oracle used by LayerZero. Both values must stay close:

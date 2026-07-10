@@ -121,8 +121,9 @@ cp remote-proposal-temp.example.json remote-proposal-temp.json
   "datas": ["0x…"]
 }
 ```
-- `functionSignatures[i]` is **required** (never empty): the script builds the 4-byte selector from it, and it keeps every call auditable. `datas[i]` is the ABI-encoded arguments **without** the selector.
+- `functionSignatures[i]` is **required by default** (never empty): the script builds the 4-byte selector from it, and it keeps every call auditable. `datas[i]` is the ABI-encoded arguments **without** the selector.
 - Override the file path with `--input <file>`.
+- `--allowEmptyFunctionSignatures` (off by default): allow empty `functionSignatures[i]` entries. When set, an empty entry means the matching `datas[i]` is used **verbatim** as the raw on-chain calldata (**selector included**) and is **not** decoded in the sanity check. Only needed for calls without a human-readable ABI signature (e.g. this is useful in combination with LayerZero wiring transactions produced via the LayerZero cli tool); it trades auditability for flexibility, so keep it off unless required.
 - **Out of scope (by design):** every governance proposal is `value` `0` / `Call`, so no other shape is supported. Proposals needing a non-zero native `value` or a `delegatecall` (`operation` `1`) must be hand-crafted; a `--custom` escape hatch will be re-added if/when a concrete need appears.
 
 ### Built-in sanity check
@@ -130,7 +131,9 @@ cp remote-proposal-temp.example.json remote-proposal-temp.json
 For every call, the script decodes `datas[i]` against `functionSignatures[i]`
 and prints the resolved function + arguments, then **aborts** if a
 `datas`/signature pair does not match. This replaces the manual `cast abi-decode`
-step (still usable as an independent cross-check).
+step (still usable as an independent cross-check). With
+`--allowEmptyFunctionSignatures`, entries whose signature is empty are printed as
+raw calldata and skipped in this decode step.
 
 ### Expected output
 

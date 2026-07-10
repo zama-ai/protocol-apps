@@ -60,7 +60,13 @@ Currently available scripts are:
    ```json
    { "targets": ["0x…"], "functionSignatures": ["addOwnerWithThreshold(address,uint256)"], "datas": ["0x…"] }
    ```
-   (`functionSignatures[i]` is **required** — never empty; the script derives the 4-byte selector from it and `datas[i]` carries the ABI-encoded args **without** the selector.)
+   (`functionSignatures[i]` is **required** by default — never empty; the script
+   derives the 4-byte selector from it and `datas[i]` carries the ABI-encoded
+   args **without** the selector. Pass `--allowEmptyFunctionSignatures` to
+   override this: an empty `functionSignatures[i]` then means `datas[i]` is used
+   verbatim as the raw on-chain calldata — selector included — and is **not**
+   decoded in the sanity check. This is off by default because it sacrifices
+   auditability; use it only for calls that have no human-readable ABI signature)
 
    > **Out of scope (by design):** every governance proposal to date is
    > `value` `0` / `Call`, so the tool only builds that shape. Proposals that
@@ -91,7 +97,8 @@ Currently available scripts are:
   it to the minimal shape.)
 - **Sanity check:** decodes each `datas[i]` against `functionSignatures[i]`,
   prints the resolved call + arguments, and **aborts** on a `datas`/signature
-  mismatch.
+  mismatch. (With `--allowEmptyFunctionSignatures`, entries whose signature is
+  empty are printed as raw calldata and skipped in this decode step.)
 - each `targets[i]` has non-empty bytecode on the destination chain.
 
 #### How `options` is computed

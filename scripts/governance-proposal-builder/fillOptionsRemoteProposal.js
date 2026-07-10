@@ -82,6 +82,16 @@ Flags:
                              The script fills "to" (the destination's
                              GovernanceOAppSender), "method", "values" (all 0),
                              "operations" (all 0) and "options".
+  --allowEmptyFunctionSignatures
+                   OPTIONAL  Allow empty "functionSignatures[i]" entries. By
+                             default every entry is required so each call
+                             decodes to an auditable signature. When set, an
+                             empty entry is treated as raw calldata: the
+                             matching "datas[i]" is used verbatim as the
+                             on-chain calldata (selector included) and is NOT
+                             decoded in the sanity check. Off by default; only
+                             needed for calls without a human-readable ABI
+                             signature.
   -h, --help                 Show this help.
 
 For each call, decodes datas[i] against functionSignatures[i] and prints it as
@@ -104,6 +114,7 @@ function parseArgs(argv) {
   const args = {
     input: undefined,
     destinationId: undefined,
+    allowEmptyFunctionSignatures: false,
   }
 
   for (let i = 2; i < argv.length; i++) {
@@ -128,6 +139,9 @@ function parseArgs(argv) {
         args.destinationId = value
         break
       }
+      case '--allowEmptyFunctionSignatures':
+        args.allowEmptyFunctionSignatures = true
+        break
       default:
         throw new Error(`Unknown flag: ${flag}`)
     }
@@ -167,8 +181,10 @@ function checkExactKeys(obj, expectedKeys, label, errors) {
 }
 
 // Validates and returns { targets, functionSignatures, datas } string arrays of
-// equal length from a minimal input file.
-function validateSimpleInput(input) {
+// equal length from a minimal input file. When allowEmptyFunctionSignatures is
+// true, empty "functionSignatures[i]" entries are permitted (treated as raw
+// calldata downstream); otherwise every entry is required.
+function validateSimpleInput(input, allowEmptyFunctionSignatures) {
   const errors = []
   if (!isPlainObject(input)) {
     failList('input file must be a JSON object', [
@@ -190,12 +206,14 @@ function validateSimpleInput(input) {
     input[key].forEach((v, idx) => {
       if (typeof v !== 'string') {
         errors.push(`"${key}[${idx}]" must be a string (got ${typeof v}).`)
-      } else if (key === 'functionSignatures' && v.trim() === '') {
-        // Enforced on purpose: even though the receiver accepts raw calldata
+      } else if (key === 'functionSignatures' && v.trim() === '' && !allowEmptyFunctionSignatures) {
+        // Enforced by default: even though the receiver accepts raw calldata
         // (empty signature), we require the human-readable signature here so
-        // every proposal decodes to an auditable call.
+        // every proposal decodes to an auditable call. Pass
+        // --allowEmptyFunctionSignatures to override for calls that have no
+        // human-readable ABI signature.
         errors.push(
-          `"functionSignatures[${idx}]" must not be empty — always provide the human-readable signature, e.g. "addOwnerWithThreshold(address,uint256)".`
+          `"functionSignatures[${idx}]" must not be empty — always provide the human-readable signature, e.g. "addOwnerWithThreshold(address,uint256)" (or pass --allowEmptyFunctionSignatures to treat "datas[${idx}]" as raw calldata).`
         )
       }
     })
@@ -244,6 +262,14 @@ function sanityCheckAndReport(args) {
     }
     console.log(`  [${i}] target:    ${targets[i]}`)
     console.log(`      value:     ${values[i]}   operation: ${operations[i]}`)
+    // Empty signature (only reachable with --allowEmptyFunctionSignatures):
+    // datas[i] is the full raw calldata, so there is nothing to decode. Print
+    // the raw calldata and flag that it was NOT decoded/audited here.
+    if (sig.trim() === '') {
+      console.log(`      call:      <raw calldata — empty functionSignature, not decoded>`)
+      console.log(`      calldata:  ${data}`)
+      continue
+    }
     let fragment
     try {
       fragment = FunctionFragment.from(sig)
@@ -272,6 +298,9 @@ function computeLZOptions(gasLimit, nativeValue) {
 }
 
 function buildOnChainCalldata(functionSignature, data) {
+  // Empty signature (only with --allowEmptyFunctionSignatures): data already is
+  // the full raw calldata (selector included), so use it verbatim.
+  if (functionSignature.trim() === '') return data
   const selector = dataSlice(keccak256(toUtf8Bytes(functionSignature)), 0, 4)
   return concat([selector, data])
 }
@@ -373,7 +402,7 @@ async function main() {
     fail(err.message)
   }
 
-  const simple = validateSimpleInput(json)
+  const simple = validateSimpleInput(json, args.allowEmptyFunctionSignatures)
   // Each entry in targets must be a well-formed address.
   const invalid = simple.targets.filter((t) => !isAddress(t))
   if (invalid.length) failList('input "targets" contains invalid addresses:', invalid)

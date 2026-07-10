@@ -46,12 +46,22 @@ cp remote-proposal-temp.example.json remote-proposal-temp.json
 
 Edit `remote-proposal-temp.json`:
 - `targets[i]`: contract address **on the destination chain**
-- `functionSignatures[i]`: human-readable signature, e.g. `addOwnerWithThreshold(address,uint256)` (**required** — never leave empty, so every call is auditable; the script builds the 4-byte selector from it)
+- `functionSignatures[i]`: human-readable signature, e.g. `addOwnerWithThreshold(address,uint256)` (**required by default** — never leave empty, so every call is auditable; the script builds the 4-byte selector from it)
 - `datas[i]`: ABI-encoded arguments **without** the 4-byte selector
 
 That's all you provide. For the destination you pick in Step 2, the script
 fills the rest: `to` (its `GovernanceOAppSender`), `method`, `values` (all
 `0`), `operations` (all `0`) and `options`.
+
+> **Raw-calldata escape hatch (`--allowEmptyFunctionSignatures`):** by default an
+> empty `functionSignatures[i]` is rejected so every call stays auditable. For
+> calls that have no human-readable ABI signature (e.g. LayerZero wiring
+> transactions), pass `--allowEmptyFunctionSignatures` in Step 2. An empty
+> `functionSignatures[i]` then means the matching `datas[i]` is used **verbatim**
+> as the raw on-chain calldata — **selector included** (the opposite of the
+> default, where `datas[i]` omits the selector) — and that call is **not**
+> decoded in the sanity check. Use it sparingly, only for entries that genuinely
+> lack a signature; keep normal signatures for every other call.
 
 ```json
 {
@@ -73,7 +83,9 @@ npm run fill-options-remote-proposal -- --destination gateway-mainnet
 The script **decodes each `datas[i]` against its `functionSignatures[i]` and
 prints the resulting call** as a built-in sanity check — it **aborts** if a
 `datas`/signature pair doesn't match. Read that output and confirm every call
-is exactly what you intend. It then runs `eth_estimateGas` against the
+is exactly what you intend. (Entries with an empty signature under
+`--allowEmptyFunctionSignatures` are printed as raw calldata and skipped in this
+decode step.) It then runs `eth_estimateGas` against the
 destination chain with its multisig as the (unsigned) `from` to estimate the
 LayerZero execution gas, and writes:
 
