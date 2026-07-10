@@ -7,7 +7,7 @@ Foundry tests that exercise the **live** Confidential Wrappers deployed on Ether
 - direct wrap, confidential transfer, unwrap, finalize, and ERC-1363 receiver flows;
 - per-wrapper deny-list behavior (owner gating, block/unblock, blocked-wrap guard);
 - configured underlying-token deny-list selectors against the deployed underlying token code;
-- underlying-token deny-list gating against baked blacklist state, including known
+- underlying-token deny-list gating against real mainnet state, including known
   blacklisted mainnet addresses.
 
 Tests run **offline by default**: they load a committed Anvil state fixture rather than
@@ -31,42 +31,64 @@ the parent package has not been installed yet, run `npm install` from
 
 | Task | Command | Notes |
 | ---- | ------- | ----- |
-| Offline run (default / CI) | `make test` | Loads the committed fixture into a blank Anvil node, runs `forge test`, then tears Anvil down. No RPC needed. |
-| Live debug against archive | `[FORK_BLOCK=<n>] make test-live` | Forks mainnet directly. Reads the RPC from `.env` (see below). |
+| Offline run (default / local) | `make fork-test` | Loads the committed fixture into a blank Anvil node, runs `forge test`, then tears Anvil down. No RPC needed. |
+| Live debug against archive | `[FORK_BLOCK=<n>] make fork-test-live` | Forks mainnet directly. Reads the RPC (see below). |
+| Live-vs-offline parity | `make regression` | Runs the suite live (pinned to `manifest.forkBlock`) and offline, asserts identical per-test results. Network-bound. |
 | Stop local Anvil | `make teardown-anvil` | Stops this package's `.anvil.pid` process and any Anvil listener on port `8545`. |
 
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
 
+The network-bound targets (`fork-test-live`, `regression`, `bake`) resolve
+`CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` via `script/utils/resolve-fork-url.sh`: the process
+environment first (CI injects it from a GitHub secret), then `contracts/confidential-wrapper/.env`
+for local dev (see `.env.example`). CI runs `make fork-test-live` against the archive node on pushes
+to `main`, manual dispatch, and PRs from branches in this repo; fork PRs skip the whole job, since
+GitHub withholds the secret from them. Offline `make fork-test` remains the local default.
+
 ## Baking the fixture
 
 The fixture consists of **three committed files** under `deployments/mainnet-fork/`:
-`anvil-state.json` (raw `anvil_dumpState` hex), `manifest.json`, and `blacklist-cache.json`.
-Both bake commands read the archive RPC from `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` in
-`contracts/confidential-wrapper/.env` (see `.env.example`); they exit early if it is unset.
-`FORK_BLOCK` is optional. For `make bake`, it pins the fork block; without it Anvil forks the
-current head. For `make bake-blacklists`, it pins the archive block to scan through; without it the
-script scans through the archive head. A successful run rewrites all three files; commit them
-together.
+`read-cache.json` (forge's captured fork read cache — the source), `anvil-state.json` (raw
+`anvil_dumpState` hex, derived from the read cache), and `manifest.json`.
+
+`make bake` reads the archive RPC from `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` (environment or
+`contracts/confidential-wrapper/.env`, see `.env.example`) and does three things:
+
+1. **Warm** — runs the whole suite against a live mainnet fork pinned to a block
+   (`FORK_BLOCK` if set, otherwise the current archive head). forge lazily reads exactly the
+   code and storage the tests touch and flushes it to `~/.foundry/cache/rpc/mainnet/<block>`.
+2. **Capture** — copies that cache file to `deployments/mainnet-fork/read-cache.json`.
+3. **Convert** — `script/convert-cache.js` replays the read cache into a blank Anvil overlay
+   (which `anvil_dumpState` *can* serialize) and writes `anvil-state.json` + `manifest.json`.
+
+Because the fixture is captured by the tests themselves, it is complete by construction: it
+contains exactly what the suite reads, and nothing else. There is no per-contract storage-layout
+knowledge in the tooling. A successful run rewrites all three files; commit them together, then
+run `make fork-test` and `make regression`.
 
 | Task | Command | When |
 | ---- | ------- | ---- |
-| Rebake fixture | `[FORK_BLOCK=<n>] make bake` | Contract upgrade, new wrapper, storage coverage change, or clean re-pin |
-| Refresh blacklist only | `[FORK_BLOCK=<n>] make bake-blacklists` | Blacklist drift, contracts unchanged |
+| Rebake fixture | `[FORK_BLOCK=<n>] make bake` | Contract upgrade, new wrapper, new/changed test coverage, blacklist drift, or a clean re-pin |
 
-`make bake` auto-selects its strategy: **delta** when the fixture, `blacklist-cache.json`, and
-`manifest.blacklistScannedBlock` are all present; otherwise **full**. Either way it starts a
-fresh fork overlay, re-materializes the full contract base, re-pins `forkBlock`, and writes the
-complete current blacklist set into the new fixture. Delta mode only shortens the blacklist log
-scan by starting after each token's cached `lastScannedBlock`. To force a full historical
-blacklist scan, delete `blacklist-cache.json` (or the fixture).
+To add coverage for new state (a new wrapper, token, or code path), add the test, then rebake:
+the warm-up run will read the new state and the converter will bake it automatically.
 
-`make bake-blacklists` moves only blacklist data forward over the already-committed fixture; it
-leaves `forkBlock` untouched and records `blacklistScannedBlock=<n>` in the manifest.
-Use it only with a block at or after the sidecar's current `lastScannedBlock`; use `make bake`
-for historical re-pins.
+## Deny-list config
 
-Re-run `make test` after any bake.
+USDC, USDT, XAUT, and TGBP carry on-chain deny lists. Two small committed files drive the
+deny-list tests:
+
+- `config/blacklist-interfaces.json` — the bool-returning `getter` selector per token
+  (USDC `isBlacklisted(address)`, USDT `isBlackListed(address)`, XAUT `isBlocked(address)`,
+  TGBP `isBanned(address)`). Read by `test/BaseForkTest.t.sol`.
+- `config/blacklist-seeds.json` — a handful of known-denied addresses per token, used as test
+  vectors. The warm-up run reads each seed's deny-list slot, so the converter captures the
+  exact word mainnet holds; offline, `getter(seed)` returns the same result. These are real
+  addresses denied at the committed fork block. Adding a token is a one-entry edit to each file.
+
+No blacklist membership is enumerated or scanned: the deny-list storage the tests need is
+whatever the warm-up run reads, captured like all other state.
 
 ## Anvil teardown
 
@@ -93,54 +115,33 @@ Then use the explicit script form if needed:
 `--force` exists for non-standard process names, but use it only after confirming the listener
 is disposable.
 
-## Blacklist interface config
-
-USDC, USDT, and XAUT carry on-chain blacklists. Each declares its interface **explicitly** in
-`config/blacklist-interfaces.json`, the single source of truth read by the JS bake
-(`script/bake.mjs`), the blacklist-only refresh path (`script/bake-blacklist.mjs`), and the fork
-tests (`test/BaseForkTest.t.sol`). Tokens are keyed by address. Adding a blacklist-bearing token
-is a one-entry config edit.
-
-| Field | Meaning |
-| ----- | ------- |
-| `getter` | Bool-returning view selector, e.g. USDC `isBlacklisted(address)`, USDT `isBlackListed(address)`, XAUT `isBlocked(address)`. |
-| `deployBlock` | First block with deployed token code. Full historical blacklist scans start here; if omitted, the bake falls back to binary-searching `eth_getCode`. |
-| `baseSlot` | Optional mapping base slot. The bake validates `keccak256(probe, baseSlot)` against the getter trace; omit it when the base is discoverable in slots `0..255`. |
-| `addEvent` / `removeEvent` | Add/remove log signatures scanned to reconstruct membership. |
-| `addrIndexed` | `true` if the affected address rides in an event topic; `false` if in event data (USDT). |
-| `encoding` | `word` (slot holds a whole-word `1`/`0`, e.g. USDT/XAUT) or `highBit` (flag in **bit 255** of a slot shared with the balance, e.g. USDC; written read-modify-write so the balance bits survive). |
-
-Slot layout is config-validated against the declared getter trace. If `baseSlot` is omitted, the
-bake tries simple mapping bases `0..255`; if `baseSlot` is present, the bake checks that
-`keccak256(probe, baseSlot)` is one of the getter-touched storage slots.
-
 ## Layout
 
 | Path | Purpose |
 | ---- | ------- |
-| `test/BaseForkTest.t.sol` | `FhevmTest` harness: enumerate baked registry wrappers and shared token/KMS helpers |
+| `test/BaseForkTest.t.sol` | `FhevmTest` harness: enumerate registry wrappers, repoint FHE config at the local host, shared token/KMS helpers |
 | `test/WrapperFlows.t.sol` | Per-wrapper wrap, confidential transfer, unwrap/finalize, ERC-1363 receiver path |
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
-| `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. baked token code and known blacklisted mainnet addresses |
-| `script/bake.mjs` | Fixture discovery + materialization generator (full base + blacklist pass); used by `make bake` |
-| `script/bake.test.mjs` | Unit tests for pure JS bake helpers (ABI decoding, mapping slots, blacklist folding) |
-| `script/utils/list-wrappers.mjs` | One-time test banner that reads the loaded fixture registry and prints wrappers under test |
-| `script/utils/load-state.sh` | Small Anvil fixture loader used by `make anvil` and `make test` after blank Anvil starts |
+| `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
+| `script/convert-cache.js` | Converts the committed read cache into `anvil-state.json` + `manifest.json`; used by `make bake` |
+| `script/lib/anvil.js` | Shared Anvil process + JSON-RPC helpers |
+| `script/utils/list-wrappers.js` | One-time test banner listing the wrappers under test from the loaded fixture registry |
+| `script/utils/load-state.sh` | Small Anvil fixture loader used by `make anvil`, `make fork-test`, and `make regression` |
+| `script/utils/assert-parity.js` | Compares two `forge test --json` runs; used by `make regression` |
 | `script/teardown-anvil.sh` | Safe cleanup helper for `.anvil.pid` and Anvil listeners on port `8545` |
-| `script/bake-blacklist.mjs` | Standalone incremental blacklist-only refresh over the committed fixture; used by `make bake-blacklists` |
-| `config/blacklist-interfaces.json` | Address-keyed blacklist interface config (getter/events/encoding); shared by the bake engine and the fork tests |
-| `deployments/mainnet-fork/` | Committed `anvil-state.json` + `manifest.json` + `blacklist-cache.json` |
+| `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |
+| `config/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
+| `deployments/mainnet-fork/` | Committed `read-cache.json` + `anvil-state.json` + `manifest.json` |
 
 ## Troubleshooting
 
 - `could not instantiate forked environment with provider localhost`: Anvil is not running
-  or failed to bind port `8545`. Use `make test` rather than invoking `forge test` directly.
+  or failed to bind port `8545`. Use `make fork-test` rather than invoking `forge test` directly.
 - `Loaded state has no registry code`: the fixture is missing or stale; run `make bake`.
-- `delegatecall 0x000...000` from an underlying token: its proxy implementation code was not
-  materialized. Add a documented token-specific implementation slot only after a trace proves
-  it is required.
-- `baked address not denied by real token state`: `blacklist-cache.json` is out of sync with
-  `anvil-state.json`. Re-run `make bake` or `make bake-blacklists` and commit both.
+- `missing underlying token code` / `not baked`: the warm-up run did not read that state.
+  Ensure a test exercises the path, then rebake.
+- `baked address not denied by real token state`: a `config/blacklist-seeds.json` address is
+  no longer denied at the fork block; refresh the seed and rebake.
 
 ## How it works
 
@@ -150,49 +151,34 @@ The deployed wrappers point their FHE config at the real Zama mainnet coprocesso
 happens off-chain), so a bare fork can't produce usable ciphertext/decryptions. Zama's
 [`forge-fhevm`](https://github.com/zama-ai/forge-fhevm) closes the gap:
 
-- `script/bake.mjs` points each baked wrapper's three FHE config slots at the local
-  `forge-fhevm` host addresses and **zeroes the cached total-supply handle**. A mainnet handle has
-  no entry in the local plaintext DB, so the first local mint/burn must rebuild it against the
-  local executor.
-- The inherited `FhevmTest.setUp()` initializes the local fhEVM host stack and plaintext DB that
-  those baked wrapper slots target.
+- The inherited `FhevmTest.setUp()` deploys the local fhEVM host stack (at canonical addresses)
+  and records executor logs into an in-memory plaintext DB.
+- `BaseForkTest.setUp()` then repoints each wrapper's three FHE config slots at those local host
+  addresses and **zeroes the cached total-supply handle** (a mainnet handle has no entry in the
+  local plaintext DB, so the first local mint/burn rebuilds it against the local executor). This
+  runs identically during the live warm-up and the offline run, so the committed state stays pure
+  captured mainnet and both modes see the same wrapper config.
 - `finalizeUnwrap` verifies a scalar `abi.encode(uint64)` payload, so tests use
   `buildDecryptionProof(handle, abi.encode(cleartext))` rather than the generic
   `publicDecrypt(handles)` proof (which signs `abi.encode(uint256[])`).
 
 ### The committed fixture
 
-`anvil_dumpState` serializes **only the local overlay**, never lazy fork-cache reads. So an
-account or slot survives `anvil_loadState` only if `script/bake.mjs` wrote it explicitly with
-`anvil_setCode` / `anvil_setBalance` / `anvil_setStorageAt`. `bake.mjs` therefore materializes:
+`anvil_dumpState` serializes **only Anvil's local overlay**, never forge's lazy fork-cache
+reads. So instead of hand-materializing state, `make bake` warms forge's fork read cache by
+running the suite live, then `script/convert-cache.js` replays that cache into a blank Anvil
+(via `anvil_setCode` / `anvil_setBalance` / `anvil_setNonce` / `anvil_setStorageAt`) and dumps
+the overlay. The read cache holds raw storage words, so the converter needs no per-contract
+layout knowledge — USDC's packed balance+blacklist word, proxy implementation pointers, the
+registry pair array, and every deny-list slot the tests read are all captured verbatim.
 
-- registry proxy + implementation code, owner/initializer slots, the pair array, and
-  token/wrapper lookup mappings;
-- each registered wrapper's proxy + implementation code, owner/initializer slots, test-used
-  metadata/storage, FHE config slots, and a zeroed cached total-supply handle;
-- each underlying token's code, known proxy implementation code, and storage touched by
-  configured static metadata/supply/ERC-165 calls;
-- USDC's legacy ZeppelinOS implementation pointer at
-  `keccak256("org.zeppelinos.proxy.implementation")` (mainnet USDC is not an EIP-1967 proxy);
-- the blacklist membership of every blacklist-bearing underlying, so a loaded fixture
-  reports the same denied/not-denied result the token would on mainnet.
+If a loaded fixture reads a value as zero that should come from mainnet, it means the warm-up run
+never read that slot: add or adjust the test that should exercise it, then rebake.
 
-The bake keeps source reads and overlay writes deliberately separate: source code/storage comes
-from the configured archive RPC pinned to the fork block, access-list tracing runs against the
-local fork before overlay writes, and persistence is written only through Anvil's `anvil_*`
-methods.
+### Regression parity
 
-If a loaded fixture reads a value as zero that should come from mainnet, add the specific
-code/slot materialization to `bake.mjs` and rebake.
-
-### Blacklist sidecar + incremental refresh
-
-Blacklist membership mappings are sparse and live only in the lazy fork cache, so they must be
-written explicitly like everything else. Because full histories are large, the sidecar is
-**incremental and block-pinned** via `blacklist-cache.json`, which records per token the
-`encoding`, resolved `baseSlot`, `lastScannedBlock`, and current blacklisted set.
-
-`make bake` always builds a fresh overlay. In delta mode it reuses the sidecar set, scans only
-add/remove events after `lastScannedBlock`, then writes the full resulting member set into the
-fresh fixture. `make bake-blacklists` is different: it loads the already-committed fixture,
-scans only new events, applies only the membership diff, and re-dumps.
+`make regression` runs the whole suite against the live fork (pinned to `manifest.forkBlock`) and
+against the committed offline fixture, then `script/utils/assert-parity.js` asserts the two runs
+produced identical per-test results and that both fully passed. The in-test coverage guards
+(`assertGt(configured, 0)`, `assertGt(exercised, 0)`, `assertGt(wrappers.length, 0)`, and the
+`missing token code` / `not baked` assertions) ensure the fixture isn't silently under-covering.

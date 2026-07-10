@@ -37,6 +37,15 @@ abstract contract BaseForkTest is FhevmTest {
     bytes32 internal constant ERC7984_STORAGE_BASE = 0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
     /// @dev ERC7984ERC20WrapperUpgradeable ERC-7201 storage base (underlying+decimals packed, rate, unwrapRequests).
     bytes32 internal constant WRAPPER_STORAGE_BASE = 0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
+    /// @dev CoprocessorConfig ERC-7201 base in the wrapper (acl, coprocessor, kmsVerifier at +0/+1/+2).
+    bytes32 internal constant FHEVM_CONFIG_BASE = 0x9e7b61f58c47dc699ac88507c4f5bb9f121c03808c5676a8078fe583e4649700;
+
+    /// @dev forge-fhevm's in-process host addresses (dependencies/forge-fhevm-.../FHEVMHostAddresses.sol),
+    /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's mainnet coprocessor
+    /// addresses, so encrypted ops are repointed here at runtime (see {_repointFhevmConfig}).
+    address internal constant LOCAL_FHEVM_ACL = 0x50157CFfD6bBFA2DECe204a89ec419c23ef5755D;
+    address internal constant LOCAL_FHEVM_COPROCESSOR = 0xe3a9105a3a932253A70F126eb1E3b589C643dD24;
+    address internal constant LOCAL_FHEVM_KMS_VERIFIER = 0x901F8942346f7AB3a01F6D7613119Bca447Bb030;
 
     /// @notice Blacklist interface for an underlying token.
     /// @dev Each token declares its own getter explicitly in the shared config.
@@ -75,8 +84,8 @@ abstract contract BaseForkTest is FhevmTest {
     /// @dev The freshly-compiled implementation every proxy is upgraded to in {setUp}.
     ConfidentialWrapper internal newImplementation;
 
-    /// @notice Shared, address-keyed blacklist interface config. Single source of truth read
-    /// by both the JS bake engine (script/bake.mjs) and these tests.
+    /// @notice Address-keyed underlying deny-list interface config (getter selectors), read by
+    /// these tests. Known-denied test vectors live separately in config/blacklist-seeds.json.
     string internal constant DENY_LIST_INTERFACES_PATH = "config/blacklist-interfaces.json";
 
     /// @dev Valid (non-revoked) confidential wrapper proxies enumerated from the registry.
@@ -110,11 +119,26 @@ abstract contract BaseForkTest is FhevmTest {
         newImplementation = new ConfidentialWrapper();
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
+            _repointFhevmConfig(w);
             _snapshotPreUpgrade(w);
             _seedPendingUnwrap(w);
             vm.prank(_wrapperOwner(w));
             ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), "");
         }
+    }
+
+    /// @notice Repoints `w`'s FHE config at the in-process forge-fhevm host and zeroes its cached
+    /// total-supply handle, so encrypted ops resolve locally instead of at Zama's mainnet coprocessor.
+    /// @dev Applied identically to the live warm-up (`make bake`) and the offline run, so the committed
+    /// fixture stays pure captured mainnet state and both modes see the same wrapper config. Runs before
+    /// {_snapshotPreUpgrade} so the zeroed handle is captured pre-upgrade and {UpgradeTest} still sees it
+    /// unchanged after the swap. A mainnet handle has no entry in the local plaintext DB, so zeroing lets
+    /// the first local mint/burn rebuild total supply against the in-process executor.
+    function _repointFhevmConfig(address w) internal {
+        vm.store(w, FHEVM_CONFIG_BASE, bytes32(uint256(uint160(LOCAL_FHEVM_ACL))));
+        vm.store(w, bytes32(uint256(FHEVM_CONFIG_BASE) + 1), bytes32(uint256(uint160(LOCAL_FHEVM_COPROCESSOR))));
+        vm.store(w, bytes32(uint256(FHEVM_CONFIG_BASE) + 2), bytes32(uint256(uint160(LOCAL_FHEVM_KMS_VERIFIER))));
+        vm.store(w, bytes32(uint256(ERC7984_STORAGE_BASE) + 2), bytes32(0));
     }
 
     /// @notice Writes a pending unwrap request into `w`'s `_unwrapRequests` before the upgrade.

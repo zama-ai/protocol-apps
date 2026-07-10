@@ -2,11 +2,12 @@
   "name": "@zama/foundry-tests",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Foundry mainnet-fork tests for the deployed Confidential Wrappers and registry.",
   "scripts": {
     "setup": "forge soldeer install --config-location soldeer",
     "build": "forge build",
-    "test": "make test",
+    "test": "make fork-test",
     "bake": "make bake",
     "clean": "make clean"
   }

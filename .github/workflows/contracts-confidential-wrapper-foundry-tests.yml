@@ -27,6 +27,13 @@ concurrency:
 jobs:
   tests:
     name: contracts-confidential-wrapper-foundry-tests/tests (bpr)
+    # The live archive-node run needs the RPC secret, which GitHub provides on push to
+    # main, manual dispatch, and PRs from branches within this repo. Gate the whole job 
+    # so fork PRs skip it cleanly (a maintainer pushes the branch to this repo to run it, 
+    # matching security-analysis-gate.yml).
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code
@@ -73,10 +80,8 @@ jobs:
         working-directory: contracts/confidential-wrapper/test/foundry
         run: npm run build
 
-      - name: Run bake helper tests
+      - name: Run live fork tests against archive node
         working-directory: contracts/confidential-wrapper/test/foundry
-        run: node --test script/bake.test.mjs
-
-      - name: Run Foundry fork fixture tests
-        working-directory: contracts/confidential-wrapper/test/foundry
-        run: make test
+        env:
+          CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL: ${{ secrets.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL }}
+        run: make fork-test-live

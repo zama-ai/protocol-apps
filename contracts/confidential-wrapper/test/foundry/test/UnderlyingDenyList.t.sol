@@ -173,13 +173,13 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice If a baked blacklist sidecar is present, asserts each baked address is reported
-     * denied by the underlying token getter.
+     * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
+     * denied by the underlying token getter against the captured mainnet state.
      */
     function test_UnderlyingDenyListBakedBlacklist() public {
-        string memory path = "deployments/mainnet-fork/blacklist-cache.json";
+        string memory path = "config/blacklist-seeds.json";
         if (!vm.exists(path)) {
-            emit log("blacklist-cache.json absent; skipping real-baked deny-list assertion");
+            emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
             return;
         }
 
@@ -207,7 +207,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     function _knownBakedBlacklistedAddress(address token) internal view returns (address) {
-        string memory path = "deployments/mainnet-fork/blacklist-cache.json";
+        string memory path = "config/blacklist-seeds.json";
         if (!vm.exists(path)) return address(0);
 
         string memory json = vm.readFile(path);
