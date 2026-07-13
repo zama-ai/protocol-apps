@@ -18,3 +18,31 @@ updates:
     exclude-paths:
       - contracts/feesBurner/
       - contracts/pauserSetWrapper/
+
+  # Node ecosystems: security updates only. Ignore only major Hardhat-adjacent
+  # upgrades so non-major security fixes can still produce PRs.
+  - package-ecosystem: "npm"
+    directories:
+      - "/contracts/confidential-batcher"
+      - "/contracts/confidential-token-wrappers-registry"
+      - "/contracts/confidential-wrapper"
+      - "/contracts/feesBurner"
+      - "/contracts/governance"
+      - "/contracts/pauserSetWrapper"
+      - "/contracts/safe"
+      - "/contracts/solanaOFT"
+      - "/contracts/staking"
+      - "/contracts/token"
+      - "/scripts/fhevm-cli"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "hardhat"
+        versions: [">=3.0.0"]
+      - dependency-name: "hardhat-deploy"
+        versions: [">=2.0.0"]
+      - dependency-name: "@nomicfoundation/hardhat-toolbox"
+        versions: [">=7.0.0"]

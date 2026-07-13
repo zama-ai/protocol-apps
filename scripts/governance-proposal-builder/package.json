@@ -15,6 +15,9 @@
   "dependencies": {
     "@layerzerolabs/lz-v2-utilities": "^3.0.75",
     "dotenv": "^17.4.2",
-    "ethers": "^6.16.0"
+    "ethers": "^6.17.0"
+  },
+  "overrides": {
+    "ws": "^8.21.0"
   }
 }
