@@ -3,23 +3,42 @@ pragma solidity ^0.8.20;
 
 import {ERC20, ERC1363} from "@openzeppelin/contracts/token/ERC20/extensions/ERC1363.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ERC20Mock is ERC1363, ERC20Permit {
+contract ERC20Mock is ERC1363, ERC20Permit, Ownable {
     uint8 private immutable _decimals;
-    uint256 public constant MAX_MINT_AMOUNT_TOKENS = 1_000_000;
+
+    /// @dev The per-call {mint} cap, in base units (accounting for decimals). Owner-settable via
+    /// {setMaxMintAmount}. Set to `type(uint256).max` to effectively disable the cap (unlimited minting
+    /// per call); a value of 0 is a literal cap that blocks all minting. Read via the generated
+    /// {maxMintAmount} getter.
+    uint256 public maxMintAmount;
 
     error MintAmountExceedsMax(uint256 amount, uint256 maxAmount);
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) ERC20Permit(name_) {
+    event MaxMintAmountSet(uint256 maxMintAmount);
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) ERC20(name_, symbol_) ERC20Permit(name_) Ownable(msg.sender) {
         _decimals = decimals_;
+        maxMintAmount = 1_000_000 * 10 ** decimals_;
     }
 
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
 
+    /// @dev Sets the per-call mint cap, in base units. Pass `type(uint256).max` for unlimited, or 0 to
+    /// block minting. Only callable by the owner.
+    function setMaxMintAmount(uint256 maxMintAmount_) public virtual onlyOwner {
+        maxMintAmount = maxMintAmount_;
+        emit MaxMintAmountSet(maxMintAmount_);
+    }
+
     function mint(address to, uint256 amount) public virtual {
-        uint256 maxMintAmount = MAX_MINT_AMOUNT_TOKENS * 10 ** _decimals;
         if (amount > maxMintAmount) {
             revert MintAmountExceedsMax(amount, maxMintAmount);
         }

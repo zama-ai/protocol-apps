@@ -99,6 +99,11 @@ const config: HardhatUserConfig = {
       url: process.env.SEPOLIA_RPC_URL || '',
       accounts,
     },
+    hoodi: {
+      url: process.env.HOODI_RPC_URL || '',
+      accounts,
+      chainId: 560048,
+    },
     hardhat: {
       // Need this to avoid deployment issues in test
       saveDeployments: false,
@@ -124,6 +129,16 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY!,
+    customChains: [
+      {
+        network: 'hoodi',
+        chainId: 560048,
+        urls: {
+          apiURL: 'https://api.etherscan.io/v2/api',
+          browserURL: 'https://hoodi.etherscan.io',
+        },
+      },
+    ],
   },
   exposed: {
     imports: true,

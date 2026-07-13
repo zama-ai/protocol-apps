@@ -20,4 +20,5 @@
     * [Solana](./addresses/mainnet/solana.md)
   * Testnet
     * [Sepolia](./addresses/testnet/sepolia.md)
+    * [Hoodi](./addresses/testnet/hoodi.md)
     * [Zama Gateway](./addresses/testnet/gateway.md)
