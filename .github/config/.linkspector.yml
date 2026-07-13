@@ -19,5 +19,6 @@ ignorePatterns:
   - pattern: "^https://solscan.io.*$"
   - pattern: "^https://layerzeroscan.com.*$"
   - pattern: "^https://bscscan.com.*$"
+  - pattern: "^https://hoodi.etherscan.io.*$"
   - pattern: "^https://community.zama.org.*$"
 useGitIgnore: true
