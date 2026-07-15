@@ -16,11 +16,7 @@ contract ERC20Mock is ERC1363, ERC20Permit, AccessControl {
 
     error MintAmountExceedsMax(uint256 amount, uint256 maxAmount);
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) ERC20(name_, symbol_) ERC20Permit(name_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) ERC20Permit(name_) {
         _decimals = decimals_;
         publicMintCap = 1_000_000 * 10 ** decimals_;
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);

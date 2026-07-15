@@ -41,10 +41,7 @@ async function grantMinterRole(protocolStakingProxyAddress: string, hre: Hardhat
 // (which holds DEFAULT_ADMIN_ROLE on the mock) can call this task directly.
 // Example usage:
 // npx hardhat task:grantZamaTokenMinterRoleToProtocolStaking --network hoodi
-task('task:grantZamaTokenMinterRoleToProtocolStaking').setAction(async function (
-  _,
-  hre: HardhatRuntimeEnvironment,
-) {
+task('task:grantZamaTokenMinterRoleToProtocolStaking').setAction(async function (_, hre: HardhatRuntimeEnvironment) {
   console.log('Granting ZAMA token MINTER_ROLE to both ProtocolStaking contracts...\n');
 
   const coproProxyAddress = await getProtocolStakingCoproProxyAddress(hre);
