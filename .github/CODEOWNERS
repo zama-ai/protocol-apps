@@ -1,7 +1,7 @@
 # Zama codeowners rules
 
 # All pull request should be reviewed by at least one of the members of protocol-apps
-*    @zama-ai/protocol-apps @mortendahl
+*    @zama-ai/protocol-apps
 
 # Enforces changes in Sandboxed AI CI/CD
 .github/squid/sandbox-*.conf @zama-ai/security-team
