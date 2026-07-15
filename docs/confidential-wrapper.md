@@ -201,7 +201,7 @@ Accounts with a zero balance that have never held tokens cannot be the `from` ad
 {% hint style="info" %}
 #### **Transferring to a contract**
 
-When transferring to a contract that needs to react to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over granting an operator allowance and having the contract pull funds. The callback delivers the tokens and notifies the recipient in a single transaction, avoiding the extra approval step and the standing operator permission.
+When transferring to a contract that implements `onConfidentialTransferReceived` and that needs to react to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over granting an operator allowance and having the contract pull funds. The callback delivers the tokens and notifies the recipient in a single transaction, avoiding the extra approval step and the standing operator permission.
 {% endhint %}
 
 #### Direct transfer
