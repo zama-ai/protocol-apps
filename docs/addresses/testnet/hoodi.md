@@ -2,30 +2,30 @@
 
 ## Token
 
-> The Zama (Mock) token is a mintable mock ERC-20 deployed for staking testing.
+> The ZAMAMock token is a mintable mock ERC-20 deployed for staking testing.
 
-| Name        | Symbol | Address |
-| ----------- | ------ | ------- |
-| Zama (Mock) | `ZAMA` | [`0x12E921E120984B2E24bd9113383981AF71A2B7c3`](https://hoodi.etherscan.io/address/0x12E921E120984B2E24bd9113383981AF71A2B7c3) |
+| Name     | Symbol     | Address |
+| -------- | ---------- | ------- |
+| ZAMAMock | `ZAMAMock` | [`0x58713Eca04e01114480b30bE8Ca0d8838F342a55`](https://eth-hoodi.blockscout.com/address/0x58713Eca04e01114480b30bE8Ca0d8838F342a55) |
 
 
 ## Staking
 
-> The testnet staking contracts are using the following mocked mintable ERC-20 token as the underlying asset token: [`0x12E921E120984B2E24bd9113383981AF71A2B7c3`](https://hoodi.etherscan.io/address/0x12E921E120984B2E24bd9113383981AF71A2B7c3).
+> The testnet staking contracts are using the following mocked mintable ERC-20 token as the underlying asset token: [`0x58713Eca04e01114480b30bE8Ca0d8838F342a55`](https://eth-hoodi.blockscout.com/address/0x58713Eca04e01114480b30bE8Ca0d8838F342a55).
 
 ### Protocol staking
 
 | Role        | Address |
 | ----------- | ------- |
-| KMS         | [`0xc8908569868758dAF814B5a8b96bBc44D1653d54`](https://hoodi.etherscan.io/address/0xc8908569868758dAF814B5a8b96bBc44D1653d54) |
-| Coprocessor | [`0x8516e725223e3F829537D6A877E1aAE954811B69`](https://hoodi.etherscan.io/address/0x8516e725223e3F829537D6A877E1aAE954811B69) |
+| KMS         | [`0xB6CE80007422D411825a712e522AE1dcA2746033`](https://eth-hoodi.blockscout.com/address/0xB6CE80007422D411825a712e522AE1dcA2746033) |
+| Coprocessor | [`0xe41B550CA6F01b756926Be7D593c9F266Cae6221`](https://eth-hoodi.blockscout.com/address/0xe41B550CA6F01b756926Be7D593c9F266Cae6221) |
 
 ### Operator staking
 
-| Name       | Role        | Address |
-| ---------- | ----------- | ------- |
-| Zama       | KMS         | [`0xbC8d2F447d16A3a28B554C684659177245CEd8E3`](https://hoodi.etherscan.io/address/0xbC8d2F447d16A3a28B554C684659177245CEd8E3) |
-| Dfns       | KMS         | [`0xaa5e244dd599b55b2caa2bC4b38F5b4a30F46794`](https://hoodi.etherscan.io/address/0xaa5e244dd599b55b2caa2bC4b38F5b4a30F46794) |
-| Figment    | KMS         | [`0xB1A4bb2D0af050F01bE82232CC29Dd20f47Ad5Ce`](https://hoodi.etherscan.io/address/0xB1A4bb2D0af050F01bE82232CC29Dd20f47Ad5Ce) |
-| Zama       | Coprocessor | [`0x2ABad2203Eba104b52cf040cCcFA100Df15687F8`](https://hoodi.etherscan.io/address/0x2ABad2203Eba104b52cf040cCcFA100Df15687F8) |
-| Blockscape | Coprocessor | [`0x3F7Cda52D4fd210E0c4d8B49D037052ae49FdDcd`](https://hoodi.etherscan.io/address/0x3F7Cda52D4fd210E0c4d8B49D037052ae49FdDcd) |
+| Name       | Role        | Staking Address | Rewarder Address |
+| ---------- | ----------- | --------------- | ---------------- |
+| Zama       | KMS         | [`0xbFb717A712aC94204aE9E7049332641f3332C82f`](https://eth-hoodi.blockscout.com/address/0xbFb717A712aC94204aE9E7049332641f3332C82f) | [`0x1F00Fdd750Aa2d627a370a66D71BfDb396540434`](https://eth-hoodi.blockscout.com/address/0x1F00Fdd750Aa2d627a370a66D71BfDb396540434) |
+| Dfns       | KMS         | [`0x5278AB58212949C60A8EEEf1E3cBb7bc6588d7b9`](https://eth-hoodi.blockscout.com/address/0x5278AB58212949C60A8EEEf1E3cBb7bc6588d7b9) | [`0xA70BBDF02803e22f35Abc4EEd40752653B0236F0`](https://eth-hoodi.blockscout.com/address/0xA70BBDF02803e22f35Abc4EEd40752653B0236F0) |
+| Figment    | KMS         | [`0x6570756591Ed9351D0D53D840D3e8F321887F4Fa`](https://eth-hoodi.blockscout.com/address/0x6570756591Ed9351D0D53D840D3e8F321887F4Fa) | [`0xB8feeB695247810A81BB0e2a32D3b1c01D8fE01A`](https://eth-hoodi.blockscout.com/address/0xB8feeB695247810A81BB0e2a32D3b1c01D8fE01A) |
+| Zama       | Coprocessor | [`0xC1Ba8ed5c9bFE4E1d185D81ddCa1EDF999E45107`](https://eth-hoodi.blockscout.com/address/0xC1Ba8ed5c9bFE4E1d185D81ddCa1EDF999E45107) | [`0xdBE943948D4970ed6f0527fDCdC2a01A58A530c9`](https://eth-hoodi.blockscout.com/address/0xdBE943948D4970ed6f0527fDCdC2a01A58A530c9) |
+| Blockscape | Coprocessor | [`0xD86AE01b0c578D93fB89F0d181E8189B5c463cFE`](https://eth-hoodi.blockscout.com/address/0xD86AE01b0c578D93fB89F0d181E8189B5c463cFE) | [`0x35a4A730911a9504b2E47DB130B211cA8452e2fb`](https://eth-hoodi.blockscout.com/address/0x35a4A730911a9504b2E47DB130B211cA8452e2fb) |

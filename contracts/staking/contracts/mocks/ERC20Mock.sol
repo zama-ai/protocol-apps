@@ -1,48 +1,46 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ERC20, ERC1363} from "@openzeppelin/contracts/token/ERC20/extensions/ERC1363.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
-contract ERC20Mock is ERC1363, ERC20Permit, Ownable {
+contract ERC20Mock is ERC1363, ERC20Permit, AccessControl {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     uint8 private immutable _decimals;
 
-    /// @dev The per-call {mint} cap, in base units (accounting for decimals). Owner-settable via
-    /// {setMaxMintAmount}. Set to `type(uint256).max` to effectively disable the cap (unlimited minting
-    /// per call); a value of 0 is a literal cap that blocks all minting. Read via the generated
-    /// {maxMintAmount} getter.
-    uint256 public maxMintAmount;
+    /// @dev Fixed per-call {mint} cap for callers without {MINTER_ROLE}, in base units. Callers holding
+    /// {MINTER_ROLE} bypass this cap entirely (mirrors the real ZAMA token's minter behaviour).
+    uint256 public immutable publicMintCap;
 
     error MintAmountExceedsMax(uint256 amount, uint256 maxAmount);
-
-    event MaxMintAmountSet(uint256 maxMintAmount);
 
     constructor(
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) ERC20(name_, symbol_) ERC20Permit(name_) Ownable(msg.sender) {
+    ) ERC20(name_, symbol_) ERC20Permit(name_) {
         _decimals = decimals_;
-        maxMintAmount = 1_000_000 * 10 ** decimals_;
+        publicMintCap = 1_000_000 * 10 ** decimals_;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
 
-    /// @dev Sets the per-call mint cap, in base units. Pass `type(uint256).max` for unlimited, or 0 to
-    /// block minting. Only callable by the owner.
-    function setMaxMintAmount(uint256 maxMintAmount_) public virtual onlyOwner {
-        maxMintAmount = maxMintAmount_;
-        emit MaxMintAmountSet(maxMintAmount_);
-    }
-
+    /// @dev Mint `amount` tokens to `to`. Callers with {MINTER_ROLE} can mint any amount; all other
+    /// callers are capped at {publicMintCap} per call.
     function mint(address to, uint256 amount) public virtual {
-        if (amount > maxMintAmount) {
-            revert MintAmountExceedsMax(amount, maxMintAmount);
+        if (!hasRole(MINTER_ROLE, msg.sender) && amount > publicMintCap) {
+            revert MintAmountExceedsMax(amount, publicMintCap);
         }
         _mint(to, amount);
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC1363, AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }
 

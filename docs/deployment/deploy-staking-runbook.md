@@ -51,19 +51,33 @@ Operator share-token naming (rule from [`staking.md`](../staking.md)): symbol
 
 ## Network setup
 
-Add `<NETWORK>` to `hardhat.config.ts` under `networks` (and, for source verification, an
-`etherscan.customChains` entry). The existing `hoodi` entry is a worked example:
+Add `<NETWORK>` to `hardhat.config.ts` under `networks` and, for source verification, add
+a matching `etherscan.customChains` entry pointing at the target chain's explorer API.
 
 ```ts
 // networks
-hoodi: {
-  url: process.env.HOODI_RPC_URL || '',
-  accounts,
-  chainId: 560048,
+<NETWORK>: { url: process.env.<NETWORK>_RPC_URL || '', accounts, chainId: <CHAIN_ID> },
+
+// etherscan — hardhat-verify picks the customChain by chainId
+etherscan: {
+  apiKey: process.env.ETHERSCAN_API_KEY!,
+  customChains: [
+    {
+      network: '<NETWORK>',
+      chainId: <CHAIN_ID>,
+      urls: {
+        apiURL:     '<EXPLORER_API_URL>',      // e.g. Etherscan v2: https://api.etherscan.io/v2/api
+        browserURL: '<EXPLORER_BROWSER_URL>',  // e.g. https://etherscan.io
+      },
+    },
+  ],
 },
-// etherscan.customChains
-{ network: 'hoodi', chainId: 560048, urls: { apiURL: 'https://api.etherscan.io/v2/api', browserURL: 'https://hoodi.etherscan.io' } },
 ```
+
+Notes:
+- **Etherscan v2 multichain API** (`https://api.etherscan.io/v2/api`) routes by chainId, so a single Etherscan API key covers every supported chain.
+- **Blockscout** is an alternative explorer; if the chain has a Blockscout instance, point `apiURL` at `<blockscout-host>/api` and `browserURL` at `<blockscout-host>`. Any non-empty `apiKey` works — Blockscout ignores it.
+- Only one customChain per chainId is honored by `hardhat-verify` (last-in-array wins on collision). To verify on both explorers, do it in two passes, swapping the `urls` between runs.
 
 ---
 
@@ -114,18 +128,20 @@ OPERATOR_REWARDER_COPRO_FEE_i=<initial fee bps>
 ZAMA token. Skip to Phase 2. Grant its minter role in Phase 6.
 
 **Testnet mock (optional):** the staking contracts need a token whose `mint` they can
-call. `ERC20Mock` exposes an unrestricted public `mint(address,uint256)` that doubles as a
-delegator faucet, so no minter grant (Phase 6) is needed for the mock.
+call. `ERC20Mock` exposes a public `mint(address,uint256)` capped at
+`publicMintCap = 1_000_000 * 10^decimals` per call, and a `MINTER_ROLE` (bypasses the cap)
+mirrored on the real ZAMA token — the deployer receives `DEFAULT_ADMIN_ROLE` and grants
+`MINTER_ROLE` to both `ProtocolStaking` contracts in Phase 6 so `claimRewards` can mint
+rewards larger than the public cap.
 
 ```bash
 npx hardhat task:deployERC20MockAndMintDeployer --network <NETWORK>
 ```
 - Copy the printed `ERC20Mock` address into `.env` as `ZAMA_TOKEN_ADDRESS`
 
-> The mock's per-call cap `maxMintAmount` (base units) defaults to `1e6 * 10^18` and is
-> **owner-settable** (deployer owns it): `setMaxMintAmount(baseUnits)` — pass
-> `type(uint256).max` to make it unlimited, `0` to block minting; read it via
-> `maxMintAmount()`.
+> The public per-call cap is a fixed immutable set at construction.
+> Read it via `publicMintCap()`. Any address that holds `MINTER_ROLE`
+> can mint any amount.
 
 ---
 
@@ -173,15 +189,43 @@ held by the deployer at this point).
 
 ## Phase 6 — Grant the token's `MINTER_ROLE` to the ProtocolStaking contracts
 
-**Real token only** (skip for the testnet mock — its `mint` is public). Because
-`claimRewards` mints rewards, both ProtocolStaking roots must hold the ZAMA token's
-`MINTER_ROLE`. There is no staking-repo task for this — it is a call on the token
-contract, executed by `SETUP_MULTISIG` on behalf of `DAO_ADDRESS`. See the [Creating Proposals Runbook](../governance/creating-proposals-ethereum.md):
+Because `claimRewards` mints rewards, both ProtocolStaking roots must hold the token's
+`MINTER_ROLE` (the public 1M-per-call cap on the mock would otherwise brick any user who
+accrues ≥1M rewards).
 
-- `grantRole(role, account)` on `ZAMA_TOKEN_ADDRESS`, twice:
-  - `role`: `0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`
-    (`keccak256("MINTER_ROLE")`)
-  - `account`: the Coprocessor ProtocolStaking, then the KMS ProtocolStaking
+**Testnet mock:** the deployer holds `DEFAULT_ADMIN_ROLE` on the mock — run the task:
+```bash
+npx hardhat task:grantZamaTokenMinterRoleToProtocolStaking --network <NETWORK>
+```
+
+**Real token (mainnet / production):** same `grantRole(role, account)` call on
+`ZAMA_TOKEN_ADDRESS`, but the deployer does not hold `DEFAULT_ADMIN_ROLE` on the real
+token, so this is executed by `SETUP_MULTISIG` on behalf of `DAO_ADDRESS` via the
+[Creating Proposals Runbook](../governance/creating-proposals-ethereum.md):
+
+- `role`: `0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`
+  (`keccak256("MINTER_ROLE")`)
+- `account`: the Coprocessor ProtocolStaking, then the KMS ProtocolStaking (two calls)
+
+---
+
+## Phase 6.5 — (Optional, testnet) Pre-stake to keep UI APY realistic
+
+Only run this if a fresh deployment shows non-realistic APYs in the UI because the pools
+are empty relative to the reward rate. Requires per-operator `OPERATOR_STAKING_*_INITIAL_DEPOSIT_ASSETS_i`
+and `OPERATOR_STAKING_*_INITIAL_DEPOSIT_RECEIVER_i` env vars (defaults: 1M ZAMA into the
+deployer as receiver for every pool).
+
+```bash
+# Mint enough mock ZAMA to cover every pool (N_COPRO + N_KMS calls of 1M each)
+npx hardhat task:mintToDeployer --count <N_COPRO + N_KMS> --network <NETWORK>
+
+# Approve + deposit into every operator pool
+npx hardhat task:depositAllOperatorStakingFromDeployer --network <NETWORK>
+```
+
+The public per-call cap on the mock is 1M, so `--count` iterates that many public mints —
+no `MINTER_ROLE` grant to the deployer needed.
 
 ---
 
@@ -215,7 +259,8 @@ npx hardhat task:beginTransferProtocolStakingGovernorRolesToDAO --network <NETWO
 
 ---
 
-**Etherscan source verification:**
+**Source verification** (against whichever explorer is configured in `hardhat.config.ts` for `<NETWORK>`):
+
 ```bash
 npx hardhat task:verifyERC20Mock --contract-address <MOCK_ADDR> --network <NETWORK>  # testnet mock only
 npx hardhat task:verifyAllProtocolStakingContracts --network <NETWORK>

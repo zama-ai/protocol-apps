@@ -74,7 +74,7 @@ task('task:deployProtocolStakingCopro').setAction(async function (_, hre) {
   const coproTokenSymbol = getRequiredEnvVar('PROTOCOL_STAKING_COPRO_TOKEN_SYMBOL');
   const coproVersion = getRequiredEnvVar('PROTOCOL_STAKING_COPRO_VERSION');
   const coproCooldown = parseInt(getRequiredEnvVar('PROTOCOL_STAKING_COPRO_COOLDOWN_PERIOD'));
-  const coproRewardRate = BigInt(parseInt(getRequiredEnvVar('PROTOCOL_STAKING_COPRO_REWARD_RATE')));
+  const coproRewardRate = BigInt(getRequiredEnvVar('PROTOCOL_STAKING_COPRO_REWARD_RATE'));
 
   // Deploy the coprocessor protocol staking contract
   await deployProtocolStaking(coproTokenName, coproTokenSymbol, coproVersion, coproCooldown, coproRewardRate, hre);
@@ -91,7 +91,7 @@ task('task:deployProtocolStakingKMS').setAction(async function (_, hre) {
   const kmsTokenSymbol = getRequiredEnvVar('PROTOCOL_STAKING_KMS_TOKEN_SYMBOL');
   const kmsVersion = getRequiredEnvVar('PROTOCOL_STAKING_KMS_VERSION');
   const kmsCooldown = parseInt(getRequiredEnvVar('PROTOCOL_STAKING_KMS_COOLDOWN_PERIOD'));
-  const kmsRewardRate = BigInt(parseInt(getRequiredEnvVar('PROTOCOL_STAKING_KMS_REWARD_RATE')));
+  const kmsRewardRate = BigInt(getRequiredEnvVar('PROTOCOL_STAKING_KMS_REWARD_RATE'));
 
   // Deploy the KMS protocol staking contract
   await deployProtocolStaking(kmsTokenName, kmsTokenSymbol, kmsVersion, kmsCooldown, kmsRewardRate, hre);

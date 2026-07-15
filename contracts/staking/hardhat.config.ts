@@ -69,6 +69,10 @@ task('test:tasks', 'Runs the test suite for tasks with environment variables fro
       // Deploy all protocol staking contracts
       await hre.run('task:deployAllProtocolStakingContracts');
 
+      // Grant the ZAMA token's MINTER_ROLE to both ProtocolStaking contracts so claimRewards can
+      // mint rewards (on the testnet mock this also bypasses the public per-call cap)
+      await hre.run('task:grantZamaTokenMinterRoleToProtocolStaking');
+
       // Deploy all operator staking contracts
       await hre.run('task:deployAllOperatorStakingContracts');
     } else {
@@ -131,6 +135,9 @@ const config: HardhatUserConfig = {
     apiKey: process.env.ETHERSCAN_API_KEY!,
     customChains: [
       {
+        // Default: Etherscan. To verify on Blockscout instead, temporarily swap
+        // `apiURL` to 'https://eth-hoodi.blockscout.com/api' and `browserURL` to
+        // 'https://eth-hoodi.blockscout.com' (any apiKey value works for Blockscout).
         network: 'hoodi',
         chainId: 560048,
         urls: {
