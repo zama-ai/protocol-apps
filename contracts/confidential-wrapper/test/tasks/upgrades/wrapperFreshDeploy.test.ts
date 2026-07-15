@@ -25,6 +25,9 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         hre.ethers.getAddress(hre.ethers.hexlify(hre.ethers.randomBytes(20))),
       );
       const SELECTOR_CUSDC = '0xfe575a87';
+      const initialObservers = Array.from({ length: 2 }, () =>
+        hre.ethers.getAddress(hre.ethers.hexlify(hre.ethers.randomBytes(20))),
+      );
 
       const wrapper = await deployConfidentialWrapper(this.underlyingAddress, {
         name: WRAPPER_NAME,
@@ -34,6 +37,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         blockedUsers: blockedAddresses,
         underlyingDenyListSelector: SELECTOR_CUSDC,
         hasUnderlyingDenyListSelector: true,
+        initialObservers,
       });
 
       // Base state is fully initialized
@@ -50,11 +54,16 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
       expect(isSet).to.be.true;
       expect(selector).to.equal(SELECTOR_CUSDC);
+      expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
       // Current reinitializer is locked and cannot replay
       await expect(
         wrapper.connect(this.deployer).reinitializeV3([], '0x00000000', false),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
+      await expect(wrapper.connect(this.deployer).reinitializeV4([])).to.be.revertedWithCustomError(
+        wrapper,
+        'InvalidInitialization',
+      );
     });
   });
 });

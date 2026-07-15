@@ -168,7 +168,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       expect(selector).to.equal(SELECTOR_CUSDC);
 
       await expect(
-        wrapper.initialize('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false),
+        wrapper.initialize('hack', 'HACK', 'uri', await wrapper.underlying(), owner, [], '0x00000000', false, []),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });

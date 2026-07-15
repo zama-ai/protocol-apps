@@ -29,6 +29,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_CONTRACT_URI_{i}` | Contract URI metadata for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}` | Address of the underlying ERC20 token for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}` | Owner address for the wrapper at index `i` |
+| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
 
 ### Task inputs (batch deploy upgrade implementations)
 
@@ -56,6 +57,7 @@ Deploy a single confidential wrapper contract.
 | `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initialize` |
 | `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist |
 | `--has-underlying-deny-list-selector` | `boolean` | Yes | Whether the underlying token denylist selector should be enabled |
+| `--initial-observers` | `json` | No | JSON array of observer addresses to seed during `initialize` |
 
 **Example:**
 
@@ -69,6 +71,7 @@ npx hardhat task:deployConfidentialWrapper \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x00000000 \
   --has-underlying-deny-list-selector false \
+  --initial-observers '[]' \
   --network testnet
 ```
 
@@ -83,6 +86,7 @@ Each wrapper must also provide the V3 initializer configuration:
 | `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist |
 | `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Whether the underlying token denylist selector should be enabled |
+| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
 
 **Parameters:** None (configuration is read from environment variables).
 

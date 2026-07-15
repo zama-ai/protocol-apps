@@ -28,6 +28,7 @@ type ConfidentialWrapperInitConfig = {
   blockedUsers: string[];
   underlyingDenyListSelector: string;
   hasUnderlyingDenyListSelector: boolean;
+  initialObservers: string[];
 };
 
 function getRequiredJsonEnvVar<T>(name: string): T {
@@ -55,6 +56,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
     blockedUsers,
     underlyingDenyListSelector,
     hasUnderlyingDenyListSelector,
+    initialObservers,
   } = initConfig;
 
   // Deploy the proxy contract
@@ -70,6 +72,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      initialObservers,
     ],
     { initializer: 'initialize', kind: 'uups' },
   );
@@ -140,6 +143,7 @@ task('task:deployConfidentialWrapper')
     undefined,
     types.boolean,
   )
+  .addOptionalParam('initialObservers', 'JSON array of observer addresses to seed during initialize', [], types.json)
   .setAction(async function (
     {
       name,
@@ -150,6 +154,7 @@ task('task:deployConfidentialWrapper')
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      initialObservers,
     },
     hre,
   ) {
@@ -163,6 +168,7 @@ task('task:deployConfidentialWrapper')
         blockedUsers,
         underlyingDenyListSelector,
         hasUnderlyingDenyListSelector,
+        initialObservers,
       },
       hre,
     );
@@ -189,6 +195,9 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const hasUnderlyingDenyListSelector = getRequiredBooleanEnvVar(
       `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_${i}`,
     );
+    const initialObservers = process.env[`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`]
+      ? getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`)
+      : [];
 
     await hre.run('task:deployConfidentialWrapper', {
       name,
@@ -199,6 +208,7 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
       blockedUsers,
       underlyingDenyListSelector,
       hasUnderlyingDenyListSelector,
+      initialObservers,
     });
   }
 
