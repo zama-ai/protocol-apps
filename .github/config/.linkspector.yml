@@ -20,4 +20,5 @@ ignorePatterns:
   - pattern: "^https://layerzeroscan.com.*$"
   - pattern: "^https://bscscan.com.*$"
   - pattern: "^https://community.zama.org.*$"
+  - pattern: "^https://app.zama.org.*$"
 useGitIgnore: true
