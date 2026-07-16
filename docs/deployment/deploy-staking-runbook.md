@@ -243,7 +243,9 @@ beneficiary can adjust their own pool via `OperatorRewarder.setFee(basisPoints)`
 > For an ephemeral testnet where the deployer intentionally keeps `owner` / `MANAGER_ROLE`
 > (e.g. to keep calling `addEligibleAccount`), **skip this phase**.
 
-**Manager role** — grant to the DAO, then renounce the deployer's:
+**Manager role** — grant to the DAO, then renounce the deployer's
+(`MANAGER_ROLE` = `keccak256("MANAGER_ROLE")` =
+`0x241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08`):
 ```bash
 npx hardhat task:grantProtocolStakingManagerRolesToDAO --network <NETWORK>
 npx hardhat task:renounceProtocolStakingManagerRolesFromDeployer --network <NETWORK>
@@ -272,9 +274,51 @@ npx hardhat task:verifyOperatorRewarder --network <NETWORK>
 
 ## Phase 10 — Record addresses
 
-- Add the deployed addresses to `docs/addresses/<...>.md` for the target chain
-      (token, both ProtocolStaking proxies, all OperatorStaking proxies, all
-      OperatorRewarders).
-- (For Contributors) Update the `protocol-registry-internal` SSOT.
+Update the `protocol-registry` repo with the deployed addresses (token, both
+`ProtocolStaking` proxies, all `OperatorStaking` proxies, all `OperatorRewarder`
+contracts) and ping the repo owners to review and merge.
+
+---
+
+## Phase 11 — Deployment checklist review
+
+Before considering the deployment complete, verify on-chain against the saved
+`deployments/<NETWORK>/` addresses.
+
+**Staking token**
+- [ ] `name()` / `symbol()` match the expected constants
+      (`ERC20_MOCK_TOKEN_NAME` / `ERC20_MOCK_TOKEN_SYMBOL` for the mock)
+- [ ] `hasRole(MINTER_ROLE, protocolStaking)` is true for both `ProtocolStaking`
+      roots (`MINTER_ROLE` =
+      `0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6`)
+
+**Each `ProtocolStaking` root (KMS + Coprocessor)**
+- [ ] `owner()` matches the expected owner (`DAO_ADDRESS` in prod, deployer on
+      an ephemeral testnet that skipped Phase 8)
+- [ ] `MANAGER_ROLE`
+      (`0x241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08`) is
+      held only by the expected owner (deployer has renounced in prod)
+- [ ] `stakingToken()` returns `ZAMA_TOKEN_ADDRESS`
+- [ ] `name()` / `symbol()` / `rewardRate()` match the `.env` values
+- [ ] `unstakeCooldownPeriod()` matches the `.env` value
+      (`PROTOCOL_STAKING_*_COOLDOWN_PERIOD` — 604800 on mainnet, 180 on testnet)
+- [ ] `isEligibleAccount(pool)` returns true for every `OperatorStaking` pool
+      under this domain (Coprocessor pools on the Coprocessor root, KMS pools
+      on the KMS root)
+
+**Each `OperatorStaking` pool**
+- [ ] `name()` / `symbol()` match the per-operator `.env` values
+- [ ] `rewarder()` matches the deployed `OperatorRewarder`, whose `beneficiary`,
+      `feeBasisPoints`, and `maxFeeBasisPoints` match the `.env` values
+
+**Functional smoke test (at least one pool)**
+- [ ] Faucet: `token.mint(deployer, amount)` increases the deployer's balance
+- [ ] Deposit: `pool.deposit(amount, deployer)` mints pool shares
+- [ ] Rewards accrue: after a short wait, `protocolStaking.earned(pool) > 0`
+      and `rewarder.claimRewards(deployer)` mints ZAMA to the delegator
+- [ ] Redeem: `pool.requestRedeem(shares, deployer, deployer)` followed by
+      `pool.redeem(...)` after the `unstakeCooldownPeriod` returns assets to
+      the delegator. Note that this step waits out the full cooldown
+      (`unstakeCooldownPeriod()` — ~3 min on testnet, 7 days on mainnet)
 
 ---

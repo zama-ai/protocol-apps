@@ -3,6 +3,9 @@
 ## Token
 
 > The ZAMAMock token is a mintable mock ERC-20 deployed for staking testing.
+> Any address may call `mint(address,uint256)`, capped at 1,000,000 ZAMAMock
+> per call (`publicMintCap`). Holders of `MINTER_ROLE` (the `ProtocolStaking`
+> contracts below) can mint above that cap for reward payouts.
 
 | Name     | Symbol     | Address |
 | -------- | ---------- | ------- |
@@ -10,8 +13,6 @@
 
 
 ## Staking
-
-> The testnet staking contracts are using the following mocked mintable ERC-20 token as the underlying asset token: [`0x58713Eca04e01114480b30bE8Ca0d8838F342a55`](https://eth-hoodi.blockscout.com/address/0x58713Eca04e01114480b30bE8Ca0d8838F342a55).
 
 ### Protocol staking
 
