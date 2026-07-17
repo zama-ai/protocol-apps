@@ -40,7 +40,7 @@
 | --- | --- | --- | --- |
 | `ProtocolStaking` | UUPS proxy + impl | 2 | KMS + Coprocessor roots |
 | `OperatorStaking` | UUPS proxy + impl | `N_COPRO + N_KMS` | One pool per operator per role |
-| `OperatorRewarder` | Immutable | one per pool | Deployed + started inside `OperatorStaking.initialize` (`contracts/OperatorStaking.sol:150`) |
+| `OperatorRewarder` | Immutable | one per pool | Deployed + started inside `OperatorStaking.initialize` (`contracts/OperatorStaking.sol:140-150`) |
 | `ERC20Mock` | Token | 0 or 1 | Testnet only — the mock staking/reward token (Phase 1) |
 
 Operator share-token naming (rule from [`staking.md`](../staking.md)): symbol
@@ -234,7 +234,9 @@ no `MINTER_ROLE` grant to the deployer needed.
 Initial `feeBasisPoints` / `maxFeeBasisPoints` are set at deploy time from the
 `OPERATOR_REWARDER_*_FEE_*` / `_MAX_FEE_*` env vars. Afterwards each operator's
 beneficiary can adjust their own pool via `OperatorRewarder.setFee(basisPoints)`
-(beneficiary-only; capped at the max, ≤ 20% / `2000` bps).
+(beneficiary-only), capped at that pool's `maxFeeBasisPoints`. That cap is seeded to
+`2000` (20%) here from `OPERATOR_REWARDER_*_MAX_FEE_i` and is itself owner-adjustable via
+`setMaxFee`, up to the protocol hard limit of `9999`.
 
 ---
 
@@ -261,7 +263,9 @@ npx hardhat task:beginTransferProtocolStakingGovernorRolesToDAO --network <NETWO
 
 ---
 
-**Source verification** (against whichever explorer is configured in `hardhat.config.ts` for `<NETWORK>`):
+## Phase 9 — Source verification
+
+(Against whichever explorer is configured in `hardhat.config.ts` for `<NETWORK>`.)
 
 ```bash
 npx hardhat task:verifyERC20Mock --contract-address <MOCK_ADDR> --network <NETWORK>  # testnet mock only
@@ -298,24 +302,36 @@ Before considering the deployment complete, verify on-chain against the saved
 - [ ] `MANAGER_ROLE`
       (`0x241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08`) is
       held only by the expected owner (deployer has renounced in prod)
-- [ ] `stakingToken()` returns `ZAMA_TOKEN_ADDRESS`
+- [ ] `stakingToken()` returns `ZAMA_TOKEN_ADDRESS` — the ZAMA token deployed for
+      this staking suite
 - [ ] `name()` / `symbol()` / `rewardRate()` match the `.env` values
 - [ ] `unstakeCooldownPeriod()` matches the `.env` value
       (`PROTOCOL_STAKING_*_COOLDOWN_PERIOD` — 604800 on mainnet, 180 on testnet)
 - [ ] `isEligibleAccount(pool)` returns true for every `OperatorStaking` pool
       under this domain (Coprocessor pools on the Coprocessor root, KMS pools
       on the KMS root)
+- [ ] If Phase 6.5 pre-stake ran: `totalSupply()` == the sum of every
+      `OPERATOR_STAKING_*_INITIAL_DEPOSIT_ASSETS_i` configured for each OperatorStaking
 
 **Each `OperatorStaking` pool**
 - [ ] `name()` / `symbol()` match the per-operator `.env` values
-- [ ] `rewarder()` matches the deployed `OperatorRewarder`, whose `beneficiary`,
-      `feeBasisPoints`, and `maxFeeBasisPoints` match the `.env` values
+- [ ] `protocolStaking()` returns the root this pool was deployed for — the
+      Coprocessor root for a Coprocessor pool, the KMS root for a KMS pool
+- [ ] `asset()` returns `ZAMA_TOKEN_ADDRESS`
+- [ ] If Phase 6.5 pre-stake ran: `totalAssets()` == this pool's configured
+      `OPERATOR_STAKING_*_INITIAL_DEPOSIT_ASSETS_i`
+- [ ] `rewarder()` returns the `OperatorRewarder` deployed for this pool, and on
+      that rewarder:
+  - [ ] `operatorStaking()` returns this pool (the pool and rewarder are paired 1:1)
+  - [ ] `protocolStaking()` returns the same root as the pool's `protocolStaking()`
+  - [ ] `token()` returns `ZAMA_TOKEN_ADDRESS`
+  - [ ] `beneficiary()` / `feeBasisPoints()` / `maxFeeBasisPoints()` match the `.env` values
 
 **Functional smoke test (at least one pool)**
 - [ ] Faucet: `token.mint(deployer, amount)` increases the deployer's balance
 - [ ] Deposit: `pool.deposit(amount, deployer)` mints pool shares
 - [ ] Rewards accrue: after a short wait, `protocolStaking.earned(pool) > 0`
-      and `rewarder.claimRewards(deployer)` mints ZAMA to the delegator
+      and `rewarder.claimRewards(deployer)` transfers accrued rewards to the delegator
 - [ ] Redeem: `pool.requestRedeem(shares, deployer, deployer)` followed by
       `pool.redeem(...)` after the `unstakeCooldownPeriod` returns assets to
       the delegator. Note that this step waits out the full cooldown
