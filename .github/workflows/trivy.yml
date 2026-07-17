@@ -1,0 +1,45 @@
+# Trivy filesystem scan. Findings are reported to the Security tab via SARIF;
+# the job does not block merges (exit-code: 0).
+name: trivy
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-trivy-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  fs-scan:
+    name: trivy/fs-scan (bpr)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read' # Required to checkout repository code
+      security-events: 'write' # Required to upload SARIF results
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: 'false'
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: 'true'
+          exit-code: '0' # report only; findings surface via the SARIF upload
+
+      - name: Upload results to the Security tab
+        uses: github/codeql-action/upload-sarif@3c3833e0f8c1c83d449a7478aa59c036a9165498 # v3.29.11
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-fs'
