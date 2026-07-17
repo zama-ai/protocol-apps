@@ -95,6 +95,8 @@ There are two ways to contribute to Protocol Apps:
 - Request to become an official contributor by emailing hello@zama.ai.
 
 Becoming an approved contributor involves signing our Contributor License Agreement (CLA). Only approved contributors can send pull requests, so please make sure to get in touch before you do!
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for our commit-signing requirements.
 <br></br>
 
 ### License
