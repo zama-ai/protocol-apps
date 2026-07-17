@@ -111,12 +111,24 @@ jobs:
         with:
           node-version: 24
 
-      # Not every package ships a lockfile, so `npm ci` is not usable everywhere.
-      # `npm install` works with or without one; --ignore-scripts avoids running
-      # untrusted install hooks (license-checker only reads package metadata).
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9
+
+      # Install with whichever package manager the package uses (detected from its
+      # lockfile). pnpm gets a hoisted node_modules so license-checker can walk it
+      # like an npm tree. --ignore-scripts skips install hooks (the checker only
+      # reads package metadata); npm install works with or without a lockfile.
       - name: Install dependencies
         working-directory: ${{ matrix.package }}
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: |
+          set -euo pipefail
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile --ignore-scripts --config.node-linker=hoisted
+          else
+            npm install --ignore-scripts --no-audit --no-fund
+          fi
 
       - name: Check licenses
         working-directory: ${{ matrix.package }}
