@@ -38,6 +38,9 @@ abstract contract BaseForkTest is FhevmTest {
     bytes32 internal constant WRAPPER_STORAGE_BASE = 0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
     /// @dev CoprocessorConfig ERC-7201 base in the wrapper (acl, coprocessor, kmsVerifier at +0/+1/+2).
     bytes32 internal constant FHEVM_CONFIG_BASE = 0x9e7b61f58c47dc699ac88507c4f5bb9f121c03808c5676a8078fe583e4649700;
+    /// @dev ConfidentialWrapperV3 ERC-7201 storage base (blocked users, unwrap contexts, underlying deny-list config).
+    bytes32 internal constant CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE =
+        0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00;
 
     /// @dev forge-fhevm's in-process host addresses (dependencies/forge-fhevm-.../FHEVMHostAddresses.sol),
     /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's mainnet coprocessor
@@ -71,10 +74,16 @@ abstract contract BaseForkTest is FhevmTest {
         bytes32[6] erc7984Slots;
         // wrapper: [_underlying+_decimals packed, _rate, _unwrapRequests base].
         bytes32[3] wrapperSlots;
+        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool].
+        bytes32[3] v3Slots;
+        bool hasUnderlyingDenyListSelector;
+        bytes4 underlyingDenyListSelector;
+        address blockedUser;
         // A pending unwrap request seeded into `_unwrapRequests` before the upgrade (see
-        // {_seedPendingUnwrap}); {UpgradeTest} proves this hashed-slot entry survives the swap.
+        // {_seedPendingUnwrap}); {UpgradeTest} proves these hashed-slot entries survive the swap.
         bytes32 pendingUnwrapId;
         address pendingUnwrapRecipient;
+        address pendingUnwrapOperator;
     }
 
     /// @dev Pre-upgrade snapshot keyed by wrapper proxy address.
@@ -119,8 +128,9 @@ abstract contract BaseForkTest is FhevmTest {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
             _repointFhevmConfig(w);
-            _snapshotPreUpgrade(w);
+            _seedV3BlockedUser(w);
             _seedPendingUnwrap(w);
+            _snapshotPreUpgrade(w);
             vm.prank(_wrapperOwner(w));
             ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), "");
         }
@@ -151,6 +161,23 @@ abstract contract BaseForkTest is FhevmTest {
         require(_wrapper(w).unwrapRequester(requestId) == recipient, "seed pending unwrap failed");
         s.pendingUnwrapId = requestId;
         s.pendingUnwrapRecipient = recipient;
+
+        address operator = makeAddr(string.concat("pending-unwrap-operator-", _label(w)));
+        bytes32 contextSlot = _v3UnwrapContextSlot(requestId);
+        vm.store(w, contextSlot, bytes32(uint256(uint160(s.blockedUser))));
+        vm.store(w, bytes32(uint256(contextSlot) + 1), bytes32(uint256(uint160(operator))));
+        s.pendingUnwrapOperator = operator;
+    }
+
+    /// @notice Seeds a V3 blocked-user entry before the impl swap so {UpgradeTest} can prove the
+    /// live V3 mapping still resolves through the upgraded implementation.
+    function _seedV3BlockedUser(address w) internal {
+        PreUpgradeSnapshot storage s = preUpgrade[w];
+        address user = makeAddr(string.concat("pre-upgrade-blocked-", _label(w)));
+        vm.prank(_wrapperOwner(w));
+        _wrapper(w).blockUser(user);
+        require(_wrapper(w).isBlocked(user), "seed blocked user failed");
+        s.blockedUser = user;
     }
 
     /// @dev Captures the storage-backed getters and raw ERC-7201 slots of `w` before its upgrade.
@@ -166,11 +193,15 @@ abstract contract BaseForkTest is FhevmTest {
         s.owner = _wrapperOwner(w);
         s.maxTotalSupply = cw.maxTotalSupply();
         s.implementation = _implementationOf(w);
+        (s.hasUnderlyingDenyListSelector, s.underlyingDenyListSelector) = cw.getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
             s.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
         }
         for (uint256 i = 0; i < 3; i++) {
             s.wrapperSlots[i] = vm.load(w, bytes32(uint256(WRAPPER_STORAGE_BASE) + i));
+        }
+        for (uint256 i = 0; i < 3; i++) {
+            s.v3Slots[i] = vm.load(w, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + i));
         }
     }
 
@@ -189,6 +220,14 @@ abstract contract BaseForkTest is FhevmTest {
 
     function _wrapperOwner(address w) internal view returns (address) {
         return Ownable(w).owner();
+    }
+
+    function _v3BlockedUserSlot(address user) internal pure returns (bytes32) {
+        return keccak256(abi.encode(user, uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE)));
+    }
+
+    function _v3UnwrapContextSlot(bytes32 requestId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(requestId, uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 1));
     }
 
     /// @notice Returns the explicit blacklist interface for `token`, read from the shared

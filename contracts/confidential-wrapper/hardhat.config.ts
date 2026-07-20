@@ -61,7 +61,7 @@ task('test', 'Runs the test suite with environment variables from .env.example')
 subtask(TASK_TEST_GET_TEST_FILES).setAction(async (args, _hre, runSuper) => {
   const testFiles = (await runSuper(args)) as string[];
   const foundryTestDir = `${sep}test${sep}foundry${sep}`;
-  return testFiles.filter((file) => !file.includes(foundryTestDir));
+  return testFiles.filter(file => !file.includes(foundryTestDir));
 });
 
 const config: HardhatUserConfig = {

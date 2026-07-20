@@ -77,11 +77,19 @@ contract WrapperFlowsTest is BaseForkTest {
                 abi.encodeCall(IERC20Metadata.decimals, ())
             );
             assertTrue(decimalsOk && decimalsData.length == 32, string.concat(sym, ": decimals static call failed"));
-            assertGt(abi.decode(decimalsData, (uint8)), 0, string.concat(sym, ": underlying decimals not readable on fork"));
+            assertGt(
+                abi.decode(decimalsData, (uint8)),
+                0,
+                string.concat(sym, ": underlying decimals not readable on fork")
+            );
 
             (bool supplyOk, bytes memory supplyData) = underlying.staticcall(abi.encodeCall(IERC20.totalSupply, ()));
             assertTrue(supplyOk && supplyData.length == 32, string.concat(sym, ": totalSupply static call failed"));
-            assertGt(abi.decode(supplyData, (uint256)), 0, string.concat(sym, ": underlying totalSupply not readable on fork"));
+            assertGt(
+                abi.decode(supplyData, (uint256)),
+                0,
+                string.concat(sym, ": underlying totalSupply not readable on fork")
+            );
 
             _assertErc165StaticStorageIfImplemented(underlying, sym);
         }
