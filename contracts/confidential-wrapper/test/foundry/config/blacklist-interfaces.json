@@ -1,5 +1,5 @@
 {
-  "_doc": "Underlying-token deny-list interfaces, read by test/BaseForkTest.t.sol (_underlyingDenyListInterface). Only `getter` (the bool-returning view selector) is consumed; `token`/`name` identify the entry. Known-denied test vectors live in config/blacklist-seeds.json, and the deny-list storage itself is captured by the warm-up run (make bake), so no membership scanning is configured here. Adding a blacklist-bearing token is a one-entry edit.",
+  "_doc": "Underlying-token deny-list interfaces, read by test/BaseForkTest.t.sol (_underlyingDenyListInterface). Only `getter` (the bool-returning view selector) is consumed; `token`/`name` identify the entry. Known-denied test vectors live in config/blacklist-seeds.json; the deny-list storage itself is read from the live mainnet fork, so no membership scanning is configured here. Adding a blacklist-bearing token is a one-entry edit.",
   "tokens": [
     {
       "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",

@@ -14,8 +14,8 @@ optimizer_runs = 100
 # directories up and the sibling registry package three directories up.
 allow_paths = ["../../contracts", "../../../confidential-token-wrappers-registry"]
 
-# Tests read the committed Anvil fixture + manifest from disk.
-fs_permissions = [{ access = "read-write", path = "./" }]
+# Tests read the deny-list config files (config/*.json) from disk.
+fs_permissions = [{ access = "read", path = "./" }]
 
 [fmt]
 line_length = 120

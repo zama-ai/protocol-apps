@@ -77,11 +77,11 @@ contract WrapperFlowsTest is BaseForkTest {
                 abi.encodeCall(IERC20Metadata.decimals, ())
             );
             assertTrue(decimalsOk && decimalsData.length == 32, string.concat(sym, ": decimals static call failed"));
-            assertGt(abi.decode(decimalsData, (uint8)), 0, string.concat(sym, ": underlying decimals not baked"));
+            assertGt(abi.decode(decimalsData, (uint8)), 0, string.concat(sym, ": underlying decimals not readable on fork"));
 
             (bool supplyOk, bytes memory supplyData) = underlying.staticcall(abi.encodeCall(IERC20.totalSupply, ()));
             assertTrue(supplyOk && supplyData.length == 32, string.concat(sym, ": totalSupply static call failed"));
-            assertGt(abi.decode(supplyData, (uint256)), 0, string.concat(sym, ": underlying totalSupply not baked"));
+            assertGt(abi.decode(supplyData, (uint256)), 0, string.concat(sym, ": underlying totalSupply not readable on fork"));
 
             _assertErc165StaticStorageIfImplemented(underlying, sym);
         }
@@ -149,7 +149,7 @@ contract WrapperFlowsTest is BaseForkTest {
             string.concat(sym, ": wrapper underlying after wrap")
         );
         assertEq(_decryptBalance(w, alice), amount, string.concat(sym, ": alice balance after wrap"));
-        // Total supply handle is zeroed in the baked fixture, so it starts fresh from this wrap.
+        // Total supply handle is zeroed at setUp, so it starts fresh from this wrap.
         assertEq(_decryptTotalSupply(w), amount, string.concat(sym, ": total supply after wrap"));
     }
 
@@ -295,7 +295,7 @@ contract WrapperFlowsTest is BaseForkTest {
         (bool ok, bytes memory data) = target.staticcall(callData);
         assertTrue(ok, string.concat(sym, ": ", label, " static call failed"));
         assertGe(data.length, 64, string.concat(sym, ": ", label, " returned bad data"));
-        assertGt(bytes(abi.decode(data, (string))).length, 0, string.concat(sym, ": ", label, " not baked"));
+        assertGt(bytes(abi.decode(data, (string))).length, 0, string.concat(sym, ": ", label, " not readable on fork"));
     }
 
     function _assertErc165StaticStorageIfImplemented(address underlying, string memory sym) internal view {
@@ -306,7 +306,7 @@ contract WrapperFlowsTest is BaseForkTest {
         // Most deployed ERC-20s do not implement ERC-165. If the call does return
         // a normal bool, ERC-165 requires the IERC165 interface id to be supported.
         if (!ok || data.length != 32) return;
-        assertTrue(abi.decode(data, (bool)), string.concat(sym, ": ERC165 support not baked"));
+        assertTrue(abi.decode(data, (bool)), string.concat(sym, ": ERC165 support not readable on fork"));
 
         (bool erc1363Ok, bytes memory erc1363Data) = underlying.staticcall(
             abi.encodeCall(IERC165.supportsInterface, (type(IERC1363).interfaceId))

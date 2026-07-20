@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated known-denied test vectors per underlying, read by test/UnderlyingDenyList.t.sol. These are real mainnet-blacklisted addresses at the committed fork block; the warm-up run (make bake) reads each token's deny-list slot for these addresses so the converter captures it, and the offline fixture then reports them denied exactly as mainnet does. A handful per token is enough (the suite checks at most 5). Fields: token = underlying address; blacklisted = denied addresses. To add a token, add an entry and rebake.",
+  "_doc": "Curated known-denied test vectors per underlying, read by test/UnderlyingDenyList.t.sol. These are real mainnet-blacklisted addresses; the suite reads each token's deny-list getter for these addresses on the live fork and asserts they are reported denied. A handful per token is enough (the suite checks at most 5). Fields: token = underlying address; blacklisted = denied addresses. To add a token, add an entry.",
   "tokens": [
     {
       "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",

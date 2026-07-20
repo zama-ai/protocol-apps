@@ -13,18 +13,17 @@ import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrapp
  * @title BaseForkTest
  * @notice Shared harness for mainnet-fork tests over the live Confidential Wrappers.
  *
- * @dev The suite runs against an Anvil instance booted from the committed
- * `deployments/mainnet-fork/anvil-state.json` fixture (forked mainnet data). The
- * deployed wrappers point their FHE config at the real Zama mainnet coprocessor,
- * whose compute happens off-chain, so a bare fork cannot produce usable
+ * @dev The suite runs against a live mainnet fork (`forge test --fork-url`),
+ * reading real mainnet code and storage from the archive node. The deployed
+ * wrappers point their FHE config at the real Zama mainnet coprocessor, whose
+ * compute happens off-chain, so a bare fork cannot produce usable
  * ciphertext/decryptions.
  *
  * To make FHE satisfiable natively in Solidity, this harness inherits
  * {FhevmTest}: its `setUp()` deploys the fhEVM host contracts in-process at
  * their canonical local addresses and records executor logs into an in-memory
- * plaintext DB. The committed fixture already points each baked wrapper's FHE
- * config at that local host and zeroes the cached total-supply handle, so tests
- * do not patch wrapper storage at runtime.
+ * plaintext DB. {setUp} then repoints each wrapper's FHE config at that local
+ * host and zeroes the cached total-supply handle (see {_repointFhevmConfig}).
  */
 abstract contract BaseForkTest is FhevmTest {
     address internal constant REGISTRY = 0xeb5015fF021DB115aCe010f23F55C2591059bBA0;
@@ -129,11 +128,10 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Repoints `w`'s FHE config at the in-process forge-fhevm host and zeroes its cached
     /// total-supply handle, so encrypted ops resolve locally instead of at Zama's mainnet coprocessor.
-    /// @dev Applied identically to the live warm-up (`make bake`) and the offline run, so the committed
-    /// fixture stays pure captured mainnet state and both modes see the same wrapper config. Runs before
-    /// {_snapshotPreUpgrade} so the zeroed handle is captured pre-upgrade and {UpgradeTest} still sees it
-    /// unchanged after the swap. A mainnet handle has no entry in the local plaintext DB, so zeroing lets
-    /// the first local mint/burn rebuild total supply against the in-process executor.
+    /// @dev Runs before {_snapshotPreUpgrade} so the zeroed handle is captured pre-upgrade and
+    /// {UpgradeTest} still sees it unchanged after the swap. A mainnet handle has no entry in the local
+    /// plaintext DB, so zeroing lets the first local mint/burn rebuild total supply against the in-process
+    /// executor.
     function _repointFhevmConfig(address w) internal {
         vm.store(w, FHEVM_CONFIG_BASE, bytes32(uint256(uint160(LOCAL_FHEVM_ACL))));
         vm.store(w, bytes32(uint256(FHEVM_CONFIG_BASE) + 1), bytes32(uint256(uint160(LOCAL_FHEVM_COPROCESSOR))));

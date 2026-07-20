@@ -6,9 +6,9 @@ import {ConfidentialWrapper} from "confidential-wrapper/ConfidentialWrapper.sol"
 import {externalEuint64} from "encrypted-types/EncryptedTypes.sol";
 
 /**
- * @notice Exercises configured underlying deny-list selectors against the baked
- * mainnet token code. This intentionally does not mock the underlying token:
- * the selector must staticcall the materialized underlying implementation and
+ * @notice Exercises configured underlying deny-list selectors against the real
+ * mainnet token code on the fork. This intentionally does not mock the underlying
+ * token: the selector must staticcall the live underlying implementation and
  * return a normal boolean response before the wrapper is allowed to wrap.
  */
 contract UnderlyingDenyListTest is BaseForkTest {
@@ -47,7 +47,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice Uses real baked blacklist membership from mainnet state and checks
+     * @notice Uses real blacklist membership from mainnet state and checks
      * that the wrapper's direct wrap path rejects a known blacklisted depositor.
      */
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrap() public {
@@ -60,8 +60,8 @@ contract UnderlyingDenyListTest is BaseForkTest {
             string memory sym = _label(w);
 
             (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, denied));
-            assertTrue(ok && data.length == 32, string.concat(sym, ": baked blacklist getter call failed"));
-            assertTrue(abi.decode(data, (bool)), string.concat(sym, ": baked address not denied"));
+            assertTrue(ok && data.length == 32, string.concat(sym, ": blacklist getter call failed on fork"));
+            assertTrue(abi.decode(data, (bool)), string.concat(sym, ": seeded address not denied by real token state"));
 
             uint256 amount = 1;
             vm.prank(denied);
@@ -69,7 +69,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
             _wrapper(w).wrap(denied, amount);
         }
 
-        assertGt(exercised, 0, "no known baked blacklisted depositors among supported wrappers");
+        assertGt(exercised, 0, "no known blacklisted depositors among supported wrappers");
     }
 
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrapRecipient() public {
@@ -91,7 +91,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
             vm.stopPrank();
         }
 
-        assertGt(exercised, 0, "no known baked blacklisted recipients among supported wrappers");
+        assertGt(exercised, 0, "no known blacklisted recipients among supported wrappers");
     }
 
     function test_UnderlyingDenyListBlocksKnownBlacklistedConfidentialTransferRecipient() public {
@@ -113,7 +113,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
             _wrapper(w).confidentialTransfer(denied, enc, proof);
         }
 
-        assertGt(exercised, 0, "no known baked blacklisted transfer recipients among supported wrappers");
+        assertGt(exercised, 0, "no known blacklisted transfer recipients among supported wrappers");
     }
 
     function test_UnderlyingDenyListBlocksKnownBlacklistedUnwrapRecipient() public {
@@ -135,7 +135,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
             _wrapper(w).unwrap(holder, denied, enc, proof);
         }
 
-        assertGt(exercised, 0, "no known baked blacklisted unwrap recipients among supported wrappers");
+        assertGt(exercised, 0, "no known blacklisted unwrap recipients among supported wrappers");
     }
 
     /**
@@ -174,9 +174,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
     /**
      * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
-     * denied by the underlying token getter against the captured mainnet state.
+     * denied by the underlying token getter against the real mainnet state on the fork.
      */
-    function test_UnderlyingDenyListBakedBlacklist() public {
+    function test_UnderlyingDenyListSeededBlacklist() public {
         string memory path = "config/blacklist-seeds.json";
         if (!vm.exists(path)) {
             emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
@@ -197,16 +197,16 @@ contract UnderlyingDenyListTest is BaseForkTest {
             address[] memory listed = vm.parseJsonAddressArray(json, string.concat(base, ".blacklisted"));
             for (uint256 j = 0; j < listed.length && j < 5; j++) {
                 (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(sel, listed[j]));
-                assertTrue(ok && data.length == 32, "baked blacklist getter call failed");
-                assertTrue(abi.decode(data, (bool)), "baked address not denied by real token state");
+                assertTrue(ok && data.length == 32, "blacklist getter call failed on fork");
+                assertTrue(abi.decode(data, (bool)), "seeded address not denied by real token state");
                 checked++;
             }
         }
 
-        if (checked == 0) emit log("no baked blacklisted addresses present to check");
+        if (checked == 0) emit log("no seeded blacklisted addresses present to check");
     }
 
-    function _knownBakedBlacklistedAddress(address token) internal view returns (address) {
+    function _knownBlacklistedAddress(address token) internal view returns (address) {
         string memory path = "config/blacklist-seeds.json";
         if (!vm.exists(path)) return address(0);
 
@@ -234,7 +234,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         if (!isSet) return (address(0), bytes4(0), address(0), address(0));
 
         token = _wrapper(w).underlying();
-        denied = _knownBakedBlacklistedAddress(token);
+        denied = _knownBlacklistedAddress(token);
         if (denied == address(0)) return (address(0), bytes4(0), address(0), address(0));
 
         return (w, selector, token, denied);

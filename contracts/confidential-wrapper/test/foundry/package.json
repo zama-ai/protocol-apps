@@ -8,7 +8,6 @@
     "setup": "forge soldeer install --config-location soldeer",
     "build": "forge build",
     "test": "make fork-test",
-    "bake": "make bake",
     "clean": "make clean"
   }
 }

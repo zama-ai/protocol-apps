@@ -1,4 +1,4 @@
-# Run Foundry fork fixture tests
+# Run Foundry live mainnet-fork tests
 name: contracts-confidential-wrapper-foundry-tests
 
 on:
@@ -84,4 +84,4 @@ jobs:
         working-directory: contracts/confidential-wrapper/test/foundry
         env:
           CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL: ${{ secrets.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL }}
-        run: make fork-test-live
+        run: make fork-test

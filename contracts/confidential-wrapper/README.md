@@ -183,30 +183,19 @@ npx hardhat task:verifyAllWrapperImplementations --network testnet
 
 ## Scripts
 
-### Foundry mainnet-fork fixture tests
+### Foundry mainnet-fork tests
 
-The committed fixture tests live in `test/foundry`. They load a baked Anvil state fixture by
-default, so CI and local regression runs do not need mainnet RPC access:
+The mainnet-fork tests live in `test/foundry`. They run against a live mainnet fork, so they
+need archive RPC access via `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` (this package's `.env`,
+see `.env.example`, or the environment):
 
 ```bash
 cd test/foundry
 npm run setup
-make test
+make fork-test
 ```
 
-To refresh the fixture after deployment, storage-coverage, or blacklist changes, run:
-
-```bash
-cd test/foundry
-make teardown-anvil
-make bake
-make test
-```
-
-`make bake` reads `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` from this package's `.env`, writes
-`test/foundry/deployments/mainnet-fork/{anvil-state.json,manifest.json,blacklist-cache.json}`,
-and uses `script/bake.mjs` for the materialization pass. See
-[`test/foundry/README.md`](test/foundry/README.md) for details.
+See [`test/foundry/README.md`](test/foundry/README.md) for details.
 
 ## Deployment Steps
 

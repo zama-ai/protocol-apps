@@ -3,12 +3,4 @@ cache/
 out/
 broadcast/
 
-# The parent confidential-wrapper package gitignore excludes `deployments/`
-# (hardhat deploy artifacts). Re-include the baked fork fixture explicitly so a
-# future `make bake` produces files that git can see and stage.
-!deployments/
-!deployments/mainnet-fork/
-!deployments/mainnet-fork/*
-
-.anvil.pid
 /tmp/
