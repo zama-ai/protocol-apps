@@ -153,55 +153,55 @@ abstract contract BaseForkTest is FhevmTest {
     /// @dev Written raw at the real production slot rather than through `unwrap` to avoid mutating
     /// the shared FHE total-supply state; the sentinel requestId cannot collide with a real handle.
     function _seedPendingUnwrap(address w) internal {
-        PreUpgradeSnapshot storage s = preUpgrade[w];
+        PreUpgradeSnapshot storage $ = preUpgrade[w];
         bytes32 requestId = keccak256(abi.encode("fork-upgrade-test:pending-unwrap", w));
         address recipient = makeAddr(string.concat("pending-unwrap-recipient-", _label(w)));
         bytes32 entrySlot = keccak256(abi.encode(requestId, uint256(WRAPPER_STORAGE_BASE) + 2));
         vm.store(w, entrySlot, bytes32(uint256(uint160(recipient))));
         require(_wrapper(w).unwrapRequester(requestId) == recipient, "seed pending unwrap failed");
-        s.pendingUnwrapId = requestId;
-        s.pendingUnwrapRecipient = recipient;
+        $.pendingUnwrapId = requestId;
+        $.pendingUnwrapRecipient = recipient;
 
         address operator = makeAddr(string.concat("pending-unwrap-operator-", _label(w)));
         bytes32 contextSlot = _v3UnwrapContextSlot(requestId);
-        vm.store(w, contextSlot, bytes32(uint256(uint160(s.blockedUser))));
+        vm.store(w, contextSlot, bytes32(uint256(uint160($.blockedUser))));
         vm.store(w, bytes32(uint256(contextSlot) + 1), bytes32(uint256(uint160(operator))));
-        s.pendingUnwrapOperator = operator;
+        $.pendingUnwrapOperator = operator;
     }
 
     /// @notice Seeds a V3 blocked-user entry before the impl swap so {UpgradeTest} can prove the
     /// live V3 mapping still resolves through the upgraded implementation.
     function _seedV3BlockedUser(address w) internal {
-        PreUpgradeSnapshot storage s = preUpgrade[w];
+        PreUpgradeSnapshot storage $ = preUpgrade[w];
         address user = makeAddr(string.concat("pre-upgrade-blocked-", _label(w)));
         vm.prank(_wrapperOwner(w));
         _wrapper(w).blockUser(user);
         require(_wrapper(w).isBlocked(user), "seed blocked user failed");
-        s.blockedUser = user;
+        $.blockedUser = user;
     }
 
     /// @dev Captures the storage-backed getters and raw ERC-7201 slots of `w` before its upgrade.
     function _snapshotPreUpgrade(address w) internal {
         ConfidentialWrapper cw = _wrapper(w);
-        PreUpgradeSnapshot storage s = preUpgrade[w];
-        s.name = cw.name();
-        s.symbol = cw.symbol();
-        s.contractUri = cw.contractURI();
-        s.decimals = cw.decimals();
-        s.underlying = address(cw.underlying());
-        s.rate = cw.rate();
-        s.owner = _wrapperOwner(w);
-        s.maxTotalSupply = cw.maxTotalSupply();
-        s.implementation = _implementationOf(w);
-        (s.hasUnderlyingDenyListSelector, s.underlyingDenyListSelector) = cw.getUnderlyingDenyListSelector();
+        PreUpgradeSnapshot storage $ = preUpgrade[w];
+        $.name = cw.name();
+        $.symbol = cw.symbol();
+        $.contractUri = cw.contractURI();
+        $.decimals = cw.decimals();
+        $.underlying = address(cw.underlying());
+        $.rate = cw.rate();
+        $.owner = _wrapperOwner(w);
+        $.maxTotalSupply = cw.maxTotalSupply();
+        $.implementation = _implementationOf(w);
+        ($.hasUnderlyingDenyListSelector, $.underlyingDenyListSelector) = cw.getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
-            s.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
+            $.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
         }
         for (uint256 i = 0; i < 3; i++) {
-            s.wrapperSlots[i] = vm.load(w, bytes32(uint256(WRAPPER_STORAGE_BASE) + i));
+            $.wrapperSlots[i] = vm.load(w, bytes32(uint256(WRAPPER_STORAGE_BASE) + i));
         }
         for (uint256 i = 0; i < 3; i++) {
-            s.v3Slots[i] = vm.load(w, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + i));
+            $.v3Slots[i] = vm.load(w, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + i));
         }
     }
 

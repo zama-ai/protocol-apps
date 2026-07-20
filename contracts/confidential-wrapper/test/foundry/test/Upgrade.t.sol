@@ -17,32 +17,32 @@ contract UpgradeTest is BaseForkTest {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];
             string memory sym = _label(proxy);
-            PreUpgradeSnapshot storage snapshot = preUpgrade[proxy];
+            PreUpgradeSnapshot storage $ = preUpgrade[proxy];
             ConfidentialWrapper wrapper = _wrapper(proxy);
 
-            assertEq(wrapper.name(), snapshot.name, string.concat(sym, ": name changed"));
-            assertEq(wrapper.symbol(), snapshot.symbol, string.concat(sym, ": symbol changed"));
-            assertEq(wrapper.contractURI(), snapshot.contractUri, string.concat(sym, ": contractURI changed"));
-            assertEq(uint256(wrapper.decimals()), uint256(snapshot.decimals), string.concat(sym, ": decimals changed"));
-            assertEq(address(wrapper.underlying()), snapshot.underlying, string.concat(sym, ": underlying changed"));
-            assertEq(wrapper.rate(), snapshot.rate, string.concat(sym, ": rate changed"));
-            assertEq(_wrapperOwner(proxy), snapshot.owner, string.concat(sym, ": owner changed"));
-            assertEq(wrapper.maxTotalSupply(), snapshot.maxTotalSupply, string.concat(sym, ": maxTotalSupply changed"));
+            assertEq(wrapper.name(), $.name, string.concat(sym, ": name changed"));
+            assertEq(wrapper.symbol(), $.symbol, string.concat(sym, ": symbol changed"));
+            assertEq(wrapper.contractURI(), $.contractUri, string.concat(sym, ": contractURI changed"));
+            assertEq(uint256(wrapper.decimals()), uint256($.decimals), string.concat(sym, ": decimals changed"));
+            assertEq(address(wrapper.underlying()), $.underlying, string.concat(sym, ": underlying changed"));
+            assertEq(wrapper.rate(), $.rate, string.concat(sym, ": rate changed"));
+            assertEq(_wrapperOwner(proxy), $.owner, string.concat(sym, ": owner changed"));
+            assertEq(wrapper.maxTotalSupply(), $.maxTotalSupply, string.concat(sym, ": maxTotalSupply changed"));
             (bool hasUnderlyingDenyListSelector, bytes4 underlyingDenyListSelector) = wrapper
                 .getUnderlyingDenyListSelector();
             assertEq(
                 hasUnderlyingDenyListSelector,
-                snapshot.hasUnderlyingDenyListSelector,
+                $.hasUnderlyingDenyListSelector,
                 string.concat(sym, ": underlying deny-list flag changed")
             );
             assertEq(
                 underlyingDenyListSelector,
-                snapshot.underlyingDenyListSelector,
+                $.underlyingDenyListSelector,
                 string.concat(sym, ": underlying deny-list selector changed")
             );
 
             assertEq(_implementationOf(proxy), address(newImplementation), string.concat(sym, ": impl not updated"));
-            assertTrue(_implementationOf(proxy) != snapshot.implementation, string.concat(sym, ": impl unchanged"));
+            assertTrue(_implementationOf(proxy) != $.implementation, string.concat(sym, ": impl unchanged"));
 
             // Raw-slot check, below the getters. The getters above prove the observable, getter-backed
             // state is intact. These raw reads add what the getters cannot: they cover storage no checked
@@ -58,39 +58,39 @@ contract UpgradeTest is BaseForkTest {
             for (uint256 j = 0; j < 6; j++) {
                 assertEq(
                     vm.load(proxy, bytes32(uint256(ERC7984_STORAGE_BASE) + j)),
-                    snapshot.erc7984Slots[j],
+                    $.erc7984Slots[j],
                     string.concat(sym, ": ERC7984 slot changed")
                 );
             }
             for (uint256 j = 0; j < 3; j++) {
                 assertEq(
                     vm.load(proxy, bytes32(uint256(WRAPPER_STORAGE_BASE) + j)),
-                    snapshot.wrapperSlots[j],
+                    $.wrapperSlots[j],
                     string.concat(sym, ": wrapper slot changed")
                 );
             }
             for (uint256 j = 0; j < 3; j++) {
                 assertEq(
                     vm.load(proxy, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + j)),
-                    snapshot.v3Slots[j],
+                    $.v3Slots[j],
                     string.concat(sym, ": V3 slot changed")
                 );
             }
             assertEq(
-                vm.load(proxy, _v3BlockedUserSlot(snapshot.blockedUser)),
+                vm.load(proxy, _v3BlockedUserSlot($.blockedUser)),
                 bytes32(uint256(1)),
                 string.concat(sym, ": V3 blocked-user entry changed")
             );
 
-            bytes32 contextSlot = _v3UnwrapContextSlot(snapshot.pendingUnwrapId);
+            bytes32 contextSlot = _v3UnwrapContextSlot($.pendingUnwrapId);
             assertEq(
                 vm.load(proxy, contextSlot),
-                bytes32(uint256(uint160(snapshot.blockedUser))),
+                bytes32(uint256(uint160($.blockedUser))),
                 string.concat(sym, ": V3 unwrap context from changed")
             );
             assertEq(
                 vm.load(proxy, bytes32(uint256(contextSlot) + 1)),
-                bytes32(uint256(uint160(snapshot.pendingUnwrapOperator))),
+                bytes32(uint256(uint160($.pendingUnwrapOperator))),
                 string.concat(sym, ": V3 unwrap context operator changed")
             );
         }
@@ -101,10 +101,10 @@ contract UpgradeTest is BaseForkTest {
     function test_PendingUnwrapSurvivesUpgrade_AllWrappers() public view {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];
-            PreUpgradeSnapshot storage snapshot = preUpgrade[proxy];
+            PreUpgradeSnapshot storage $ = preUpgrade[proxy];
             assertEq(
-                _wrapper(proxy).unwrapRequester(snapshot.pendingUnwrapId),
-                snapshot.pendingUnwrapRecipient,
+                _wrapper(proxy).unwrapRequester($.pendingUnwrapId),
+                $.pendingUnwrapRecipient,
                 string.concat(_label(proxy), ": pending unwrap recipient lost across upgrade")
             );
         }
@@ -115,15 +115,15 @@ contract UpgradeTest is BaseForkTest {
     function test_ConfidentialWrapperV3StorageSurvivesUpgrade_AllWrappers() public {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];
-            PreUpgradeSnapshot storage snapshot = preUpgrade[proxy];
+            PreUpgradeSnapshot storage $ = preUpgrade[proxy];
 
             assertTrue(
-                _wrapper(proxy).isBlocked(snapshot.blockedUser),
+                _wrapper(proxy).isBlocked($.blockedUser),
                 string.concat(_label(proxy), ": seeded V3 blocked user not preserved")
             );
 
-            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.BlockedUser.selector, snapshot.blockedUser));
-            _wrapper(proxy).finalizeUnwrap(snapshot.pendingUnwrapId, 0, "");
+            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.BlockedUser.selector, $.blockedUser));
+            _wrapper(proxy).finalizeUnwrap($.pendingUnwrapId, 0, "");
         }
     }
 
