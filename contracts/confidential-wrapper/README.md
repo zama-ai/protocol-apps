@@ -186,7 +186,7 @@ npx hardhat task:verifyAllWrapperImplementations --network testnet
 ### Foundry mainnet-fork tests
 
 The mainnet-fork tests live in `test/foundry`. They run against a live mainnet fork, so they
-need archive RPC access via `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` (this package's `.env`,
+need archive RPC access via `ETHEREUM_MAINNET_FORK_RPC_URL` (this package's `.env`,
 see `.env.example`, or the environment):
 
 ```bash

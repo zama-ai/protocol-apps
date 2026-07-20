@@ -32,7 +32,7 @@ npm run build     # forge build
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
 
-`make fork-test` resolves `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL` via
+`make fork-test` resolves `ETHEREUM_MAINNET_FORK_RPC_URL` via
 `script/utils/resolve-fork-url.sh`: the process environment first (CI injects it from a GitHub
 secret), then `contracts/confidential-wrapper/.env` for local dev (see `.env.example`). CI runs
 `make fork-test` against the archive node on pushes to `main`, manual dispatch, and PRs from
@@ -65,7 +65,7 @@ deny-list tests:
 
 ## Troubleshooting
 
-- `CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL is not set`: export the archive RPC or set it in
+- `ETHEREUM_MAINNET_FORK_RPC_URL is not set`: export the archive RPC or set it in
   `contracts/confidential-wrapper/.env` (see `.env.example`).
 - `missing underlying token code`: the archive node did not return code for that address at the
   forked block; check the RPC and the pinned `FORK_BLOCK`.

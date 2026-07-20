@@ -83,5 +83,5 @@ jobs:
       - name: Run live fork tests against archive node
         working-directory: contracts/confidential-wrapper/test/foundry
         env:
-          CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL: ${{ secrets.CONFIDENTIAL_WRAPPER_UPGRADE_TEST_RPC_URL }}
+          ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
         run: make fork-test
