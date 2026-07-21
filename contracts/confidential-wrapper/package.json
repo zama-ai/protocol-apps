@@ -19,7 +19,7 @@
     "hardhat"
   ],
   "dependencies": {
-    "@fhevm/solidity": "0.11.1",
+    "@fhevm/solidity": "file:../../third_party/fhevm-solidity-0.13.1.tgz",
     "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/contracts-upgradeable": "^5.1.0",
     "@openzeppelin/confidential-contracts": "^0.4.0"
@@ -68,10 +68,10 @@
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "test": "hardhat test",
-    "test:sepolia": "hardhat test --network sepolia"
+    "test:sepolia": "hardhat test --network testnet"
   },
   "overrides": {
-    "@fhevm/solidity": "0.11.1",
+    "@fhevm/solidity": "$@fhevm/solidity",
     "axios": "^1.17.0",
     "qs": "^6.15.2",
     "hardhat": {

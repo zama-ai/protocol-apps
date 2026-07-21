@@ -91,7 +91,10 @@ contract ConfidentialWrapper is
     /// @dev ACL sentinel for delegating user-decryption access across all wrapper-owned handles.
     address public constant WILDCARD_CONTRACT = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
 
-    uint64 private constant REINITIALIZER_VERSION_V3 = 3;
+    /// @dev Every initializer entry point advances straight to this version, so the contract only
+    /// ever rests in one of two states: freshly deployed via {initialize}, or upgraded via
+    /// {reinitializeV4}. Leaving a lower intermediate version reachable would let anyone call
+    /// {initialize} on an already-owned proxy and seize ownership.
     uint64 private constant REINITIALIZER_VERSION_V4 = 4;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -127,30 +130,24 @@ contract ConfidentialWrapper is
     }
 
     /**
-     * @notice Re-initializes the contract from V2.
-     * @dev Define a `reinitializeVX` function once the contract needs to be upgraded.
-     * Optionally seeds the denylist with `blockedUsers`.
-     * Reverts if any entry in `blockedUsers` appears more than once.
-     */
-    /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
-    /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV3(
-        address[] memory blockedUsers,
-        bytes4 underlyingDenyListSelector,
-        bool hasUnderlyingDenyListSelector_
-    ) public virtual reinitializer(REINITIALIZER_VERSION_V3) {
-        __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
-    }
-
-    /**
-     * @notice Re-initializes the contract from V3.
-     * @dev Seeds any initial observers and locks the V4 initializer version.
+     * @notice Re-initializes the contract from any earlier version.
+     * @dev Runs both the V3 and V4 initialization so a proxy on any pre-V4 implementation reaches
+     * the current state in a single upgrade. Optionally seeds the denylist with `blockedUsers` and
+     * the observer set with `initialObservers`; reverts if either array contains a duplicate.
+     *
+     * Proxies that already ran the historical V3 initializer keep their existing denylist entries,
+     * so pass an empty `blockedUsers` (re-blocking an address reverts with `UserAlreadyBlocked`)
+     * and re-supply the current deny-list selector to leave it unchanged.
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
     function reinitializeV4(
+        address[] memory blockedUsers,
+        bytes4 underlyingDenyListSelector,
+        bool hasUnderlyingDenyListSelector_,
         address[] memory initialObservers
     ) public virtual reinitializer(REINITIALIZER_VERSION_V4) onlyOwner {
+        __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
         __ConfidentialWrapperV4_init(initialObservers);
     }
 

@@ -100,14 +100,9 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       .withArgs(outsider.address);
     await wrapper.connect(deployerSigner).unblockUser(user.address);
 
-    await expect(wrapper.connect(deployerSigner).reinitializeV3([], '0x00000000', false)).to.be.revertedWithCustomError(
-      wrapper,
-      'InvalidInitialization',
-    );
-    await expect(wrapper.connect(deployerSigner).reinitializeV4([])).to.be.revertedWithCustomError(
-      wrapper,
-      'InvalidInitialization',
-    );
+    await expect(
+      wrapper.connect(deployerSigner).reinitializeV4([], '0x00000000', false, []),
+    ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
   }
 
   before(async function () {
@@ -134,7 +129,12 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
 
     const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
     const currentFactory = await hre.ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
-    const reinitializeV4Data = currentFactory.interface.encodeFunctionData('reinitializeV4', [initialObservers]);
+    const reinitializeV4Data = currentFactory.interface.encodeFunctionData('reinitializeV4', [
+      [],
+      SELECTOR_CUSDC,
+      true,
+      initialObservers,
+    ]);
     await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, reinitializeV4Data);
 
     expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(currentImplAddress);
