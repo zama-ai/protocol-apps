@@ -19,24 +19,36 @@ Run commands from this package directory:
 
 ```bash
 cd contracts/confidential-wrapper/test/foundry
-npm run setup     # installs soldeer deps (incl. forge-fhevm, pinned in soldeer.toml)
-npm run build     # forge build
+make setup     # forge soldeer install (incl. forge-fhevm, pinned in soldeer.toml)
+make build     # forge build
 ```
 
 ## Running tests
 
 | Task | Command | Notes |
 | ---- | ------- | ----- |
-| Live fork run | `[FORK_BLOCK=<n>] make fork-test` | Forks mainnet directly. Reads the RPC (see below). Optionally pin `FORK_BLOCK`. |
+| Live fork run | `make fork-test` | Forks mainnet at the block pinned in `config/fork.json`. Reads the RPC (see below). |
+| Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Overrides the pinned block for one run. |
 
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
 
 `make fork-test` resolves `ETHEREUM_MAINNET_FORK_RPC_URL` via
-`script/utils/resolve-fork-url.sh`: the process environment first (CI injects it from a GitHub
+`script/utils/resolve-fork.sh`: the process environment first (CI injects it from a GitHub
 secret), then `contracts/confidential-wrapper/.env` for local dev (see `.env.example`). CI runs
 `make fork-test` against the archive node on pushes to `main`, manual dispatch, and PRs from
 branches in this repo; fork PRs skip the whole job, since GitHub withholds the secret from them.
+
+## Fork block
+
+The fork block lives in `config/fork.json` and is resolved by
+`script/utils/resolve-fork.sh`, so CI and local runs fork the same state. This matters
+because the suite asserts against real mainnet state — a `config/blacklist-seeds.json` address
+removed from a token's blacklist would break an unpinned run.
+
+Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → chain tip when
+`ethereumMainnet.block` is `null`. Bump the pin (and refresh the deny-list seeds if the run then
+fails) when the suite should cover newer state.
 
 ## Deny-list config
 
@@ -59,7 +71,8 @@ deny-list tests:
 | `test/WrapperFlows.t.sol` | Per-wrapper wrap, confidential transfer, unwrap/finalize, ERC-1363 receiver path |
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
 | `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
-| `script/utils/resolve-fork-url.sh` | Resolves the archive fork RPC URL from the environment or `.env` |
+| `script/utils/resolve-fork.sh` | Resolves the fork target: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
+| `config/fork.json` | Pinned mainnet fork block |
 | `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |
 | `config/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
 

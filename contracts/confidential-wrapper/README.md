@@ -191,7 +191,8 @@ see `.env.example`, or the environment):
 
 ```bash
 cd test/foundry
-npm run setup
+make setup
+make build
 make fork-test
 ```
 
