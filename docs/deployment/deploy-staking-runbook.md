@@ -236,7 +236,7 @@ Initial `feeBasisPoints` / `maxFeeBasisPoints` are set at deploy time from the
 beneficiary can adjust their own pool via `OperatorRewarder.setFee(basisPoints)`
 (beneficiary-only), capped at that pool's `maxFeeBasisPoints`. That cap is seeded to
 `2000` (20%) here from `OPERATOR_REWARDER_*_MAX_FEE_i` and is itself owner-adjustable via
-`setMaxFee`, up to the protocol hard limit of `9999`.
+`setMaxFee`, up to the protocol hard limit of `10000`.
 
 ---
 
