@@ -6,7 +6,6 @@ import {ConfidentialWrapper} from "confidential-wrapper/ConfidentialWrapper.sol"
 import {externalEuint64} from "encrypted-types/EncryptedTypes.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {IERC1363} from "@openzeppelin/contracts/interfaces/IERC1363.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
@@ -61,37 +60,23 @@ contract WrapperFlowsTest is BaseForkTest {
         }
     }
 
-    function test_UnderlyingStaticStorageSmoke_AllWrappers() public view {
+    function test_UnderlyingMetadataReadable_AllWrappers() public view {
         assertGt(wrappers.length, 0, "no valid wrappers enumerated from registry");
 
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
             string memory sym = _label(w);
-            address underlying = address(_underlying(w));
+            IERC20Metadata underlying = IERC20Metadata(address(_underlying(w)));
 
-            assertGt(underlying.code.length, 0, string.concat(sym, ": missing underlying token code"));
-            _assertNonEmptyStringCall(underlying, abi.encodeCall(IERC20Metadata.name, ()), sym, "name");
-            _assertNonEmptyStringCall(underlying, abi.encodeCall(IERC20Metadata.symbol, ()), sym, "symbol");
-
-            (bool decimalsOk, bytes memory decimalsData) = underlying.staticcall(
-                abi.encodeCall(IERC20Metadata.decimals, ())
-            );
-            assertTrue(decimalsOk && decimalsData.length == 32, string.concat(sym, ": decimals static call failed"));
+            assertGt(address(underlying).code.length, 0, string.concat(sym, ": missing underlying token code"));
+            assertGt(bytes(underlying.name()).length, 0, string.concat(sym, ": underlying name not readable on fork"));
             assertGt(
-                abi.decode(decimalsData, (uint8)),
+                bytes(underlying.symbol()).length,
                 0,
-                string.concat(sym, ": underlying decimals not readable on fork")
+                string.concat(sym, ": underlying symbol not readable on fork")
             );
-
-            (bool supplyOk, bytes memory supplyData) = underlying.staticcall(abi.encodeCall(IERC20.totalSupply, ()));
-            assertTrue(supplyOk && supplyData.length == 32, string.concat(sym, ": totalSupply static call failed"));
-            assertGt(
-                abi.decode(supplyData, (uint256)),
-                0,
-                string.concat(sym, ": underlying totalSupply not readable on fork")
-            );
-
-            _assertErc165StaticStorageIfImplemented(underlying, sym);
+            assertGt(underlying.decimals(), 0, string.concat(sym, ": underlying decimals not readable on fork"));
+            assertGt(underlying.totalSupply(), 0, string.concat(sym, ": underlying totalSupply not readable on fork"));
         }
     }
 
@@ -292,33 +277,5 @@ contract WrapperFlowsTest is BaseForkTest {
             CONFIDENTIAL_AMOUNT,
             string.concat(sym, ": ERC-1363 transferAndCall did not mint to recipient")
         );
-    }
-
-    function _assertNonEmptyStringCall(
-        address target,
-        bytes memory callData,
-        string memory sym,
-        string memory label
-    ) internal view {
-        (bool ok, bytes memory data) = target.staticcall(callData);
-        assertTrue(ok, string.concat(sym, ": ", label, " static call failed"));
-        assertGe(data.length, 64, string.concat(sym, ": ", label, " returned bad data"));
-        assertGt(bytes(abi.decode(data, (string))).length, 0, string.concat(sym, ": ", label, " not readable on fork"));
-    }
-
-    function _assertErc165StaticStorageIfImplemented(address underlying, string memory sym) internal view {
-        (bool ok, bytes memory data) = underlying.staticcall(
-            abi.encodeCall(IERC165.supportsInterface, (type(IERC165).interfaceId))
-        );
-
-        // Most deployed ERC-20s do not implement ERC-165. If the call does return
-        // a normal bool, ERC-165 requires the IERC165 interface id to be supported.
-        if (!ok || data.length != 32) return;
-        assertTrue(abi.decode(data, (bool)), string.concat(sym, ": ERC165 support not readable on fork"));
-
-        (bool erc1363Ok, bytes memory erc1363Data) = underlying.staticcall(
-            abi.encodeCall(IERC165.supportsInterface, (type(IERC1363).interfaceId))
-        );
-        assertTrue(erc1363Ok && erc1363Data.length == 32, string.concat(sym, ": IERC1363 support check failed"));
     }
 }

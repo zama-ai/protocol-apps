@@ -34,10 +34,10 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
             assertGt(token.code.length, 0, string.concat(sym, ": missing underlying token code"));
 
-            (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, user));
-            assertTrue(success, string.concat(sym, ": underlying deny-list selector reverted"));
-            assertEq(data.length, 32, string.concat(sym, ": underlying deny-list selector returned bad length"));
-            assertFalse(abi.decode(data, (bool)), string.concat(sym, ": random test user is underlying-denied"));
+            assertFalse(
+                _queryUnderlyingDenyList(token, selector, user),
+                string.concat(sym, ": random test user is underlying-denied")
+            );
 
             _dealAndWrap(w, user, _wrapper(w).rate());
             assertEq(_decryptBalance(w, user), 1, string.concat(sym, ": wrap failed with real underlying selector"));
@@ -59,9 +59,10 @@ contract UnderlyingDenyListTest is BaseForkTest {
             exercised++;
             string memory sym = _label(w);
 
-            (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, denied));
-            assertTrue(ok && data.length == 32, string.concat(sym, ": blacklist getter call failed on fork"));
-            assertTrue(abi.decode(data, (bool)), string.concat(sym, ": seeded address not denied by real token state"));
+            assertTrue(
+                _queryUnderlyingDenyList(token, selector, denied),
+                string.concat(sym, ": seeded address not denied by real token state")
+            );
 
             uint256 amount = 1;
             vm.prank(denied);
@@ -152,8 +153,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
             if (!isSet) continue;
             address token = _wrapper(w).underlying();
 
-            (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, address(0)));
-            if (!ok || data.length != 32 || !abi.decode(data, (bool))) continue; // underlying allows the null address
+            if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
             exercised++;
             string memory sym = _label(w);
 
@@ -196,9 +196,10 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
             address[] memory listed = vm.parseJsonAddressArray(json, string.concat(base, ".blacklisted"));
             for (uint256 j = 0; j < listed.length && j < 5; j++) {
-                (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(sel, listed[j]));
-                assertTrue(ok && data.length == 32, "blacklist getter call failed on fork");
-                assertTrue(abi.decode(data, (bool)), "seeded address not denied by real token state");
+                assertTrue(
+                    _queryUnderlyingDenyList(token, sel, listed[j]),
+                    "seeded address not denied by real token state"
+                );
                 checked++;
             }
         }
@@ -224,6 +225,20 @@ contract UnderlyingDenyListTest is BaseForkTest {
         }
 
         return address(0);
+    }
+
+    /// @notice Staticcalls an underlying deny-list getter (`selector(account)`) against the real token
+    /// code on the fork and returns whether it reports `account` as denied. Reverts when the getter is
+    /// unreadable (the call failed or did not return a 32-byte boolean).
+    /// @dev We only hold the raw getter selector, so the call must stay low-level
+    function _queryUnderlyingDenyList(
+        address token,
+        bytes4 selector,
+        address account
+    ) internal view returns (bool isDenied) {
+        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, account));
+        require(success && data.length == 32, "underlying deny-list getter unreadable on fork");
+        return abi.decode(data, (bool));
     }
 
     function _configuredDenyListCase(
