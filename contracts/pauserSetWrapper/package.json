@@ -30,7 +30,7 @@
     "dotenv": "^17.2.3",
     "ethers": "^6.15.0",
     "hardhat": "^2.26.0",
-    "hardhat-deploy": "^0.12.4",
+    "hardhat-deploy": "^2.0.10",
     "hardhat-gas-reporter": "^2.3.0",
     "sc-istanbul": "^0.4.6",
     "solidity-coverage": "^0.8.16",
