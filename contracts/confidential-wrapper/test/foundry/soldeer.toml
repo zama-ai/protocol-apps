@@ -1,0 +1,14 @@
+[dependencies]
+forge-std = "1.14.0"
+"@fhevm-solidity" = "0.11.1"
+"@encrypted-types" = "0.0.4"
+"@openzeppelin-contracts" = "5.1.0"
+"@openzeppelin-contracts-upgradeable" = "5.1.0"
+"forge-fhevm" = { version = "0.1.0", git = "https://github.com/zama-ai/forge-fhevm", rev = "ff2b790db8cdc34894754d670b174b2b7e27e373" }
+# Pinned to 0.4.0 to match the version contracts/confidential-wrapper was built
+# against (not forge-fhevm's bundled 6edd293). Interfaces are stable across both.
+"@openzeppelin-confidential-contracts" = { version = "0.4.0", git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts", tag = "v0.4.0" }
+
+[soldeer]
+remappings_version = false
+recursive_deps = true

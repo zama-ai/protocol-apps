@@ -1,0 +1,7 @@
+{
+  "_doc": "Pinned Ethereum mainnet fork block for `make fork-test`, read by script/utils/resolve-fork.sh. Pinning keeps the suite reproducible: the deny-list seeds in config/blacklist-seeds.json assert real mainnet state, and an address removed from a token's blacklist would break an unpinned run. Set `block` to null to run against the chain tip instead; a FORK_BLOCK environment variable overrides this file. Bump `block` (and refresh the seeds if needed) when the suite should cover newer state.",
+  "ethereumMainnet": {
+    "block": 25582172,
+    "pinnedAt": "2026-07-21"
+  }
+}

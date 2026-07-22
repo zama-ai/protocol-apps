@@ -1,0 +1,32 @@
+{
+  "_doc": "Curated known-denied test vectors per underlying, read by test/UnderlyingDenyList.t.sol. These are real mainnet-blacklisted addresses; the suite reads each token's deny-list getter for these addresses on the live fork and asserts they are reported denied. A handful per token is enough (the suite checks at most 5). Fields: token = underlying address; blacklisted = denied addresses. To add a token, add an entry.",
+  "tokens": [
+    {
+      "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "name": "USDC",
+      "blacklisted": [
+        "0x002471b8a185f9980708d0eaec5b289714f56f8d",
+        "0x0078ef2d7baf87bf6c4ca49b19efd1e05f57ac30",
+        "0x00be5e0c85be35948d97ad37f62d108243f89ae0"
+      ]
+    },
+    {
+      "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "name": "USDT",
+      "blacklisted": [
+        "0x0009413d525a716c2cc9ddd63626e80f9f9c038d",
+        "0x002471b8a185f9980708d0eaec5b289714f56f8d",
+        "0x0027846505cd5e91bdb743770f3d89de9cb7b978"
+      ]
+    },
+    {
+      "token": "0x68749665ff8d2d112fa859aa293f07a622782f38",
+      "name": "XAUT",
+      "blacklisted": [
+        "0x34abe30b9bcb461d051ed1bcd8b5b12320cd0e3b",
+        "0x53b9b72dc6f96eb4b54143b211b22e2548e4cf5c",
+        "0x7b5fa035954c948bd2d1e2ffb34ea06832ceb62d"
+      ]
+    }
+  ]
+}
