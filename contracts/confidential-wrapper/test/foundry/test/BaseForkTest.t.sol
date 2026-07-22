@@ -50,9 +50,13 @@ abstract contract BaseForkTest is FhevmTest {
     address internal constant LOCAL_FHEVM_KMS_VERIFIER = 0x901F8942346f7AB3a01F6D7613119Bca447Bb030;
 
     /// @notice Blacklist interface for an underlying token.
-    /// @dev Each token declares its own getter explicitly in the shared config.
+    /// @dev Each token declares its own selectors explicitly in the shared config. `setter(address)`
+    /// mutates the deny-list and `authority()` returns the address allowed to call it, used to freshly
+    /// blacklist a user by pranking the token's own admin.
     struct UnderlyingDenyListInterface {
         bytes4 getter;
+        bytes4 setter;
+        bytes4 authority;
         bool supported;
     }
 
@@ -244,8 +248,9 @@ abstract contract BaseForkTest is FhevmTest {
             if (!vm.keyExistsJson(json, base)) break;
             if (vm.parseJsonAddress(json, string.concat(base, ".token")) != token) continue;
 
-            string memory getterSig = vm.parseJsonString(json, string.concat(base, ".getter"));
-            iface.getter = bytes4(keccak256(bytes(getterSig)));
+            iface.getter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".getter")))));
+            iface.setter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".setter")))));
+            iface.authority = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".authority")))));
             iface.supported = true;
             return iface;
         }

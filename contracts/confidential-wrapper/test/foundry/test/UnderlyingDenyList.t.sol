@@ -140,6 +140,44 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
+     * @notice Freshly blacklists a brand-new user through the underlying token's own admin setter
+     * (pranked as the token's configured authority), then proves every wrapper entry point rejects that
+     * user. This exercises deny-list enforcement even for underlyings that have no pre-existing
+     * blacklisted address in mainnet state (e.g. TGBP), which the known-blacklist tests skip.
+     */
+    function test_UnderlyingDenyListBlocksFreshlyBlacklistedUser() public {
+        uint256 exercised;
+
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address w = wrappers[i];
+            (bool isSet, bytes4 getter) = _wrapper(w).getUnderlyingDenyListSelector();
+            if (!isSet) continue;
+
+            address token = _wrapper(w).underlying();
+            UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(token);
+
+            exercised++;
+            string memory sym = _label(w);
+            address victim = makeAddr(string.concat("freshly-blacklisted-", sym));
+            assertFalse(_queryUnderlyingDenyList(token, getter, victim), string.concat(sym, ": victim pre-denied"));
+
+            // Prank the token's own admin and add `victim` to the real underlying deny-list.
+            address authority = _underlyingDenyListAuthority(token, iface.authority);
+            vm.prank(authority);
+            (bool ok, ) = token.call(abi.encodeWithSelector(iface.setter, victim));
+            assertTrue(ok, string.concat(sym, ": underlying blacklist setter reverted"));
+            assertTrue(
+                _queryUnderlyingDenyList(token, getter, victim),
+                string.concat(sym, ": victim not denied after admin blacklist")
+            );
+
+            _assertAllWrapperOpsBlocked(w, sym, victim);
+        }
+
+        assertGt(exercised, 0, "no wrapper underlying exposes a configured blacklist setter + authority");
+    }
+
+    /**
      * @notice A denied null address must NOT block minting or burning. `_requireNotBlocked`
      * short-circuits address(0) precisely because mint has from == 0 and burn has to == 0, and
      * some underlyings (e.g. USDT) report isBlackListed(address(0)) == true.
@@ -239,6 +277,54 @@ contract UnderlyingDenyListTest is BaseForkTest {
         (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, account));
         require(success && data.length == 32, "underlying deny-list getter unreadable on fork");
         return abi.decode(data, (bool));
+    }
+
+    /// @notice Reads the address allowed to mutate `token`'s deny-list via its configured authority
+    /// getter (e.g. `owner()`, `blacklister()`). Reverts when the getter is unreadable on the fork.
+    function _underlyingDenyListAuthority(address token, bytes4 authoritySelector) internal view returns (address) {
+        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(authoritySelector));
+        require(success && data.length == 32, "underlying deny-list authority unreadable on fork");
+        return abi.decode(data, (address));
+    }
+
+    /// @notice Asserts every wrapper entry point rejects `denied` with UnderlyingDenyListedAddress:
+    /// direct wrap by the denied depositor, wrap crediting the denied recipient, confidential transfer
+    /// to the denied recipient, and unwrap to the denied recipient.
+    function _assertAllWrapperOpsBlocked(address w, string memory sym, address denied) internal {
+        ConfidentialWrapper wrapper = _wrapper(w);
+        uint256 amount = wrapper.rate();
+        bytes memory expectedRevert = abi.encodeWithSelector(
+            ConfidentialWrapper.UnderlyingDenyListedAddress.selector,
+            denied
+        );
+
+        // Direct wrap by the denied depositor: rejected before any underlying funds move.
+        vm.prank(denied);
+        vm.expectRevert(expectedRevert);
+        wrapper.wrap(denied, amount);
+
+        // Wrap crediting the denied recipient, funded and pranked from a clean depositor.
+        address depositor = makeAddr(string.concat("fresh-block-depositor-", sym));
+        deal(address(_underlying(w)), depositor, amount);
+        vm.startPrank(depositor);
+        _approve(_underlying(w), w, amount);
+        vm.expectRevert(expectedRevert);
+        wrapper.wrap(denied, amount);
+        vm.stopPrank();
+
+        // Confidential transfer and unwrap targeting the denied recipient, from a funded holder.
+        address holder = makeAddr(string.concat("fresh-block-holder-", sym));
+        _dealAndWrap(w, holder, amount);
+
+        (externalEuint64 transferEnc, bytes memory transferProof) = encryptUint64(1, holder, w);
+        vm.prank(holder);
+        vm.expectRevert(expectedRevert);
+        wrapper.confidentialTransfer(denied, transferEnc, transferProof);
+
+        (externalEuint64 unwrapEnc, bytes memory unwrapProof) = encryptUint64(1, holder, w);
+        vm.prank(holder);
+        vm.expectRevert(expectedRevert);
+        wrapper.unwrap(holder, denied, unwrapEnc, unwrapProof);
     }
 
     function _configuredDenyListCase(
