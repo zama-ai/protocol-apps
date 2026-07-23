@@ -1,0 +1,26 @@
+artifacts/
+cache/
+node_modules/
+.env
+types/
+typechain-types/
+coverage/
+coverage.json
+.openzeppelin/
+.DS_Store
+.vscode/
+.idea/
+.cursor/
+.cursorrules
+.cursorignore
+.cursorignorerules
+.cursorignorerulesrules
+
+# Hardhat
+deployments/
+
+# Foundry
+broadcast/
+
+# Fhevm
+fhevmTemp/

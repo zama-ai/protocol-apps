@@ -1,0 +1,48 @@
+{
+  "name": "native-confidential-token-example",
+  "description": "Reference example project for a minimal native confidential token",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20",
+    "npm": ">=7.0.0"
+  },
+  "license": "BSD-3-Clause-Clear",
+  "dependencies": {
+    "confidential-token-base": "file:../../contracts/confidential-token",
+    "@fhevm/solidity": "^0.10.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "@openzeppelin/contracts-upgradeable": "^5.1.0",
+    "@openzeppelin/confidential-contracts": "^0.4.0"
+  },
+  "devDependencies": {
+    "@fhevm/hardhat-plugin": "^0.3.0-4",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.1",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/node": "^20.19.8",
+    "dotenv": "^16.0.3",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.26.0",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "clean": "hardhat clean",
+    "compile": "hardhat compile",
+    "deploy:testnet": "hardhat run scripts/deploy-native-token.ts --network testnet",
+    "deploy:mainnet": "hardhat run scripts/deploy-native-token.ts --network mainnet"
+  },
+  "overrides": {
+    "@fhevm/solidity": "^0.10.0",
+    "@openzeppelin/hardhat-upgrades": {
+      "axios": "^1.15.0"
+    },
+    "hardhat": {
+      "serialize-javascript": "^7.0.3"
+    }
+  }
+}
