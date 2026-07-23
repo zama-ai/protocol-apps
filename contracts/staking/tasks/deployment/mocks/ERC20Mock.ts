@@ -2,7 +2,7 @@ import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
 export const ERC20_MOCK_CONTRACT_NAME = 'ERC20Mock';
-export const ERC20_MOCK_TOKEN_NAME = 'ZamaMock';
+export const ERC20_MOCK_TOKEN_NAME = 'ZAMAMock';
 export const ERC20_MOCK_TOKEN_SYMBOL = 'ZAMAMock';
 export const ERC20_MOCK_TOKEN_DECIMALS = 18;
 

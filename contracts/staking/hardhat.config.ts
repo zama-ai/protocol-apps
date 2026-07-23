@@ -69,6 +69,10 @@ task('test:tasks', 'Runs the test suite for tasks with environment variables fro
       // Deploy all protocol staking contracts
       await hre.run('task:deployAllProtocolStakingContracts');
 
+      // Grant the ZAMA token's MINTER_ROLE to both ProtocolStaking contracts so claimRewards can
+      // mint rewards (on the testnet mock this also bypasses the public per-call cap)
+      await hre.run('task:grantZamaTokenMinterRoleToProtocolStaking');
+
       // Deploy all operator staking contracts
       await hre.run('task:deployAllOperatorStakingContracts');
     } else {
@@ -99,6 +103,11 @@ const config: HardhatUserConfig = {
       url: process.env.SEPOLIA_RPC_URL || '',
       accounts,
     },
+    hoodi: {
+      url: process.env.HOODI_RPC_URL || '',
+      accounts,
+      chainId: 560048,
+    },
     hardhat: {
       // Need this to avoid deployment issues in test
       saveDeployments: false,
@@ -124,6 +133,19 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY!,
+    customChains: [
+      {
+        // Default: Etherscan. To verify on Blockscout instead, temporarily swap
+        // `apiURL` to 'https://eth-hoodi.blockscout.com/api' and `browserURL` to
+        // 'https://eth-hoodi.blockscout.com' (any apiKey value works for Blockscout).
+        network: 'hoodi',
+        chainId: 560048,
+        urls: {
+          apiURL: 'https://api.etherscan.io/v2/api',
+          browserURL: 'https://hoodi.etherscan.io',
+        },
+      },
+    ],
   },
   exposed: {
     imports: true,
