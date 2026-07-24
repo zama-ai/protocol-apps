@@ -293,7 +293,7 @@ uint256 nonConfidentialSupply = wrapper.inferredTotalSupply();
 
 #### Encrypted (confidential) total supply
 
-The actual supply tracked by the confidential token contract, represented as an encrypted value. To determine the cleartext value, you need to request decryption and appropriate ACL authorization.
+The actual supply tracked by the confidential token contract, represented as an encrypted value. It is not possible to get the cleartext value of the total supply.
 
 ```solidity
 euint64 encryptedSupply = wrapper.confidentialTotalSupply();
