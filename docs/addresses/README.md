@@ -14,3 +14,4 @@ This directory contains all deployed contract addresses for the Zama protocol, o
 
 - [Sepolia Testnet](testnet/sepolia.md)
 - [Zama Gateway Testnet](testnet/gateway.md)
+- [Polygon Amoy Testnet](testnet/amoy.md)
