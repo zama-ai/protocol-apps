@@ -16,6 +16,15 @@ describe('ERC20Mock', function () {
     expect(await token6.decimals()).to.equal(6);
   });
 
+  it('should expose the decimals-adjusted max mint amount', async function () {
+    // 18-decimal token deployed in beforeEach
+    expect(await this.token.maxMintAmount()).to.equal(ethers.parseUnits('1000000', 18));
+
+    const ERC20Mock = await ethers.getContractFactory('ERC20Mock');
+    const token6 = await ERC20Mock.deploy('Six Decimals', 'SIX', 6);
+    expect(await token6.maxMintAmount()).to.equal(ethers.parseUnits('1000000', 6));
+  });
+
   it('should mint tokens', async function () {
     const amount = ethers.parseUnits('1000', 18);
     await this.token.mint(this.alice.address, amount);
@@ -44,6 +53,10 @@ describe('USDTMock', function () {
     expect(await this.usdt.name()).to.equal('Tether USD (Mock)');
     expect(await this.usdt.symbol()).to.equal('USDTMock');
     expect(await this.usdt.decimals()).to.equal(6);
+  });
+
+  it('should expose the decimals-adjusted max mint amount', async function () {
+    expect(await this.usdt.maxMintAmount()).to.equal(ethers.parseUnits('1000000', 6));
   });
 
   it('should approve from zero allowance', async function () {

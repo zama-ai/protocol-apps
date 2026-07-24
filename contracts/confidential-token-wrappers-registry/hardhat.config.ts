@@ -84,6 +84,11 @@ const config: HardhatUserConfig = {
       url: process.env.SEPOLIA_RPC_URL || '',
       accounts,
     },
+    'polygon-amoy': {
+      url: process.env.AMOY_RPC_URL || '',
+      accounts,
+      chainId: 80002,
+    },
     hardhat: {
       saveDeployments: false,
     },
@@ -105,6 +110,17 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY!,
+    // Verify Polygon Amoy contracts through the unified Etherscan v2 endpoint.
+    customChains: [
+      {
+        network: 'polygonAmoy',
+        chainId: 80002,
+        urls: {
+          apiURL: 'https://api.etherscan.io/v2/api?chainid=80002',
+          browserURL: 'https://amoy.polygonscan.com',
+        },
+      },
+    ],
   },
 };
 

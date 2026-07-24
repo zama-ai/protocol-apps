@@ -15,11 +15,17 @@ contract ERC20Mock is ERC20 {
     }
 
     function mint(address to, uint256 amount) external {
-        uint256 maxMintAmount = MAX_MINT_AMOUNT_TOKENS * 10 ** decimals();
-        if (amount > maxMintAmount) {
-            revert MintAmountExceedsMax(amount, maxMintAmount);
+        uint256 maximum = maxMintAmount();
+        if (amount > maximum) {
+            revert MintAmountExceedsMax(amount, maximum);
         }
         _mint(to, amount);
+    }
+
+    /// @notice The maximum amount that can be minted in a single `mint` call in decimals-adjusted units.
+    /// @return The maximum per-call mint amount, equal to `MAX_MINT_AMOUNT_TOKENS * 10 ** decimals()`.
+    function maxMintAmount() public view returns (uint256) {
+        return MAX_MINT_AMOUNT_TOKENS * 10 ** _decimals;
     }
 
     function decimals() public view virtual override returns (uint8) {
