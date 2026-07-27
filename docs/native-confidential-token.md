@@ -60,7 +60,7 @@ Decide up front how the initial supply is issued. Common options:
   }
   ```
 
-* **Confidential genesis allocations** — initial recipients and/or amounts are encrypted from the start. Best when confidentiality must hold from day one, but it requires extra choreography (encrypted inputs and proofs supplied at initialization rather than as plain `uint64` values).
+* **Confidential genesis allocations** — initial amounts are encrypted from the start. Best when confidentiality must hold from day one, but it requires extra choreography (encrypted inputs and proofs supplied at initialization rather than as plain `uint64` values).
 
 ### Confidential transfers
 
