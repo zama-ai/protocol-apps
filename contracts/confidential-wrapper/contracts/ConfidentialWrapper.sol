@@ -62,6 +62,9 @@ contract ConfidentialWrapper is
     /// @dev Emitted when the pauser is set to `pauser`.
     event PauserUpdated(address indexed pauser);
 
+    /// @dev Emitted when the underlying deny-list selector configuration is updated.
+    event UnderlyingDenyListSelectorUpdated(bytes4 indexed selector, bool isSet);
+
     /// @dev Thrown when `user` is on the denylist and attempts a restricted operation.
     error BlockedUser(address user);
 
@@ -79,6 +82,12 @@ contract ConfidentialWrapper is
 
     /// @dev Thrown when the underlying denylist call returns a true value for the given address.
     error UnderlyingDenyListedAddress(address user);
+
+    /// @dev Thrown when the underlying deny-list selector is already configured with the given (selector, isSet) pair.
+    error UnderlyingDenyListSelectorAlreadySet(bytes4 selector, bool isSet);
+
+    /// @dev Thrown when a non-zero selector is provided with `isSet = false`, which is an invalid configuration.
+    error NonZeroSelectorRequiresIsSet(bytes4 selector);
 
     /// @dev Thrown when `sender` calls {pause} without being the pauser.
     error SenderNotPauser(address sender);
@@ -187,13 +196,11 @@ contract ConfidentialWrapper is
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_
     ) internal onlyInitializing {
+        _setUnderlyingDenyListSelector(underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
         }
-        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        $._underlyingDenyListSelector = underlyingDenyListSelector;
-        $._hasUnderlyingDenyListSelector = hasUnderlyingDenyListSelector_;
     }
 
     /**
@@ -231,6 +238,32 @@ contract ConfidentialWrapper is
     function getUnderlyingDenyListSelector() public view virtual returns (bool isSet, bytes4 selector) {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         return ($._hasUnderlyingDenyListSelector, $._underlyingDenyListSelector);
+    }
+
+    /**
+     * @dev Sets the selector and flag used to query the underlying token for deny-list status.
+     * Allows activating, deactivating, or changing the check after deployment.
+     * Reverts if the configuration already matches, so a no-op call is not silently accepted.
+     */
+    function setUnderlyingDenyListSelector(bytes4 selector_, bool isSet_) external virtual onlyOwner {
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        if ($._underlyingDenyListSelector == selector_ && $._hasUnderlyingDenyListSelector == isSet_) {
+            revert UnderlyingDenyListSelectorAlreadySet(selector_, isSet_);
+        }
+        _setUnderlyingDenyListSelector(selector_, isSet_);
+    }
+
+    /**
+     * @dev Validates and writes the underlying deny-list configuration, then emits
+     * {UnderlyingDenyListSelectorUpdated}. Shared by the initializer and {setUnderlyingDenyListSelector}
+     * so the `selector != 0 => isSet` invariant and the event have a single definition.
+     */
+    function _setUnderlyingDenyListSelector(bytes4 selector_, bool isSet_) internal {
+        if (selector_ != bytes4(0) && !isSet_) revert NonZeroSelectorRequiresIsSet(selector_);
+        ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
+        $._underlyingDenyListSelector = selector_;
+        $._hasUnderlyingDenyListSelector = isSet_;
+        emit UnderlyingDenyListSelectorUpdated(selector_, isSet_);
     }
 
     /// @dev Adds `observer` and grants wildcard user-decryption access to wrapper-owned handles.
