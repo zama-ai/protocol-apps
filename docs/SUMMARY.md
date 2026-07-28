@@ -7,6 +7,7 @@
 * Confidential Tokens
   * [Confidential wrapper](./confidential-wrapper.md)
   * [Registry](./wrapper-registry.md)
+  * [Native Confidential token](./native-confidential-token.md)
 * Governance
   * [Governance overview](./governance.md)
   * [Pausing](./pausing.md)

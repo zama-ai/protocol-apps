@@ -23,4 +23,6 @@ ignorePatterns:
   - pattern: "^https://eth-hoodi.blockscout.com.*$"
   - pattern: "^https://community.zama.org.*$"
   - pattern: "^https://app.zama.org.*$"
+  - pattern: "^https://amoy.polygonscan.com.*$"
+  - pattern: "^https://polygonscan.com.*$"
 useGitIgnore: true
