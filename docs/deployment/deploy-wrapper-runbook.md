@@ -245,17 +245,19 @@ See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.
 
 Use Foundry's `cast calldata` to ABI-encode the reinitializer call. Foundry must be installed. See the [Foundry docs](https://www.getfoundry.sh).
 
-No blocked users, underlying has no denylist:
+No observers:
 
 ```bash
-cast calldata "reinitializeV3(address[],bytes4,bool)" "[]" "0x00000000" false
+cast calldata "reinitializeV4(address[])" "[]"
 ```
 
-With a blocked-users list and a denylist selector:
+With an initial observer set:
 
 ```bash
-cast calldata "reinitializeV3(address[],bytes4,bool)" "[0xAddr1,0xAddr2]" "0xfe575a87" true
+cast calldata "reinitializeV4(address[])" "[0xAddr1,0xAddr2]"
 ```
+
+`reinitializeV4` seeds observers only. It leaves the denylist and the underlying deny-list selector as the proxy already has them.
 
 Paste the returned hex string as `data (bytes)` in the proposal:
 

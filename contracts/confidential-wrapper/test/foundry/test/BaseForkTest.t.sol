@@ -78,8 +78,9 @@ abstract contract BaseForkTest is FhevmTest {
         bytes32[6] erc7984Slots;
         // wrapper: [_underlying+_decimals packed, _rate, _unwrapRequests base].
         bytes32[3] wrapperSlots;
-        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool].
-        bytes32[3] v3Slots;
+        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool,
+        //      _observers values-array length, _observers positions base].
+        bytes32[5] v3Slots;
         bool hasUnderlyingDenyListSelector;
         bytes4 underlyingDenyListSelector;
         address blockedUser;
@@ -124,10 +125,11 @@ abstract contract BaseForkTest is FhevmTest {
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
     /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
-    /// @dev Empty `upgradeToAndCall` data is correct while HEAD stays at reinitializer(3) and the
-    /// live proxies are already at initialized version 3. When HEAD adds a new reinitializer (V4+),
-    /// pass its encoded call as the `data` argument here.
+    /// @dev HEAD is at reinitializer(4) and the live proxies are at version 3, so the upgrade must
+    /// carry encoded `reinitializeV4` calldata. It seeds no observers, mirroring the calldata a
+    /// production upgrade proposal would carry.
     function _upgradeAllWrappersToLatest() internal {
+        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0)));
         newImplementation = new ConfidentialWrapper();
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
@@ -136,7 +138,7 @@ abstract contract BaseForkTest is FhevmTest {
             _seedPendingUnwrap(w);
             _snapshotPreUpgrade(w);
             vm.prank(_wrapperOwner(w));
-            ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), "");
+            ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), reinitData);
         }
     }
 
@@ -204,7 +206,7 @@ abstract contract BaseForkTest is FhevmTest {
         for (uint256 i = 0; i < 3; i++) {
             $.wrapperSlots[i] = vm.load(w, bytes32(uint256(WRAPPER_STORAGE_BASE) + i));
         }
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < 5; i++) {
             $.v3Slots[i] = vm.load(w, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + i));
         }
     }

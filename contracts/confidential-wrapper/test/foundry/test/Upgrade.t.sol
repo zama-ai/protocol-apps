@@ -53,7 +53,9 @@ contract UpgradeTest is BaseForkTest {
             //   ERC7984 (6 words): _balances base, _operators base, _totalSupply handle, _name,
             //                      _symbol, _contractURI.
             //   wrapper (3 words): _underlying+_decimals (packed), _rate, _unwrapRequests base.
-            //   V3 (3 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool.
+            //   V3 (5 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool,
+            //                 and the two _observers words. Covering the observer set pins its offset:
+            //                 a field inserted above it would shift it without touching the words below.
             // Mapping bases hold no entries here; comparing them anchors the namespace origin.
             for (uint256 j = 0; j < 6; j++) {
                 assertEq(
@@ -69,7 +71,7 @@ contract UpgradeTest is BaseForkTest {
                     string.concat(sym, ": wrapper slot changed")
                 );
             }
-            for (uint256 j = 0; j < 3; j++) {
+            for (uint256 j = 0; j < 5; j++) {
                 assertEq(
                     vm.load(proxy, bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + j)),
                     $.v3Slots[j],
@@ -127,17 +129,17 @@ contract UpgradeTest is BaseForkTest {
         }
     }
 
-    /// @notice Neither initializer is replayable after the upgrade (proxies are at version 3).
+    /// @notice Neither initializer is replayable after the upgrade (proxies are at version 4).
     function test_ReinitializationBlocked_AllWrappers() public {
         address[] memory empty = new address[](0);
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];
 
             vm.expectRevert(Initializable.InvalidInitialization.selector);
-            _wrapper(proxy).reinitializeV3(empty, bytes4(0), false);
+            _wrapper(proxy).reinitializeV4(empty);
 
             vm.expectRevert(Initializable.InvalidInitialization.selector);
-            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), false);
+            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), false, empty);
         }
     }
 

@@ -246,7 +246,7 @@ describe('ConfidentialWrapper Observers', function () {
   // WILDCARD_DELEGATION_ADDRESS() and its isHandleDelegatedForUserDecryption only
   // reads the per-contract delegation entry, with no wildcard fallback. So
   // isHandleDelegatedForUserDecryption(wrapper, observer, <contract>, handle) is
-  // always false locally, whatever request shape is used. Re-enable once a mock
+  // always false locally. Re-enable once a mock
   // built against @fhevm/solidity 0.13.1 (wildcard-capable ACL) is available.
 
   // describe('delegated decryption behavior', function () {

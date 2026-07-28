@@ -100,9 +100,10 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       .withArgs(outsider.address);
     await wrapper.connect(deployerSigner).unblockUser(user.address);
 
-    await expect(
-      wrapper.connect(deployerSigner).reinitializeV4([], '0x00000000', false, []),
-    ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
+    await expect(wrapper.connect(deployerSigner).reinitializeV4([])).to.be.revertedWithCustomError(
+      wrapper,
+      'InvalidInitialization',
+    );
   }
 
   before(async function () {
@@ -112,7 +113,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     deployerSigner = await hre.ethers.getSigner(deployer);
   });
 
-  it('upgrades from historical V3 to the current flat implementation with no calldata', async function () {
+  it('upgrades from historical V3 to the current flat implementation, seeding observers and preserving V3 state', async function () {
     const underlying = await deployUnderlying();
     const underlyingAddress = await underlying.getAddress();
     const blockedAddresses = Array.from({ length: 2 }, () =>
@@ -129,15 +130,36 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
 
     const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
     const currentFactory = await hre.ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
-    const reinitializeV4Data = currentFactory.interface.encodeFunctionData('reinitializeV4', [
-      [],
-      SELECTOR_CUSDC,
-      true,
-      initialObservers,
-    ]);
+    const reinitializeV4Data = currentFactory.interface.encodeFunctionData('reinitializeV4', [initialObservers]);
     await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, reinitializeV4Data);
 
     expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(currentImplAddress);
     await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true, initialObservers);
+  });
+
+  // reinitializeV4 seeds V4 state only, so an upgrade cannot alter the deny-list config it inherits.
+  it('leaves V3 deny-list state untouched when upgrading', async function () {
+    const underlying = await deployUnderlying();
+    const underlyingAddress = await underlying.getAddress();
+    const blockedAddresses = Array.from({ length: 2 }, () =>
+      ethersUtils.getAddress(ethersUtils.hexlify(ethersUtils.randomBytes(20))),
+    );
+
+    const proxyAddress = await deployHistoricalV3Proxy(underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true);
+    const currentImplAddress = await deployCurrentImplementation();
+
+    const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
+    const currentFactory = await hre.ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
+    await wrapperV3
+      .connect(deployerSigner)
+      .upgradeToAndCall(currentImplAddress, currentFactory.interface.encodeFunctionData('reinitializeV4', [[]]));
+
+    const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
+    const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
+    expect(isSet).to.equal(true);
+    expect(selector).to.equal(SELECTOR_CUSDC);
+    for (const address of blockedAddresses) {
+      expect(await wrapper.isBlocked(address)).to.be.true;
+    }
   });
 });

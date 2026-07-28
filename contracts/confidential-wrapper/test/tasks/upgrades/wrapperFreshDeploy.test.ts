@@ -57,9 +57,10 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
       // Current reinitializer is locked and cannot replay
-      await expect(
-        wrapper.connect(this.deployer).reinitializeV4([], '0x00000000', false, []),
-      ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
+      await expect(wrapper.connect(this.deployer).reinitializeV4([])).to.be.revertedWithCustomError(
+        wrapper,
+        'InvalidInitialization',
+      );
     });
   });
 });
