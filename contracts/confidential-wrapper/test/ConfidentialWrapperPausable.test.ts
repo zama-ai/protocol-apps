@@ -1,6 +1,8 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 import { expect } from 'chai';
 import { ethers, fhevm } from 'hardhat';
+import hre from 'hardhat';
+import { allowHandle, impersonate } from './utils/accounts';
 import { DEFAULT_WRAPPER_OWNER, deployConfidentialWrapper } from './utils/confidentialWrapper';
 
 const owner = DEFAULT_WRAPPER_OWNER;
@@ -132,71 +134,160 @@ describe('ConfidentialWrapper Pausable', function () {
     });
   });
 
+  // Every value-moving entry point, one case per overload, mirroring the denylist coverage in
+  // ConfidentialWrapperV3.test.ts. finalizeUnwrap is the thirteenth and lives in its own describe
+  // below, since it needs a pending request seeded before the pause.
   describe('gated entry points', function () {
+    const TRANSFER_AMOUNT = ethers.parseUnits('10', 6);
+
+    // Encrypted inputs are built off-chain, so they can be produced while the wrapper is paused.
+    async function encryptedAmount(from: HardhatEthersSigner) {
+      return fhevm.createEncryptedInput(wrapper.target, from.address).add64(TRANSFER_AMOUNT).encrypt();
+    }
+
     beforeEach(async function () {
       await wrapper.connect(holder).wrap(holder.address, WRAP_AMOUNT);
       await wrapper.connect(ownerSigner).setPauser(pauser.address);
       await wrapper.connect(pauser).pause();
     });
 
-    it('rejects wrap, leaving the underlying where it was', async function () {
-      const balanceBefore = await token.balanceOf(holder.address);
-      await expect(wrapper.connect(holder).wrap(holder.address, WRAP_AMOUNT)).to.be.revertedWithCustomError(
-        wrapper,
-        'EnforcedPause',
-      );
-      // wrap reaches the gate through _mint, so the transfer it already made is unwound
-      expect(await token.balanceOf(holder.address)).to.equal(balanceBefore);
+    describe('wrap', function () {
+      it('rejects the direct path, leaving the underlying where it was', async function () {
+        const balanceBefore = await token.balanceOf(holder.address);
+        await expect(wrapper.connect(holder).wrap(holder.address, WRAP_AMOUNT)).to.be.revertedWithCustomError(
+          wrapper,
+          'EnforcedPause',
+        );
+        // wrap reaches the gate through _mint, so the transfer it already made is unwound
+        expect(await token.balanceOf(holder.address)).to.equal(balanceBefore);
+      });
+
+      it('rejects the ERC-1363 callback path', async function () {
+        await expect(
+          token.connect(holder)['transferAndCall(address,uint256)'](wrapper.target, WRAP_AMOUNT),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
     });
 
-    it('rejects the ERC-1363 callback path', async function () {
-      await expect(
-        token.connect(holder)['transferAndCall(address,uint256)'](wrapper.target, WRAP_AMOUNT),
-      ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+    describe('unwrap', function () {
+      it('rejects the euint64 overload', async function () {
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await expect(
+          wrapper.connect(holder).unwrap(holder.address, holder.address, balance),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
+
+      it('rejects the externalEuint64 overload', async function () {
+        const encryptedInput = await encryptedAmount(holder);
+        await expect(
+          wrapper
+            .connect(holder)
+            [
+              'unwrap(address,address,bytes32,bytes)'
+            ](holder.address, holder.address, encryptedInput.handles[0], encryptedInput.inputProof),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
     });
 
-    it('rejects unwrap (euint64 overload)', async function () {
-      const balance = await wrapper.confidentialBalanceOf(holder.address);
-      await expect(
-        wrapper.connect(holder).unwrap(holder.address, holder.address, balance),
-      ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+    describe('confidentialTransfer', function () {
+      it('rejects the euint64 overload', async function () {
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await expect(
+          wrapper.connect(holder)['confidentialTransfer(address,bytes32)'](recipient.address, balance),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
+
+      it('rejects the externalEuint64 overload', async function () {
+        const encryptedInput = await encryptedAmount(holder);
+        await expect(
+          wrapper
+            .connect(holder)
+            [
+              'confidentialTransfer(address,bytes32,bytes)'
+            ](recipient.address, encryptedInput.handles[0], encryptedInput.inputProof),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
     });
 
-    it('rejects unwrap (externalEuint64 overload)', async function () {
-      const encryptedInput = await fhevm
-        .createEncryptedInput(wrapper.target, holder.address)
-        .add64(ethers.parseUnits('10', 6))
-        .encrypt();
-      await expect(
-        wrapper
-          .connect(holder)
-          [
-            'unwrap(address,address,bytes32,bytes)'
-          ](holder.address, holder.address, encryptedInput.handles[0], encryptedInput.inputProof),
-      ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+    describe('confidentialTransferAndCall', function () {
+      it('rejects the euint64 overload', async function () {
+        const balance = await wrapper.confidentialBalanceOf(holder.address);
+        await expect(
+          wrapper
+            .connect(holder)
+            ['confidentialTransferAndCall(address,bytes32,bytes)'](recipient.address, balance, '0x'),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
+
+      it('rejects the externalEuint64 overload', async function () {
+        const encryptedInput = await encryptedAmount(holder);
+        await expect(
+          wrapper
+            .connect(holder)
+            [
+              'confidentialTransferAndCall(address,bytes32,bytes,bytes)'
+            ](recipient.address, encryptedInput.handles[0], encryptedInput.inputProof, '0x'),
+        ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      });
     });
 
-    it('rejects confidentialTransfer', async function () {
-      const balance = await wrapper.confidentialBalanceOf(holder.address);
-      await expect(
-        wrapper.connect(holder)['confidentialTransfer(address,bytes32)'](recipient.address, balance),
-      ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
-    });
+    describe('operator entry points', function () {
+      // setOperator is ungated and allowHandle only touches the ACL, so both run while paused.
+      // The euint64 overloads check ACL permission before reaching _update, so without the
+      // handle grant they would revert with ERC7984UnauthorizedUseOfEncryptedAmount instead.
+      beforeEach(async function () {
+        const until = BigInt(Math.floor(Date.now() / 1000) + 3600);
+        await wrapper.connect(holder).setOperator(operator.address, until);
+        const balance = (await wrapper.confidentialBalanceOf(holder.address)) as string;
+        const wrapperSigner = await impersonate(hre, await wrapper.getAddress());
+        await allowHandle(hre, wrapperSigner, operator, balance);
+      });
 
-    it('rejects confidentialTransferFrom', async function () {
-      const until = BigInt(Math.floor(Date.now() / 1000) + 3600);
-      await wrapper.connect(holder).setOperator(operator.address, until);
-      const encryptedInput = await fhevm
-        .createEncryptedInput(wrapper.target, operator.address)
-        .add64(ethers.parseUnits('10', 6))
-        .encrypt();
-      await expect(
-        wrapper
-          .connect(operator)
-          [
-            'confidentialTransferFrom(address,address,bytes32,bytes)'
-          ](holder.address, recipient.address, encryptedInput.handles[0], encryptedInput.inputProof),
-      ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+      describe('confidentialTransferFrom', function () {
+        it('rejects the euint64 overload', async function () {
+          const balance = await wrapper.confidentialBalanceOf(holder.address);
+          await expect(
+            wrapper
+              .connect(operator)
+              ['confidentialTransferFrom(address,address,bytes32)'](holder.address, recipient.address, balance),
+          ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+        });
+
+        it('rejects the externalEuint64 overload', async function () {
+          const encryptedInput = await encryptedAmount(operator);
+          await expect(
+            wrapper
+              .connect(operator)
+              [
+                'confidentialTransferFrom(address,address,bytes32,bytes)'
+              ](holder.address, recipient.address, encryptedInput.handles[0], encryptedInput.inputProof),
+          ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+        });
+      });
+
+      describe('confidentialTransferFromAndCall', function () {
+        it('rejects the euint64 overload', async function () {
+          const balance = await wrapper.confidentialBalanceOf(holder.address);
+          await expect(
+            wrapper
+              .connect(operator)
+              [
+                'confidentialTransferFromAndCall(address,address,bytes32,bytes)'
+              ](holder.address, recipient.address, balance, '0x'),
+          ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+        });
+
+        it('rejects the externalEuint64 overload', async function () {
+          const encryptedInput = await encryptedAmount(operator);
+          await expect(
+            wrapper
+              .connect(operator)
+              [
+                'confidentialTransferFromAndCall(address,address,bytes32,bytes,bytes)'
+              ](holder.address, recipient.address, encryptedInput.handles[0], encryptedInput.inputProof, '0x'),
+          ).to.be.revertedWithCustomError(wrapper, 'EnforcedPause');
+        });
+      });
     });
   });
 
