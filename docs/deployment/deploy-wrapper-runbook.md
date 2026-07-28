@@ -16,6 +16,7 @@ Before starting, collect the following for each wrapper being deployed:
 | Owner address for target chain (Protocol DAO) | [Addresses directory](https://github.com/zama-ai/protocol-apps/tree/main/docs/addresses) |
 | Denylist function selector (`bytes4`) | Underlying token contract ABI. Use `0x00000000` and `false` if the underlying has no denylist |
 | Initial blocked-users list (JSON array) | Compliance / legal. Use `'[]'` if none |
+| Initial observers list (JSON array) | Addresses authorized to decrypt confidential amounts on behalf of the wrapper. Use `'[]'` if none. See the observer scope warning below |
 | Contract URI JSON metadata | Follow the pattern `data:application/json;utf8,{"name":"...","symbol":"...","description":"..."}` |
 | `MNEMONIC` or `PRIVATE_KEY` for the deployer | DFNS / internal secrets |
 | `ETHERSCAN_API_KEY` | Etherscan dashboard |
@@ -101,7 +102,10 @@ CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681E
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
 CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, e.g. 0xfe575a87
 CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false
+CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Required — set '[]' for none
 ```
+
+> ⚠️ **`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` is required.** It must be set explicitly — use `'[]'` when there are no observers. Observers can decrypt every confidential amount the wrapper processes (balances, total supply, and individual transfer/wrap/unwrap amounts), so seed them deliberately. Because `initialize` cannot be re-run at the same version, observers omitted at deployment can only be added afterwards through separate `addObserver` governance calls.
 
 ### Step 2 — Deploy
 
@@ -245,21 +249,13 @@ See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.
 
 Use Foundry's `cast calldata` to ABI-encode the reinitializer call. Foundry must be installed. See the [Foundry docs](https://www.getfoundry.sh).
 
-No observers:
-
-```bash
-cast calldata "reinitializeV4(address[])" "[]"
-```
-
-With an initial observer set:
+For example, to get the calldata for a V4 wrapper with an initial observer set:
 
 ```bash
 cast calldata "reinitializeV4(address[])" "[0xAddr1,0xAddr2]"
 ```
 
-`reinitializeV4` seeds observers only. It leaves the denylist and the underlying deny-list selector as the proxy already has them.
-
-Paste the returned hex string as `data (bytes)` in the proposal:
+Update the above command for the correct reinitializer version and function parameters for your wrapper, and then paste the returned hex string as `data (bytes)` in the proposal:
 
 ![Bytes entry](images/wrapper-proposal-data-bytes.png)
 

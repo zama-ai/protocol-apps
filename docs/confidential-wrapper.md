@@ -328,18 +328,19 @@ For moving tokens into a contract that reacts to the transfer, prefer `confident
 
 ### Observers
 
-An **observer** is an address that the wrapper owner authorizes to decrypt encrypted amounts on behalf of the wrapper contract. This supports token issuers who need visibility into the confidential supply they issue, for example to meet a reporting or compliance obligation.
-
-The wrapper holds ACL permission on every confidential balance it writes and on the confidential total supply. An observer inherits that permission, so it can decrypt:
-
-* the confidential balance of every holder, both current and future,
-* the confidential total supply.
+An **observer** is an address that the wrapper owner authorizes to decrypt encrypted amounts on behalf of the wrapper contract. This can be used to meet a reporting or compliance obligation, for example.
 
 {% hint style="danger" %}
 
 #### **Scope of observer access**
 
-An observer can decrypt the balance of every holder of the confidential token. Adding an observer removes balance privacy for all holders with respect to that address. The authorization has no expiration and stays in force until it is revoked.
+The wrapper holds ACL permission on **every** confidential amount handle it writes. An observer inherits that permission through delegation, so it can decrypt:
+
+* the confidential balance of every holder,
+* the confidential total supply,
+* the amount of every individual transfer, wrap, and unwrap
+
+The authorization has no expiration and stays in force until it is revoked.
 
 {% endhint %}
 

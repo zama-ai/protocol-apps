@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC7984ERC20WrapperUpgradeable} from "./extensions/ERC7984ERC20WrapperUpgradeable.sol";
 import {ZamaEthereumConfigUpgradeable} from "./fhevm/ZamaEthereumConfigUpgradeable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
@@ -95,11 +96,20 @@ contract ConfidentialWrapper is
     /// ever rests in one of two states: freshly deployed via {initialize}, or upgraded via
     /// {reinitializeV4}. Leaving a lower intermediate version reachable would let anyone call
     /// {initialize} on an already-owned proxy and seize ownership.
-    uint64 private constant REINITIALIZER_VERSION_V4 = 4;
+    uint64 private constant REINITIALIZER_VERSION = 4;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
+    }
+
+    /// @dev Restricts a call to a freshly deployed proxy whose initializer version is still zero.
+    /// Must run before {reinitializer}, which bumps the stored version before the function body executes.
+    modifier onlyOnDeployment() {
+        if (_getInitializedVersion() != 0) {
+            revert Initializable.InvalidInitialization();
+        }
+        _;
     }
 
     function _getConfidentialWrapperV3Storage() internal pure returns (ConfidentialWrapperV3Storage storage $) {
@@ -110,7 +120,8 @@ contract ConfidentialWrapper is
 
     /**
      * @notice Initializes the contract when deployed behind an empty proxy.
-     * @dev Advances the initializer version to V4 so older reinitializers cannot be replayed.
+     * @dev Guarded by {onlyOnDeployment} so it can only run on a proxy whose initializer version is
+     * still zero. Advances the initializer version to V4 so older reinitializers cannot be replayed.
      */
     /// @custom:oz-upgrades-validate-as-initializer
     function initialize(
@@ -123,7 +134,7 @@ contract ConfidentialWrapper is
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_,
         address[] memory initialObservers
-    ) public virtual reinitializer(REINITIALIZER_VERSION_V4) {
+    ) public virtual onlyOnDeployment reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapper_init(name_, symbol_, contractURI_, underlying_, owner_);
         __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
         __ConfidentialWrapperV4_init(initialObservers);
@@ -137,7 +148,7 @@ contract ConfidentialWrapper is
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV4(address[] memory initialObservers) public virtual reinitializer(REINITIALIZER_VERSION_V4) {
+    function reinitializeV4(address[] memory initialObservers) public virtual reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapperV4_init(initialObservers);
     }
 

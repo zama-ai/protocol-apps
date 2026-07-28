@@ -195,9 +195,7 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const hasUnderlyingDenyListSelector = getRequiredBooleanEnvVar(
       `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_${i}`,
     );
-    const initialObservers = process.env[`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`]
-      ? getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`)
-      : [];
+    const initialObservers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`);
 
     await hre.run('task:deployConfidentialWrapper', {
       name,
