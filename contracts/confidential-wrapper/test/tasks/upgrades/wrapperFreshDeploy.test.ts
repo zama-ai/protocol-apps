@@ -61,6 +61,22 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         wrapper,
         'InvalidInitialization',
       );
+
+      await expect(
+        wrapper
+          .connect(this.deployer)
+          .initialize(
+            'test',
+            'TEST',
+            'uri',
+            this.underlyingAddress,
+            this.deployer.address,
+            [],
+            '0x00000000',
+            false,
+            [],
+          ),
+      ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });
 });

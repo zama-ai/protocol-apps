@@ -45,6 +45,19 @@ describe('ERC7984Wrapper', function () {
         this.wrapper.connect(this.anyone).upgradeToAndCall(fakeContractAddress, '0x'),
       ).to.be.revertedWithCustomError(this.wrapper, 'OwnableUnauthorizedAccount');
     });
+
+    it('should upgrade if authorized', async function () {
+      const newImplementation = await ethers.deployContract('ConfidentialWrapper');
+      await newImplementation.waitForDeployment();
+      const newImplementationAddress = await newImplementation.getAddress();
+      const ownerSigner = await ethers.getSigner(await this.wrapper.owner());
+
+      // Empty calldata is safe here only because the proxy already sits at the current
+      // reinitializer version, so no initializer is left reachable.
+      await expect(this.wrapper.connect(ownerSigner).upgradeToAndCall(newImplementationAddress, '0x'))
+        .to.emit(this.wrapper, 'Upgraded')
+        .withArgs(newImplementationAddress);
+    });
   });
 
   describe('supportsInterface', function () {
