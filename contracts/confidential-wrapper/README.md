@@ -85,8 +85,21 @@ Each wrapper must also provide the V3 initializer configuration:
 | --- | --- |
 | `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist |
-| `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Whether the underlying token denylist selector should be enabled |
+| `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Whether the underlying token denylist check is enabled |
 | `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
+
+> **Underlying deny-list configuration:** Only
+> three `(selector, isSet)` pairs are legal; any `(non-zero selector, isSet = false)` reverts at
+> deploy/set time (`NonZeroSelectorRequiresIsSet`):
+>
+> | `selector` | `isSet` | Meaning |
+> | --- | --- | --- |
+> | `0x00000000` | `false` | Check disabled |
+> | `0x00000000` | `true` | Check enabled against a zero selector |
+> | non-zero | `true` | Check enabled against that selector |
+>
+> Enablement is carried **only** by `isSet`. Consumers of `getUnderlyingDenyListSelector` must read
+> the returned `isSet` bool and never infer enablement from `selector != 0`.
 
 **Parameters:** None (configuration is read from environment variables).
 

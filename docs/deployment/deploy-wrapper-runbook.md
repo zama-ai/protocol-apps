@@ -101,11 +101,20 @@ CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}=
 CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3"   
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
 CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, e.g. 0xfe575a87
-CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false
+CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false (enables the check)
 CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Required — set '[]' for none
 ```
 
 > ⚠️ **`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` is required.** It must be set explicitly — use `'[]'` when there are no observers. Observers can decrypt every confidential amount the wrapper processes (balances, total supply, and individual transfer/wrap/unwrap amounts), so seed them deliberately. Because `initialize` cannot be re-run at the same version, observers omitted at deployment can only be added afterwards through separate `addObserver` governance calls.
+
+> **The selector and flag are not independent.** Only three `(selector, has)` pairs are legal; any
+> `(non-zero selector, has = false)` reverts at deploy time (`NonZeroSelectorRequiresIsSet`):
+>
+> | `selector` | `has` | Meaning |
+> | --- | --- | --- |
+> | `0x00000000` | `false` | Check disabled |
+> | `0x00000000` | `true` | Check enabled against a zero selector |
+> | non-zero | `true` | Check enabled against that selector |
 
 ### Step 2 — Deploy
 

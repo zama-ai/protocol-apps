@@ -820,6 +820,33 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
+  describe('Underlying DenyList — zero selector (0x00000000) is a valid, active selector', function () {
+    let wrapper: any;
+    let holder: HardhatEthersSigner;
+    let token: any;
+
+    beforeEach(async function () {
+      [holder] = await ethers.getSigners();
+      token = await ethers.deployContract('ERC20MockZeroSelector');
+      // (selector = 0x00000000, isSet = true): a mined zero selector is an ordinary selector,
+      // enablement comes from the bool — never from selector != 0.
+      wrapper = await deployV3(token.target as string, '0x00000000', true);
+      await token.mint(holder.address, ethers.parseUnits('100', 6));
+      await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
+    });
+
+    it('dispatches to selector 0x00000000 and allows wrap when address is not deny-listed', async function () {
+      await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).not.to.be.reverted;
+    });
+
+    it('dispatches to selector 0x00000000 and reverts wrap when address is deny-listed', async function () {
+      await token.setDenyListed(holder.address, true);
+      await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)))
+        .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListedAddress')
+        .withArgs(holder.address);
+    });
+  });
+
   // ─── Underlying DenyList — error paths ───────────────────────────────────
 
   describe('Underlying DenyList — call reverts (UnderlyingDenyListCallFailed)', function () {

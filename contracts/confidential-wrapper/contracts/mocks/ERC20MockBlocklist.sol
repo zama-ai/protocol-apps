@@ -93,6 +93,31 @@ contract ERC20MockRevertingDenyList is ERC20Mock {
     }
 }
 
+/// @dev Underlying whose deny-list check answers on selector 0x00000000, exercised via the
+///      fallback. Proves (selector = 0x00000000, isSet = true) is a legal, active configuration:
+///      a mined zero selector is treated as an ordinary selector, not as "check disabled".
+contract ERC20MockZeroSelector is ERC20Mock {
+    mapping(address => bool) private _denyListed;
+
+    constructor() ERC20Mock("Mock Zero", "mZERO", 6) {}
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function setDenyListed(address account, bool status) external {
+        _denyListed[account] = status;
+    }
+
+    // The wrapper calls staticcall(abi.encodeWithSelector(0x00000000, account)); no declared
+    // function matches selector 0x00000000, so the call lands here. Reads only state, so it is
+    // safe under staticcall. `data` is the full calldata: 4-byte selector followed by the address.
+    fallback(bytes calldata data) external returns (bytes memory) {
+        address account = abi.decode(data[4:], (address));
+        return abi.encode(_denyListed[account]);
+    }
+}
+
 /// @dev Deny-list call returns empty data (0 bytes) — triggers InvalidUnderlyingDenyListResponse
 contract ERC20MockInvalidDenyList is ERC20Mock {
     constructor() ERC20Mock("Mock Invalid", "mINV", 6) {}

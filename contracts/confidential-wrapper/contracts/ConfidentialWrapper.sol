@@ -196,11 +196,11 @@ contract ConfidentialWrapper is
         bytes4 underlyingDenyListSelector,
         bool hasUnderlyingDenyListSelector_
     ) internal onlyInitializing {
-        _setUnderlyingDenyListSelector(underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
         uint256 length = blockedUsers.length;
         for (uint256 i = 0; i < length; i++) {
             _blockUser(blockedUsers[i]);
         }
+        _setUnderlyingDenyListSelector(underlyingDenyListSelector, hasUnderlyingDenyListSelector_);
     }
 
     /**
