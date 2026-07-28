@@ -132,15 +132,14 @@ contract ConfidentialWrapper is
     /**
      * @notice Re-initializes the contract from V3. Optionally seeds the observer set with
      * `initialObservers`; reverts if the array contains a duplicate.
-     * @dev Seeds V4 state only, leaving all V3 state untouched. A proxy below V3 must upgrade
-     * through the V3 implementation first; calling this directly from V1/V2 skips the V3
+     * @dev Seeds V4 state only, calling this directly from V1/V2 skips the V3
      * initializer, leaving the underlying deny-list check disabled.
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
     function reinitializeV4(
         address[] memory initialObservers
-    ) public virtual reinitializer(REINITIALIZER_VERSION_V4) onlyOwner {
+    ) public virtual reinitializer(REINITIALIZER_VERSION_V4) {
         __ConfidentialWrapperV4_init(initialObservers);
     }
 
@@ -279,12 +278,11 @@ contract ConfidentialWrapper is
 
     function _removeObserver(address observer) internal virtual {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        if (!$._observers.contains(observer)) {
+        if (!$._observers.remove(observer)) {
             revert ObserverNotConfigured(observer);
         }
 
         FHE.revokeUserDecryptionDelegation(observer, WILDCARD_CONTRACT);
-        $._observers.remove(observer);
         emit ObserverRemoved(observer);
     }
 

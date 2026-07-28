@@ -10,6 +10,7 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 * **Unwrapping**: Converting confidential tokens back into ERC-20 tokens.
 * **Rate**: The conversion ratio between underlying token units and confidential token units (due to decimal differences).
 * **Operator**: An address authorized to transfer confidential tokens on behalf of another address.
+* **Observer**: An address authorized by the wrapper owner to decrypt the wrapper's encrypted amounts on its behalf. See [Observers](#observers).
 * **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to the Protocol DAO governance (see [governance.md](governance.md)). Ownership will then be transferred to the underlying token's owner.
 * **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](wrapper-registry.md).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
@@ -325,6 +326,70 @@ bool isAuthorized = wrapper.isOperator(holder, spender);
 For moving tokens into a contract that reacts to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over the operator pattern: it delivers the tokens and notifies the recipient in a single transaction without a standing operator allowance.
 {% endhint %}
 
+### Observers
+
+An **observer** is an address that the wrapper owner authorizes to decrypt encrypted amounts on behalf of the wrapper contract. This supports token issuers who need visibility into the confidential supply they issue, for example to meet a reporting or compliance obligation.
+
+The wrapper holds ACL permission on every confidential balance it writes and on the confidential total supply. An observer inherits that permission, so it can decrypt:
+
+* the confidential balance of every holder, both current and future,
+* the confidential total supply.
+
+{% hint style="danger" %}
+
+#### **Scope of observer access**
+
+An observer can decrypt the balance of every holder of the confidential token. Adding an observer removes balance privacy for all holders with respect to that address. The authorization has no expiration and stays in force until it is revoked.
+
+{% endhint %}
+
+An observer holds no other privileges. Observer status is never consulted by the wrapper's access control, and the authorization is recorded in the ACL as a decryption delegation.
+
+#### Manage observers
+
+Only the owner can add or remove an observer. An observer can also step down on its own.
+
+```solidity
+// Owner: authorize an address to decrypt on behalf of the wrapper
+wrapper.addObserver(observerAddress);
+
+// Owner: revoke that authorization
+wrapper.removeObserver(observerAddress);
+
+// Observer: revoke your own authorization
+wrapper.renounceObserver();
+```
+
+Considerations:
+
+* `addObserver` and `removeObserver` revert with `OwnableUnauthorizedAccount` for any caller other than the owner.
+* `addObserver` rejects the zero address, the wrapper itself, and `WILDCARD_CONTRACT`, reverting with `InvalidObserver`.
+* `addObserver` reverts with `ObserverAlreadyConfigured` if the address is already an observer.
+* `removeObserver` and `renounceObserver` revert with `ObserverNotConfigured` if the address is not an observer.
+* The ACL accepts at most one authorization change per block for a given wrapper and observer pair, so removing and re-adding the same observer within a single block reverts.
+
+#### Read the observer set
+
+The observer set is public and can be read by anyone.
+
+```solidity
+// Check a single address
+bool authorized = wrapper.isObserver(observerAddress);
+
+// Read the full set
+address[] memory allObservers = wrapper.observers();
+
+// Or enumerate it
+uint256 total = wrapper.observerCount();
+address firstObserver = wrapper.observerAt(0);
+```
+
+`observerAt` reverts if `index` is greater than or equal to `observerCount()`. The ordering is not stable: removing an observer moves the last entry into the freed slot.
+
+#### Seed observers at deployment
+
+Observers can be configured up front rather than added afterwards. The `initialize` function takes an `initialObservers` array, and `reinitializeV4` takes the same array when an existing proxy is upgraded. Both revert with `ObserverAlreadyConfigured` if the array contains a duplicate entry. Pass an empty array to deploy or upgrade with no observers.
+
 ### Query ongoing unwrap request details
 
 ```solidity
@@ -387,6 +452,8 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `UnwrapFinalized(receiver, unwrapRequestId, encryptedAmount, cleartextAmount)` | Emitted when unwrap completes                   |
 | `AmountDiscloseRequested(encryptedAmount, requester)`                          | Emitted when disclosure is requested            |
 | `AmountDisclosed(encryptedAmount, cleartextAmount)`                            | Emitted when amount is publicly disclosed       |
+| `ObserverAdded(observer)`                                                      | Emitted when an observer is authorized          |
+| `ObserverRemoved(observer)`                                                    | Emitted when an observer is revoked             |
 
 ## Errors
 
@@ -400,6 +467,9 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
 | `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing non-existent unwrap request     |
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
+| `InvalidObserver(observer)`                             | Observer is the zero address, the wrapper itself, or `WILDCARD_CONTRACT` |
+| `ObserverAlreadyConfigured(observer)`                   | Adding an address that is already an observer |
+| `ObserverNotConfigured(observer)`                       | Removing or renouncing an address that is not an observer |
 
 ## Important Considerations
 
