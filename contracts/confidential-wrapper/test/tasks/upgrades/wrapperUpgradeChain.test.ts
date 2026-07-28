@@ -92,6 +92,20 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     expect(configuredSelector).to.equal(selector);
     expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
+    // The upgraded proxy carries no pauser and is unpaused; arming it leaves the
+    // deny-list selector it shares a storage slot with intact.
+    expect(await wrapper.pauser()).to.equal(hre.ethers.ZeroAddress);
+    expect(await wrapper.paused()).to.be.false;
+    await expect(wrapper.connect(deployerSigner).setPauser(outsider.address))
+      .to.emit(wrapper, 'PauserUpdated')
+      .withArgs(outsider.address);
+    await expect(wrapper.connect(outsider).pause()).to.emit(wrapper, 'Paused').withArgs(outsider.address);
+    const [isSetAfterPause, selectorAfterPause] = await wrapper.getUnderlyingDenyListSelector();
+    expect(isSetAfterPause).to.equal(hasSelector);
+    expect(selectorAfterPause).to.equal(selector);
+    await wrapper.connect(deployerSigner).unpause();
+    await wrapper.connect(deployerSigner).setPauser(hre.ethers.ZeroAddress);
+
     await expect(wrapper.connect(deployerSigner).blockUser(user.address))
       .to.emit(wrapper, 'UserBlocked')
       .withArgs(user.address);

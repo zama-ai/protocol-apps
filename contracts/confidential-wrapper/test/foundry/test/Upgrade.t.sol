@@ -53,9 +53,10 @@ contract UpgradeTest is BaseForkTest {
             //   ERC7984 (6 words): _balances base, _operators base, _totalSupply handle, _name,
             //                      _symbol, _contractURI.
             //   wrapper (3 words): _underlying+_decimals (packed), _rate, _unwrapRequests base.
-            //   V3 (5 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool,
-            //                 and the two _observers words. Covering the observer set pins its offset:
-            //                 a field inserted above it would shift it without touching the words below.
+            //   V3 (5 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool
+            //                 + _pauser (one packed word), and the two _observers words. Covering the
+            //                 observer set pins its offset: a field inserted above it would shift it
+            //                 without touching the words below.
             // Mapping bases hold no entries here; comparing them anchors the namespace origin.
             for (uint256 j = 0; j < 6; j++) {
                 assertEq(

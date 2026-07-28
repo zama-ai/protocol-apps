@@ -9,6 +9,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
 /**
  * @title ConfidentialWrapper
@@ -27,7 +28,8 @@ contract ConfidentialWrapper is
     ERC7984ERC20WrapperUpgradeable,
     ZamaEthereumConfigUpgradeable,
     UUPSUpgradeable,
-    Ownable2StepUpgradeable
+    Ownable2StepUpgradeable,
+    PausableUpgradeable
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -43,6 +45,8 @@ contract ConfidentialWrapper is
         mapping(bytes32 unwrapRequestId => UnwrapContext unwrapContext) _unwrapContexts;
         bytes4 _underlyingDenyListSelector;
         bool _hasUnderlyingDenyListSelector;
+        // packs into the selector + flag slot; keep it above `_observers`, which always starts a new slot
+        address _pauser;
         EnumerableSet.AddressSet _observers;
     }
 
@@ -55,6 +59,9 @@ contract ConfidentialWrapper is
 
     /// @dev Emitted when `user` is removed from the denylist.
     event UserUnblocked(address indexed user);
+
+    /// @dev Emitted when the pauser is set to `pauser`.
+    event PauserUpdated(address indexed pauser);
 
     /// @dev Thrown when `user` is on the denylist and attempts a restricted operation.
     error BlockedUser(address user);
@@ -73,6 +80,9 @@ contract ConfidentialWrapper is
 
     /// @dev Thrown when the underlying denylist call returns a true value for the given address.
     error UnderlyingDenyListedAddress(address user);
+
+    /// @dev Thrown when `sender` calls {pause} without being the pauser.
+    error SenderNotPauser(address sender);
 
     /// @dev Emitted when `observer` is granted wildcard user-decryption access.
     event ObserverAdded(address indexed observer);
@@ -164,6 +174,7 @@ contract ConfidentialWrapper is
         __ZamaEthereumConfig_init();
         __Ownable_init(owner_);
         __Ownable2Step_init();
+        __Pausable_init();
     }
 
     /**
@@ -257,6 +268,31 @@ contract ConfidentialWrapper is
         return _getConfidentialWrapperV3Storage()._observers.values();
     }
 
+    // ----- Pausing -----
+
+    /// @dev Returns the address allowed to call {pause}. `address(0)` means no address can pause.
+    function pauser() public view virtual returns (address) {
+        return _getConfidentialWrapperV3Storage()._pauser;
+    }
+
+    /// @dev Sets the address allowed to call {pause}. Set to `address(0)` to disable pausing.
+    function setPauser(address pauser_) external virtual onlyOwner {
+        _getConfidentialWrapperV3Storage()._pauser = pauser_;
+        emit PauserUpdated(pauser_);
+    }
+
+    /// @dev Halts wrapping, unwrapping, unwrap finalization and confidential transfers.
+    function pause() external virtual {
+        // an unset pauser is address(0), which msg.sender can never equal
+        require(msg.sender == pauser(), SenderNotPauser(msg.sender));
+        _pause();
+    }
+
+    /// @dev Resumes the operations halted by {pause}.
+    function unpause() external virtual onlyOwner {
+        _unpause();
+    }
+
     function _blockUser(address user) internal virtual {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         require(!$._blockedUsers[user], UserAlreadyBlocked(user));
@@ -309,10 +345,16 @@ contract ConfidentialWrapper is
         }
     }
 
-    // ----- Overrides enforcing the denylist -----
+    // ----- Overrides enforcing the denylist and the pause -----
 
     /// @dev Catches confidential transfers (both parties), the wrap recipient (mint side), and the unwrap holder (burn side).
-    function _update(address from, address to, euint64 amount) internal virtual override returns (euint64) {
+    /// `whenNotPaused` here gates every entry point that moves cTokens, including ones added later.
+    /// {finalizeUnwrap} carries the only other gate.
+    function _update(
+        address from,
+        address to,
+        euint64 amount
+    ) internal virtual override whenNotPaused returns (euint64) {
         // to block operators in case of confidentialTransferFrom(AndCall)
         if (msg.sender != from) _requireNotBlocked(msg.sender);
         _requireNotBlocked(from);
@@ -351,14 +393,15 @@ contract ConfidentialWrapper is
     }
 
     /**
-     * @dev Prevents settlement of the underlying transfer to a recipient that became
-     * blocked between {unwrap} and {finalizeUnwrap}.
+     * @dev Prevents finalization of the underlying transfer to a recipient that became
+     * blocked between {unwrap} and {finalizeUnwrap}. `whenNotPaused` is required here
+     * because the cTokens were burnt in {unwrap}, so finalization never reaches {_update}.
      */
     function finalizeUnwrap(
         bytes32 unwrapRequestId,
         uint64 unwrapAmountCleartext,
         bytes calldata decryptionProof
-    ) public virtual override {
+    ) public virtual override whenNotPaused {
         // needed because _update is no longer called in finalizeUnwrap, because cTokens were already burnt in unwrap
         _requireNotBlocked(unwrapRequester(unwrapRequestId));
         // also check both original holder and operator from the corresponding unwrap call

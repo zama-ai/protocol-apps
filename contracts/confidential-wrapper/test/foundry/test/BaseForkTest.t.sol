@@ -38,7 +38,8 @@ abstract contract BaseForkTest is FhevmTest {
     bytes32 internal constant WRAPPER_STORAGE_BASE = 0x789981291a45bfde11e7ba326d04f33e2215f03c85dfc0acebcc6167a5924700;
     /// @dev CoprocessorConfig ERC-7201 base in the wrapper (acl, coprocessor, kmsVerifier at +0/+1/+2).
     bytes32 internal constant FHEVM_CONFIG_BASE = 0x9e7b61f58c47dc699ac88507c4f5bb9f121c03808c5676a8078fe583e4649700;
-    /// @dev ConfidentialWrapperV3 ERC-7201 storage base (blocked users, unwrap contexts, underlying deny-list config).
+    /// @dev ConfidentialWrapperV3 ERC-7201 storage base (blocked users, unwrap contexts, underlying deny-list
+    /// config, pauser).
     bytes32 internal constant CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE =
         0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00;
 
@@ -78,7 +79,7 @@ abstract contract BaseForkTest is FhevmTest {
         bytes32[6] erc7984Slots;
         // wrapper: [_underlying+_decimals packed, _rate, _unwrapRequests base].
         bytes32[3] wrapperSlots;
-        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool,
+        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool + _pauser,
         //      _observers values-array length, _observers positions base].
         bytes32[5] v3Slots;
         bool hasUnderlyingDenyListSelector;
@@ -234,6 +235,12 @@ abstract contract BaseForkTest is FhevmTest {
 
     function _v3UnwrapContextSlot(bytes32 requestId) internal pure returns (bytes32) {
         return keccak256(abi.encode(requestId, uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 1));
+    }
+
+    /// @notice Word holding `_underlyingDenyListSelector` (offset 0), `_hasUnderlyingDenyListSelector`
+    /// (offset 4) and `_pauser` (offset 5), which share one packed slot.
+    function _v3PauserSlot() internal pure returns (bytes32) {
+        return bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 2);
     }
 
     /// @notice Returns the explicit blacklist interface for `token`, read from the shared

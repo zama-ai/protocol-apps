@@ -56,6 +56,10 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       expect(selector).to.equal(SELECTOR_CUSDC);
       expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
+      // Pausing starts unset and unpaused; the owner arms it with setPauser
+      expect(await wrapper.pauser()).to.equal(hre.ethers.ZeroAddress);
+      expect(await wrapper.paused()).to.be.false;
+
       // Current reinitializer is locked and cannot replay
       await expect(wrapper.connect(this.deployer).reinitializeV4([])).to.be.revertedWithCustomError(
         wrapper,
