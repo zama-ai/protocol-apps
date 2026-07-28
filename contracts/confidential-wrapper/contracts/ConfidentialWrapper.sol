@@ -137,9 +137,7 @@ contract ConfidentialWrapper is
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV4(
-        address[] memory initialObservers
-    ) public virtual reinitializer(REINITIALIZER_VERSION_V4) {
+    function reinitializeV4(address[] memory initialObservers) public virtual reinitializer(REINITIALIZER_VERSION_V4) {
         __ConfidentialWrapperV4_init(initialObservers);
     }
 
