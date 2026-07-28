@@ -45,7 +45,6 @@ contract ConfidentialWrapper is
         mapping(bytes32 unwrapRequestId => UnwrapContext unwrapContext) _unwrapContexts;
         bytes4 _underlyingDenyListSelector;
         bool _hasUnderlyingDenyListSelector;
-        // packs into the selector + flag slot; keep it above `_observers`, which always starts a new slot
         address _pauser;
         EnumerableSet.AddressSet _observers;
     }
