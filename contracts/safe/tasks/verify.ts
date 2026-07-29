@@ -32,21 +32,28 @@ task("task:verifySafe").setAction(async function (_, { run, network }) {
 // Verify the AdminModule contract
 // Example usage:
 // npx hardhat task:verifyAdminModule --network gateway-testnet
-task("task:verifyAdminModule").setAction(async function (_, { run, network }) {
-  const safeProxyAddress = await getDeployedAddress(
-    network.name,
-    "SafeL2Proxy",
-  );
-  const adminModuleAddress = await getDeployedAddress(
-    network.name,
-    "AdminModule",
-  );
-  const adminAddress = getRequiredEnvVar("ADMIN_ADDRESS");
-  await run("verify:verify", {
-    address: adminModuleAddress,
-    constructorArguments: [adminAddress, safeProxyAddress],
+task("task:verifyAdminModule")
+  .addFlag(
+    "useSafeProxyAddressEnv",
+    "Read the Safe proxy address from the SAFE_PROXY_ADDRESS env variable instead of the deployments/<network>/ artifact",
+  )
+  .setAction(async function ({ useSafeProxyAddressEnv }, { run, network }) {
+    let safeProxyAddress;
+    if (useSafeProxyAddressEnv) {
+      safeProxyAddress = getRequiredEnvVar("SAFE_PROXY_ADDRESS");
+    } else {
+      safeProxyAddress = await getDeployedAddress(network.name, "SafeL2Proxy");
+    }
+    const adminModuleAddress = await getDeployedAddress(
+      network.name,
+      "AdminModule",
+    );
+    const adminAddress = getRequiredEnvVar("ADMIN_ADDRESS");
+    await run("verify:verify", {
+      address: adminModuleAddress,
+      constructorArguments: [adminAddress, safeProxyAddress],
+    });
   });
-});
 
 // Verify the MultiSend contract
 // Example usage:
