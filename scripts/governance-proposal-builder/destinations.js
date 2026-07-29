@@ -80,11 +80,15 @@ const DESTINATIONS = {
     rpcEnvVar: 'RPC_POLYGON_AMOY_DEVNET',
     defaultRpc: 'https://rpc-amoy.polygon.technology',
   },
-  // Polygon mainnet governance is coming soon (LayerZero config already exists
-  // at contracts/governance/layerzero.config.polygonmainnet.ts). Add a
-  // `polygon-mainnet` entry here once the sender/receiver/multisig are deployed
-  // and published to protocol-registry — see "Adding a new EVM destination" in
-  // docs/governance/destinations.md.
+  'polygon-mainnet': {
+    displayName: 'Polygon Mainnet',
+    // GovernanceOAppSender on Ethereum -> Polygon Mainnet.
+    oappSender: '0x8d3FbB9FB34E5dF40A293C2aA4ea49634e340935',
+    // Polygon mainnet multisig.
+    destinationExecutor: '0xeF0645fE2f53aE04d750d5C578BbDAd6cE5Afe55',
+    rpcEnvVar: 'RPC_POLYGON_MAINNET',
+    defaultRpc: 'https://rpc-mainnet.matic.quiknode.pro',
+  },
 }
 
 function listDestinationIds() {
