@@ -1049,7 +1049,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       });
 
       it('activates the underlying check and emits UnderlyingDenyListSelectorUpdated', async function () {
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true))
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
           .to.emit(wrapper, 'UnderlyingDenyListSelectorUpdated')
           .withArgs(SELECTOR_CUSDC, true);
 
@@ -1059,7 +1059,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       });
 
       it('blocking is enforced after activating the underlying check', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
         await token.setDenyListed(holder.address, true);
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)))
           .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListedAddress')
@@ -1067,36 +1067,36 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       });
 
       it('deactivates the underlying check by setting a zero selector with isSet false', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
         await token.setDenyListed(holder.address, true);
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).to.be.reverted;
 
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector('0x00000000', false);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(false, '0x00000000');
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).not.to.be.reverted;
       });
 
       it('reverts with NonZeroSelectorRequiresIsSet when a non-zero selector is paired with isSet false', async function () {
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, false))
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(false, SELECTOR_CUSDC))
           .to.be.revertedWithCustomError(wrapper, 'NonZeroSelectorRequiresIsSet')
           .withArgs(SELECTOR_CUSDC);
       });
 
       it('reverts with UnderlyingDenyListSelectorAlreadySet when the same (selector, isSet) pair is re-sent', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true);
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true))
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
           .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListSelectorAlreadySet')
           .withArgs(SELECTOR_CUSDC, true);
       });
 
       it('changes the selector to a different one', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDT, true);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDT);
         const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
         expect(isSet).to.be.true;
         expect(selector).to.equal(SELECTOR_CUSDT);
       });
 
       it('reverts for non-owner', async function () {
-        await expect(wrapper.connect(outsider).setUnderlyingDenyListSelector(SELECTOR_CUSDC, true))
+        await expect(wrapper.connect(outsider).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
           .to.be.revertedWithCustomError(wrapper, 'OwnableUnauthorizedAccount')
           .withArgs(outsider.address);
       });

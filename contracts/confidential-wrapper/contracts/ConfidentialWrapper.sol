@@ -241,11 +241,11 @@ contract ConfidentialWrapper is
     }
 
     /**
-     * @dev Sets the selector and flag used to query the underlying token for deny-list status.
+     * @dev Sets the flag and selector used to query the underlying token for deny-list status.
      * Allows activating, deactivating, or changing the check after deployment.
      * Reverts if the configuration already matches, so a no-op call is not silently accepted.
      */
-    function setUnderlyingDenyListSelector(bytes4 selector_, bool isSet_) external virtual onlyOwner {
+    function setUnderlyingDenyListSelector(bool isSet_, bytes4 selector_) external virtual onlyOwner {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         if ($._underlyingDenyListSelector == selector_ && $._hasUnderlyingDenyListSelector == isSet_) {
             revert UnderlyingDenyListSelectorAlreadySet(selector_, isSet_);
