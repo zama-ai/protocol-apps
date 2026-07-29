@@ -52,7 +52,12 @@ task("task:addOwnersToSafe").setAction(async function (
 
   // Make sure the deployer is an owner of the SafeL2Proxy contract
   const safeOwners = await safeProxy.getOwners();
-  if (!safeOwners.includes(deployer)) {
+  if (
+    !safeOwners.some(
+      (owner: string) =>
+        ethers.getAddress(owner) === ethers.getAddress(deployer),
+    )
+  ) {
     throw new Error(
       `Deployer should be an owner of the SafeL2Proxy contract.
         Current owners: ${safeOwners.join(", ")}, expected: ${deployer}`,
@@ -163,19 +168,28 @@ task("task:checkSafeOwners")
     // Check that the owners are correctly set in the Safe
     const owners = await safeProxy.getOwners();
 
+    // Normalize all addresses to EIP-55 checksummed form so comparisons are
+    // not affected by the casing used in the env vars or returned by the Safe.
+    const expectedOwnersNormalized = expectedOwnersAsArray.map((address) =>
+      ethers.getAddress(address),
+    );
+    const ownersNormalized = owners.map((address: string) =>
+      ethers.getAddress(address),
+    );
+
     // Check that the number of owners is correct
-    if (owners.length !== expectedOwnersAsArray.length) {
+    if (ownersNormalized.length !== expectedOwnersNormalized.length) {
       throw new Error(
-        `The number of owners in the Safe is incorrect. Expected: ${expectedOwnersAsArray.join(", ")}
-      (length ${expectedOwnersAsArray.length}), Got: ${owners.join(", ")} (length ${owners.length})`,
+        `The number of owners in the Safe is incorrect. Expected: ${expectedOwnersNormalized.join(", ")}
+      (length ${expectedOwnersNormalized.length}), Got: ${ownersNormalized.join(", ")} (length ${ownersNormalized.length})`,
       );
     }
 
     // Check that all owners are present in the expected owners
-    for (const owner of owners) {
-      if (!expectedOwnersAsArray.includes(owner)) {
+    for (const owner of ownersNormalized) {
+      if (!expectedOwnersNormalized.includes(owner)) {
         throw new Error(
-          `The owner ${owner} is not in the expected owners. Expected: ${expectedOwnersAsArray.join(", ")}, Got: ${owners.join(", ")}`,
+          `The owner ${owner} is not in the expected owners. Expected: ${expectedOwnersNormalized.join(", ")}, Got: ${ownersNormalized.join(", ")}`,
         );
       }
     }
@@ -198,7 +212,12 @@ task("task:removeDeployerFromSafeOwnersAndUpdateThreshold").setAction(
 
     // Make sure the deployer is an owner of the SafeL2Proxy contract
     const safeOwners = await safeProxy.getOwners();
-    if (!safeOwners.includes(deployer)) {
+    if (
+      !safeOwners.some(
+        (owner: string) =>
+          ethers.getAddress(owner) === ethers.getAddress(deployer),
+      )
+    ) {
       throw new Error(
         `Deployer should be an owner of the SafeL2Proxy contract.
         Current owners: ${safeOwners.join(", ")}, expected: ${deployer}`,
@@ -252,7 +271,12 @@ task("task:updateSafeThreshold").setAction(async function (
 
   // Make sure the deployer is an owner of the SafeL2Proxy contract
   const safeOwners = await safeProxy.getOwners();
-  if (!safeOwners.includes(deployer)) {
+  if (
+    !safeOwners.some(
+      (owner: string) =>
+        ethers.getAddress(owner) === ethers.getAddress(deployer),
+    )
+  ) {
     throw new Error(
       `Deployer should be an owner of the SafeL2Proxy contract.
         Current owners: ${safeOwners.join(", ")}, expected: ${deployer}`,
