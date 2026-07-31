@@ -1320,7 +1320,18 @@ ZamaEthereumConfig
 ╰----------+---------------------------+------------╯
 
 
-ZamaEthereumConfigUpgradeable
+ZamaPolygonConfig
+
+╭----------+---------------------------+------------╮
+| Type     | Signature                 | Selector   |
++===================================================+
+| Function | confidentialProtocolId()  | 0x8927b030 |
+|----------+---------------------------+------------|
+| Error    | ZamaProtocolUnsupported() | 0x73cac13b |
+╰----------+---------------------------+------------╯
+
+
+ZamaConfigRouterUpgradeable
 
 ╭----------+--------------------------+--------------------------------------------------------------------╮
 | Type     | Signature                | Selector                                                           |

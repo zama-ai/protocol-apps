@@ -437,7 +437,7 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 │                    ERC7984Upgradeable                           │
 │  (Confidential Token Standard - Encrypted Balances/Transfers)  │
 ├─────────────────────────────────────────────────────────────────┤
-│               ZamaEthereumConfigUpgradeable                     │
+│                ZamaConfigRouterUpgradeable                      │
 │  (FHE Coprocessor Configuration)                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
