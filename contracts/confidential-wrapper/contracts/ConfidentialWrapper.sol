@@ -159,6 +159,7 @@ contract ConfidentialWrapper is
     /// @custom:oz-upgrades-validate-as-initializer
     function reinitializeV4(address[] memory initialObservers) public virtual onlyOwner reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapperV4_init(initialObservers);
+        __Pausable_init();
     }
 
     function __ConfidentialWrapper_init(
