@@ -135,6 +135,9 @@ contract UpgradeTest is BaseForkTest {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];
 
+            // reinitializeV4 is onlyOwner-gated ahead of its reinitializer check, so call as the
+            // owner to prove the reinitializer is consumed rather than just tripping onlyOwner.
+            vm.prank(_wrapper(proxy).owner());
             vm.expectRevert(Initializable.InvalidInitialization.selector);
             _wrapper(proxy).reinitializeV4(empty);
 
