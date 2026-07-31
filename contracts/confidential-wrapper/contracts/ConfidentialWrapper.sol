@@ -148,7 +148,7 @@ contract ConfidentialWrapper is
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV4(address[] memory initialObservers) public virtual reinitializer(REINITIALIZER_VERSION) {
+    function reinitializeV4(address[] memory initialObservers) public virtual onlyOwner reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapperV4_init(initialObservers);
     }
 
@@ -287,12 +287,10 @@ contract ConfidentialWrapper is
 
     function _removeObserver(address observer) internal virtual {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
-        if (!$._observers.remove(observer)) {
-            revert ObserverNotConfigured(observer);
+        if ($._observers.remove(observer)) {
+            FHE.revokeUserDecryptionDelegation(observer, WILDCARD_CONTRACT);
+            emit ObserverRemoved(observer);
         }
-
-        FHE.revokeUserDecryptionDelegation(observer, WILDCARD_CONTRACT);
-        emit ObserverRemoved(observer);
     }
 
     function _requireNotBlocked(address user) internal view {

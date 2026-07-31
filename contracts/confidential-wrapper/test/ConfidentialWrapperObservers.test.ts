@@ -153,10 +153,16 @@ describe('ConfidentialWrapper Observers', function () {
       await expectWildcardDelegation(wrapper, observerB.address, MAX_UINT64);
     });
 
-    it('reverts for an address that is not currently an observer', async function () {
-      await expect(wrapper.connect(ownerSigner).removeObserver(observerC.address))
-        .to.be.revertedWithCustomError(wrapper, 'ObserverNotConfigured')
-        .withArgs(observerC.address);
+    it('is idempotent for an address that is not currently an observer', async function () {
+      const acl = await getAclContract();
+      const tx = wrapper.connect(ownerSigner).removeObserver(observerC.address);
+
+      await expect(tx).to.not.emit(wrapper, 'ObserverRemoved');
+      await expect(tx).to.not.emit(acl, 'RevokedDelegationForUserDecryption');
+
+      expect(await wrapper.isObserver(observerC.address)).to.equal(false);
+      expect(await wrapper.observerCount()).to.equal(2);
+      expect(await wrapper.observers()).to.deep.equal([observerA.address, observerB.address]);
     });
 
     it('reverts for non-owner callers', async function () {
@@ -179,10 +185,15 @@ describe('ConfidentialWrapper Observers', function () {
       await expectWildcardDelegation(wrapper, observerA.address, 0n);
     });
 
-    it('reverts when the caller is not an observer', async function () {
-      await expect(wrapper.connect(observerA).renounceObserver())
-        .to.be.revertedWithCustomError(wrapper, 'ObserverNotConfigured')
-        .withArgs(observerA.address);
+    it('is idempotent when the caller is not an observer', async function () {
+      await wrapper.connect(ownerSigner).addObserver(observerA.address);
+
+      const tx = wrapper.connect(observerB).renounceObserver();
+      await expect(tx).to.not.emit(wrapper, 'ObserverRemoved');
+
+      expect(await wrapper.isObserver(observerB.address)).to.equal(false);
+      expect(await wrapper.observerCount()).to.equal(1);
+      expect(await wrapper.observers()).to.deep.equal([observerA.address]);
     });
   });
 

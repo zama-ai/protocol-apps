@@ -162,4 +162,22 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       expect(await wrapper.isBlocked(address)).to.be.true;
     }
   });
+
+  // reinitializeV4 is onlyOwner: upgrade the implementation without running it, leaving the V4
+  // reinitializer live, then confirm a non-owner cannot seed observers through it.
+  it('reverts reinitializeV4 for non-owner callers', async function () {
+    const underlying = await deployUnderlying();
+    const underlyingAddress = await underlying.getAddress();
+
+    const proxyAddress = await deployHistoricalV3Proxy(underlyingAddress, [], SELECTOR_CUSDC, true);
+    const currentImplAddress = await deployCurrentImplementation();
+
+    const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
+    await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, '0x');
+
+    const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
+    await expect(wrapper.connect(outsider).reinitializeV4([]))
+      .to.be.revertedWithCustomError(wrapper, 'OwnableUnauthorizedAccount')
+      .withArgs(outsider.address);
+  });
 });
