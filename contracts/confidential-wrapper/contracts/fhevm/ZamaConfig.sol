@@ -77,7 +77,7 @@ library ZamaConfig {
 
     /// @dev chainid == 80002
     function _getPolygonAmoyProtocolId() private pure returns (uint256) {
-        return 80002;
+        return 10001;
     }
 
     /// @dev chainid == 80002
