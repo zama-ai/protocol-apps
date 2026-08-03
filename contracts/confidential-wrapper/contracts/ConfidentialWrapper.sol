@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import {FHE, externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC7984ERC20WrapperUpgradeable} from "./extensions/ERC7984ERC20WrapperUpgradeable.sol";
-import {ZamaConfigRouterUpgradeable} from "./fhevm/ZamaConfigRouterUpgradeable.sol";
+import {ZamaAnyConfigUpgradeable} from "./fhevm/ZamaAnyConfigUpgradeable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -26,7 +26,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
  */
 contract ConfidentialWrapper is
     ERC7984ERC20WrapperUpgradeable,
-    ZamaConfigRouterUpgradeable,
+    ZamaAnyConfigUpgradeable,
     UUPSUpgradeable,
     Ownable2StepUpgradeable,
     PausableUpgradeable
@@ -180,7 +180,7 @@ contract ConfidentialWrapper is
     ) internal onlyInitializing {
         __ERC7984_init(name_, symbol_, contractURI_);
         __ERC7984ERC20Wrapper_init(underlying_);
-        __ZamaConfigRouter_init();
+        __ZamaAnyConfig_init();
         __Ownable_init(owner_);
         __Ownable2Step_init();
         __Pausable_init();
