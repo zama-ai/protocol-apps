@@ -4,11 +4,11 @@
 pragma solidity ^0.8.27;
 
 import "hardhat/console.sol";
-import {ZamaAnyConfigUpgradeable} from "../fhevm/ZamaAnyConfigUpgradeable.sol";
+import {ZamaMultiChainConfigUpgradeable} from "../fhevm/ZamaMultiChainConfigUpgradeable.sol";
 import {FHE, externalEuint64, euint64, eaddress} from "@fhevm/solidity/lib/FHE.sol";
 import {ERC7984Upgradeable} from "../token/ERC7984Upgradeable.sol";
 
-contract ERC7984UpgradeableMock is ZamaAnyConfigUpgradeable, ERC7984Upgradeable {
+contract ERC7984UpgradeableMock is ZamaMultiChainConfigUpgradeable, ERC7984Upgradeable {
     address private _OWNER;
 
     event EncryptedAmountCreated(euint64 amount);
@@ -19,7 +19,7 @@ contract ERC7984UpgradeableMock is ZamaAnyConfigUpgradeable, ERC7984Upgradeable 
     }
 
     function initialize(string memory name_, string memory symbol_, string memory tokenURI_) public initializer {
-        __ZamaAnyConfig_init();
+        __ZamaMultiChainConfig_init();
         __ERC7984_init(name_, symbol_, tokenURI_);
     }
 

@@ -6,18 +6,18 @@ import {ZamaConfig} from "./ZamaConfig.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @title   ZamaAnyConfigUpgradeable.
- * @dev     Upgradeable counterpart of {ZamaAnyConfig}. The non-upgradeable base sets the
+ * @title   ZamaMultiChainConfigUpgradeable.
+ * @dev     Upgradeable counterpart of {ZamaMultiChainConfig}. The non-upgradeable base sets the
  *          coprocessor in its constructor via `ZamaConfig.getCoprocessorConfig()`; this contract
  *          does the same at initialization time so a single implementation can be deployed on
  *          every supported network.
  */
-abstract contract ZamaAnyConfigUpgradeable is Initializable {
-    function __ZamaAnyConfig_init() internal onlyInitializing {
-        __ZamaAnyConfig_init_unchained();
+abstract contract ZamaMultiChainConfigUpgradeable is Initializable {
+    function __ZamaMultiChainConfig_init() internal onlyInitializing {
+        __ZamaMultiChainConfig_init_unchained();
     }
 
-    function __ZamaAnyConfig_init_unchained() internal onlyInitializing {
+    function __ZamaMultiChainConfig_init_unchained() internal onlyInitializing {
         FHE.setCoprocessor(ZamaConfig.getCoprocessorConfig());
     }
 

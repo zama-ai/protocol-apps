@@ -165,7 +165,7 @@ abstract contract ZamaPolygonConfig {
 }
 
 /**
- * @title   ZamaAnyConfig.
+ * @title   ZamaMultiChainConfig.
  * @dev     This contract can be inherited by a contract wishing to use the FHEVM contracts provided by Zama
  *          on any supported network. The coprocessor configuration is selected automatically from
  *          `block.chainid` at construction time, so a single implementation can be deployed on the
@@ -174,7 +174,7 @@ abstract contract ZamaPolygonConfig {
  *          Other providers may offer similar contracts deployed at different addresses.
  *          If you wish to use them, you should rely on the instructions from these providers.
  */
-abstract contract ZamaAnyConfig {
+abstract contract ZamaMultiChainConfig {
     constructor() {
         FHE.setCoprocessor(ZamaConfig.getCoprocessorConfig());
     }

@@ -29,7 +29,7 @@ pragma solidity ^0.8.27;
 
 import {FHE, externalEuint64, euint64} from "@fhevm/solidity/lib/FHE.sol";
 
-contract NativeConfidentialToken is ERC7984, ZamaEthereumConfig, Ownable2Step {
+contract NativeConfidentialToken is ERC7984, ZamaMultiChainConfig, Ownable2Step {
     function mint(
         address to,
         externalEuint64 encryptedAmount,
@@ -118,14 +118,14 @@ Guard privileged actions (minting, and any administrative logic) behind clear ow
 
 First decide whether the token needs to be upgradeable at all. An immutable token gives holders the strongest guarantee that its rules cannot change (the ZAMA ERC20, for instance, is deliberately **not** upgradeable), while an upgradeable token trades some of that guarantee for the ability to fix bugs or evolve behavior.
 
-If you do make it upgradeable, follow the same pattern as the confidential wrapper: **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer, where only the owner can authorize an upgrade. Swap each base for its `Upgradeable` counterpart — [`ERC7984Upgradeable`](../contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) and [`ZamaAnyConfigUpgradeable`](../contracts/confidential-wrapper/contracts/fhevm/ZamaAnyConfigUpgradeable.sol) — disable initializers in the constructor, and initialize through an `initialize` function rather than the constructor.
+If you do make it upgradeable, follow the same pattern as the confidential wrapper: **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer, where only the owner can authorize an upgrade. Swap each base for its `Upgradeable` counterpart — [`ERC7984Upgradeable`](../contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) and [`ZamaMultiChainConfigUpgradeable`](../contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — disable initializers in the constructor, and initialize through an `initialize` function rather than the constructor.
 
-The FHEVM config base is not optional: it points the contract at the coprocessor for the target chain (`FHE.setCoprocessor(...)`), and without it encrypted operations have no backend to run against. In an upgradeable contract it must be initialized like any other base (`__ZamaAnyConfig_init()`) rather than set in the constructor:
+The FHEVM config base is not optional: it points the contract at the coprocessor for the target chain (`FHE.setCoprocessor(...)`), and without it encrypted operations have no backend to run against. In an upgradeable contract it must be initialized like any other base (`__ZamaMultiChainConfig_init()`) rather than set in the constructor:
 
 ```solidity
 contract NativeConfidentialToken is
     ERC7984Upgradeable,
-    ZamaAnyConfigUpgradeable,
+    ZamaMultiChainConfigUpgradeable,
     Ownable2StepUpgradeable,
     UUPSUpgradeable
 {
@@ -136,7 +136,7 @@ contract NativeConfidentialToken is
 
     function initialize(string memory name_, string memory symbol_, address owner_) public initializer {
         __ERC7984_init(name_, symbol_, "");
-        __ZamaAnyConfig_init();
+        __ZamaMultiChainConfig_init();
         __Ownable_init(owner_);
         __Ownable2Step_init();
     }
@@ -151,7 +151,7 @@ Whoever holds ownership controls upgrades, so treat the upgrade authority as the
 
 * [ERC-7984](https://eips.ethereum.org/EIPS/eip-7984)
 * [`ERC7984Upgradeable.sol`](../contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) — upgradeable ERC-7984 base used by the confidential wrapper
-* [`ZamaAnyConfigUpgradeable.sol`](../contracts/confidential-wrapper/contracts/fhevm/ZamaAnyConfigUpgradeable.sol) — wires the contract to the FHEVM coprocessor
+* [`ZamaMultiChainConfigUpgradeable.sol`](../contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — wires the contract to the FHEVM coprocessor
 * [Zama ACL guide](https://docs.zama.org/protocol/solidity-guides/smart-contract/acl)
 * [Zama SDK — encrypt & decrypt](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt)
 * [OpenZeppelin — Access Control](https://docs.openzeppelin.com/contracts/5.x/access-control)
