@@ -37,5 +37,9 @@
     "ts-node": "^10.9.2",
     "typechain": "^8.3.2",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "axios": "^1.17.0",
+    "qs": "^6.15.2"
   }
 }
