@@ -1,0 +1,6 @@
+{
+  "chainId": 1,
+  "dao": "0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3",
+  "registry": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
+  "minDeployerBalanceWei": "150000000000000000"
+}

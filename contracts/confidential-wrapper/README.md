@@ -14,11 +14,11 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 
 | Variable | Description |
 | --- | --- |
-| `MNEMONIC` or `PRIVATE_KEY` | Authentication for the deployer account |
-| `MAINNET_RPC_URL` | RPC URL for mainnet |
-| `POLYGON_RPC_URL` | RPC URL for Polygon mainnet |
-| `SEPOLIA_RPC_URL` | RPC URL for Sepolia testnet |
-| `ETHERSCAN_API_KEY` | Etherscan API key (required for contract verification) |
+| `MNEMONIC` or `PRIVATE_KEY` | Local signer for the deployer account |
+| `ETHEREUM_RPC_URL` | RPC URL for the `ethereum` network (mainnet) |
+| `POLYGON_RPC_URL` | RPC URL for the `polygon` network (Polygon mainnet) |
+| `SEPOLIA_RPC_URL` | RPC URL for the `sepolia` network (Sepolia testnet) |
+| `ETHERSCAN_API_KEY` | Etherscan API key (required for Etherscan verification; Blockscout/Sourcify need none) |
 
 ### Task inputs (batch deployment)
 
@@ -79,7 +79,7 @@ npx hardhat task:deployConfidentialWrapper \
   --underlying-deny-list-selector 0x00000000 \
   --initial-observers '[]' \
   --pauser 0x2222222222222222222222222222222222222222 \
-  --network testnet
+  --network sepolia
 ```
 
 ### `task:deployAllConfidentialWrappers`
@@ -100,7 +100,7 @@ Each wrapper must also provide the V3 initializer configuration:
 **Example:**
 
 ```bash
-npx hardhat task:deployAllConfidentialWrappers --network testnet
+npx hardhat task:deployAllConfidentialWrappers --network <network>
 ```
 
 ### `task:verifyConfidentialWrapper`
@@ -118,7 +118,7 @@ Verify a single confidential wrapper contract (both proxy and implementation) on
 ```bash
 npx hardhat task:verifyConfidentialWrapper \
   --proxy-address 0x1234567890123456789012345678901234567890 \
-  --network testnet
+  --network <network>
 ```
 
 ### `task:verifyAllConfidentialWrappers`
@@ -130,7 +130,7 @@ Verify all deployed confidential wrapper contracts on Etherscan. Reads wrapper n
 **Example:**
 
 ```bash
-npx hardhat task:verifyAllConfidentialWrappers --network testnet
+npx hardhat task:verifyAllConfidentialWrappers --network <network>
 ```
 
 ### `task:deployWrapperImplementation`
@@ -147,7 +147,7 @@ Deploy a new `ConfidentialWrapper` implementation contract without upgrading any
 **Example:**
 
 ```bash
-npx hardhat task:deployWrapperImplementation --name "Confidential USDT" --label "v2" --network testnet
+npx hardhat task:deployWrapperImplementation --name "Confidential USDT" --label "v2" --network <network>
 ```
 
 ### `task:deployAllWrapperImplementations`
@@ -161,7 +161,7 @@ Deploy upgrade implementations for all wrappers defined in the `.env` file. Read
 **Example:**
 
 ```bash
-npx hardhat task:deployAllWrapperImplementations --network testnet
+npx hardhat task:deployAllWrapperImplementations --network <network>
 ```
 
 ### `task:verifyWrapperImplementation`
@@ -177,7 +177,7 @@ Verify a single `ConfidentialWrapper` implementation contract on Etherscan.
 **Example:**
 
 ```bash
-npx hardhat task:verifyWrapperImplementation --address 0x1234567890123456789012345678901234567890 --network testnet
+npx hardhat task:verifyWrapperImplementation --address 0x1234567890123456789012345678901234567890 --network <network>
 ```
 
 ### `task:verifyAllWrapperImplementations`
@@ -189,8 +189,12 @@ Verify upgrade implementation contracts for all wrappers on Etherscan. Looks up 
 **Example:**
 
 ```bash
-npx hardhat task:verifyAllWrapperImplementations --network testnet
+npx hardhat task:verifyAllWrapperImplementations --network <network>
 ```
+
+## Params-driven deployment
+
+Live deployments run from a private workflow that reads the reviewed [`deploy-params/`](./deploy-params/) files and invokes the Hardhat tasks documented above. To request a deployment, open a PR that adds or edits a params entry — see [`deploy-params/README.md`](./deploy-params/README.md).
 
 ## Scripts
 

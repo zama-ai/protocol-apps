@@ -1,0 +1,6 @@
+{
+  "chainId": 11155111,
+  "dao": "0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52",
+  "registry": "0x2f0750Bbb0A246059d80e94c454586a7F27a128e",
+  "minDeployerBalanceWei": "20000000000000000"
+}
