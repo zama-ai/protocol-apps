@@ -1,0 +1,153 @@
+# Fail PRs that introduce dependencies under copyleft (GPL/AGPL/LGPL) licenses.
+name: license-check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-license-check-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # Determine which npm packages this PR actually touches, and emit only those as
+  # a matrix. Each changed file is mapped to its owning package (nearest ancestor
+  # directory containing a package.json). On workflow_dispatch (no PR diff) we fall
+  # back to every package in the repo.
+  node-discover:
+    name: license-check/node discover
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read' # Required to checkout repository code
+    outputs:
+      packages: ${{ steps.find.outputs.packages }}
+      has_packages: ${{ steps.find.outputs.has_packages }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Full history so the PR base and head commits are both available for
+          # the diff below.
+          fetch-depth: 0
+          persist-credentials: 'false'
+
+      - name: Select affected package directories
+        id: find
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # All package dirs in the repo (a package = a dir with a package.json),
+          # excluding node_modules and the repo root. One per line.
+          all_packages() {
+            find . -name package.json \
+              -not -path '*/node_modules/*' \
+              -not -path './package.json' \
+              -exec dirname {} \; | sed 's|^\./||' | sort -u
+          }
+
+          # Walk up from a changed file to the nearest ancestor package dir.
+          owning_package() {
+            local dir; dir=$(dirname "$1")
+            while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+              [ -f "$dir/package.json" ] && { echo "${dir#./}"; return; }
+              dir=$(dirname "$dir")
+            done
+          }
+
+          # Packages this PR touches: map each changed file to its owning package,
+          # then intersect with the known set (drops root-level / unknown paths).
+          touched_packages() {
+            local changed selected=""
+            changed=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")
+            while IFS= read -r file; do
+              [ -n "$file" ] && selected+="$(owning_package "$file")"$'\n'
+            done <<< "$changed"
+            comm -12 <(all_packages) <(printf '%s' "$selected" | grep -v '^$' | sort -u)
+          }
+
+          if [ "$EVENT_NAME" = "pull_request" ] \
+             && ! git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+                  | grep -qxF '.github/workflows/license-check.yml'; then
+            packages=$(touched_packages)   # PR: only what changed
+          else
+            packages=$(all_packages)       # dispatch, or this workflow itself changed
+          fi
+
+          json=$(printf '%s\n' "$packages" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          [ "$json" = "[]" ] && has_packages=false || has_packages=true
+
+          echo "packages=$json"          >> "$GITHUB_OUTPUT"
+          echo "has_packages=$has_packages" >> "$GITHUB_OUTPUT"
+          echo "Selected: $json"
+
+  # One matrix leg per affected package. Not a required check itself (its name
+  # carries the package path); the aggregate job below is the stable gate. Skipped
+  # entirely when the PR touches no npm package (avoids an empty-matrix error).
+  node-licenses:
+    name: license-check/node
+    needs: node-discover
+    if: ${{ needs.node-discover.outputs.has_packages == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read' # Required to checkout repository code
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.node-discover.outputs.packages) }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: 'false'
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          version: 9
+
+      # Install with whichever package manager the package uses (detected from its
+      # lockfile). pnpm gets a hoisted node_modules so license-checker can walk it
+      # like an npm tree. --ignore-scripts skips install hooks (the checker only
+      # reads package metadata); npm install works with or without a lockfile.
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile --ignore-scripts --config.node-linker=hoisted
+          else
+            npm install --ignore-scripts --no-audit --no-fund
+          fi
+
+      - name: Check licenses
+        working-directory: ${{ matrix.package }}
+        run: npx --yes license-checker --production --failOn "GPL;AGPL;LGPL"
+
+  # Stable required-status-check target: passes if every matrix leg passed, or if
+  # the matrix was skipped because the PR touched no npm package.
+  node:
+    name: license-check/node (bpr)
+    needs: node-licenses
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all package checks passed
+        env:
+          RESULT: ${{ needs.node-licenses.result }}
+        run: |
+          echo "node-licenses result: $RESULT"
+          if [ "$RESULT" != "success" ] && [ "$RESULT" != "skipped" ]; then
+            echo "One or more package license checks failed."
+            exit 1
+          fi
