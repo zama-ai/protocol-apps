@@ -92,6 +92,9 @@ contract ConfidentialWrapper is
     /// @dev Thrown when `sender` calls {pause} without being the pauser.
     error SenderNotPauser(address sender);
 
+    /// @dev Thrown when {renounceOwnership} is called by the owner.
+    error RenounceOwnershipDisabled();
+
     /// @dev Emitted when `observer` is granted wildcard user-decryption access.
     event ObserverAdded(address indexed observer);
 
@@ -324,6 +327,19 @@ contract ConfidentialWrapper is
     /// @dev Resumes the operations halted by {pause}.
     function unpause() external virtual onlyOwner {
         _unpause();
+    }
+
+    // ----- Ownership -----
+
+    /**
+     * @dev Ownership renunciation is permanently disabled; use {transferOwnership} instead.
+     *
+     * The wrapper has no safe ownerless state. {unpause}, {unblockUser}, {setPauser},
+     * {setUnderlyingDenyListSelector} and {_authorizeUpgrade} are each the only way to reverse
+     * their subsystem, so renouncing would make any one of them irrecoverable.
+     */
+    function renounceOwnership() public virtual override onlyOwner {
+        revert RenounceOwnershipDisabled();
     }
 
     function _blockUser(address user) internal virtual {

@@ -46,6 +46,22 @@ describe('ERC7984Wrapper', function () {
       ).to.be.revertedWithCustomError(this.wrapper, 'OwnableUnauthorizedAccount');
     });
 
+    it('should not allow the owner to renounce ownership', async function () {
+      const ownerSigner = await ethers.getSigner(await this.wrapper.owner());
+
+      await expect(this.wrapper.connect(ownerSigner).renounceOwnership()).to.be.revertedWithCustomError(
+        this.wrapper,
+        'RenounceOwnershipDisabled',
+      );
+      expect(await this.wrapper.owner()).to.equal(ownerSigner.address);
+    });
+
+    it('should reject ownership renunciation by non-owners before the disabled-renounce check', async function () {
+      await expect(this.wrapper.connect(this.anyone).renounceOwnership())
+        .to.be.revertedWithCustomError(this.wrapper, 'OwnableUnauthorizedAccount')
+        .withArgs(this.anyone.address);
+    });
+
     it('should upgrade if authorized', async function () {
       const newImplementation = await ethers.deployContract('ConfidentialWrapper');
       await newImplementation.waitForDeployment();
