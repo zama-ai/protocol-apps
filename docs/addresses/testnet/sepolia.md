@@ -11,6 +11,7 @@
 ## Confidential tokens
 
 > The **mocked** testnet confidential wrappers wrap ERC-20 tokens deployed specifically for testing. Their underlying ERC-20 tokens have a publicly accessible `mint(address to, uint256 amount)` function, limited to **1,000,000 tokens per call**. The **non-mocked** wrappers wrap "official" testnet ERC-20 tokens with restricted minting permissions.
+> Non-mock tokens are handled by their associated mainnet token issuers and are most likely not publicly mintable.
 >
 > **Note:** The ZAMA (Mock) underlying token is a mock token deployed for testing purposes — it is **not** the real sepolia ZAMA token defined above in the [Token](#token) section.
 
