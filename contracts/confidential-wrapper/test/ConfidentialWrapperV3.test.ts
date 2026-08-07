@@ -928,6 +928,96 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
+  // ─── isBlockedOnUnderlying view ──────────────────────────────────────────
+
+  // The blocks above assert on wrap, i.e. on enforcement. These assert on the view itself:
+  // the branches it can take before the staticcall, and the fact that it propagates the
+  // staticcall failures rather than flattening them to false.
+  describe('isBlockedOnUnderlying', function () {
+    let holder: HardhatEthersSigner;
+    let ownerSigner: HardhatEthersSigner;
+
+    beforeEach(async function () {
+      [holder] = await ethers.getSigners();
+      ownerSigner = await ethers.getSigner(owner);
+    });
+
+    it('agrees with wrap for an address denied only by the underlying', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDC');
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      await token.mint(holder.address, ethers.parseUnits('100', 6));
+      await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
+
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
+
+      await token.setDenyListed(holder.address, true);
+
+      // the false negative this view exists to close: clear on the wrapper list, still rejected.
+      // the wrap assertion duplicates the cUSDC block above on purpose — agreement between the
+      // view and enforcement is what is under test, so it has to be observed in one place.
+      expect(await wrapper.isBlocked(holder.address)).to.be.false;
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.true;
+      await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)))
+        .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListedAddress')
+        .withArgs(holder.address);
+    });
+
+    it('is independent of the wrapper-local denylist', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDC');
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      await wrapper.connect(ownerSigner).blockUser(holder.address);
+
+      expect(await wrapper.isBlocked(holder.address)).to.be.true;
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
+    });
+
+    it('returns false when the underlying check is disabled', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDC');
+      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      await token.setDenyListed(holder.address, true);
+
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
+    });
+
+    it('returns false for the zero address, matching the mint and burn exemption', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDC');
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+
+      expect(await wrapper.isBlockedOnUnderlying(ethers.ZeroAddress)).to.be.false;
+    });
+
+    it('tracks a selector change made through setUnderlyingDenyListSelector', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDT');
+      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      await token.setDenyListed(holder.address, true);
+
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
+
+      await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDT);
+      expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.true;
+    });
+
+    it('reverts with UnderlyingDenyListCallFailed when the underlying call reverts', async function () {
+      const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+
+      await expect(wrapper.isBlockedOnUnderlying(holder.address)).to.be.revertedWithCustomError(
+        wrapper,
+        'UnderlyingDenyListCallFailed',
+      );
+    });
+
+    it('reverts with InvalidUnderlyingDenyListResponse when the underlying returns wrong-length data', async function () {
+      const token: any = await ethers.deployContract('ERC20MockInvalidDenyList');
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+
+      await expect(wrapper.isBlockedOnUnderlying(holder.address)).to.be.revertedWithCustomError(
+        wrapper,
+        'InvalidUnderlyingDenyListResponse',
+      );
+    });
+  });
+
   // ─── Underlying DenyList — full lifecycle (cUSDC, representative) ─────────
 
   describe('Underlying DenyList — full lifecycle (cUSDC)', function () {
