@@ -366,7 +366,7 @@ Considerations:
 * `addObserver` and `removeObserver` revert with `OwnableUnauthorizedAccount` for any caller other than the owner.
 * `addObserver` rejects the zero address, the wrapper itself, and `WILDCARD_CONTRACT`, reverting with `InvalidObserver`.
 * `addObserver` reverts with `ObserverAlreadyConfigured` if the address is already an observer.
-* `removeObserver` and `renounceObserver` revert with `ObserverNotConfigured` if the address is not an observer.
+* `removeObserver` and `renounceObserver` are no-ops when the address is not an observer: they emit nothing and do not revert, so a governance batch containing `removeObserver` still succeeds if the observer renounced first.
 * The ACL accepts at most one authorization change per block for a given wrapper and observer pair, so removing and re-adding the same observer within a single block reverts.
 
 #### Read the observer set
@@ -470,7 +470,6 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
 | `InvalidObserver(observer)`                             | Observer is the zero address, the wrapper itself, or `WILDCARD_CONTRACT` |
 | `ObserverAlreadyConfigured(observer)`                   | Adding an address that is already an observer |
-| `ObserverNotConfigured(observer)`                       | Removing or renouncing an address that is not an observer |
 
 ## Important Considerations
 

@@ -104,9 +104,6 @@ contract ConfidentialWrapper is
     /// @dev Thrown when attempting to add an observer that is already configured.
     error ObserverAlreadyConfigured(address observer);
 
-    /// @dev Thrown when attempting to remove or renounce an observer that is not configured.
-    error ObserverNotConfigured(address observer);
-
     /// @dev ACL sentinel for delegating user-decryption access across all wrapper-owned handles.
     address public constant WILDCARD_CONTRACT = 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF;
 
@@ -354,6 +351,7 @@ contract ConfidentialWrapper is
         emit ObserverAdded(observer);
     }
 
+    /// @dev Removing an address that is not an observer is a deliberate no-op rather than a revert
     function _removeObserver(address observer) internal virtual {
         ConfidentialWrapperV3Storage storage $ = _getConfidentialWrapperV3Storage();
         if ($._observers.remove(observer)) {
