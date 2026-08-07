@@ -208,6 +208,61 @@ describe('ERC7984Wrapper', function () {
         }
       });
     }
+
+    describe('ERC-1363 recipient encoding', function () {
+      const amountToWrap = ethers.parseUnits('100', 18);
+
+      const transferAndCall = function (this: any, data: string) {
+        return this.token
+          .connect(this.holder)
+          ['transferAndCall(address,uint256,bytes)'](this.wrapper, amountToWrap, data);
+      };
+
+      const expectWrappedTo = async function (this: any, to: HardhatEthersSigner) {
+        const handle = await this.wrapper.confidentialBalanceOf(to.address);
+        await expect(fhevm.userDecryptEuint(FhevmType.euint64, handle, this.wrapper.target, to)).to.eventually.equal(
+          ethers.parseUnits('100', 6),
+        );
+      };
+
+      it('wraps to the sender for empty data', async function () {
+        await transferAndCall.call(this, '0x');
+        await expectWrappedTo.call(this, this.holder);
+      });
+
+      it('wraps to a 20-byte packed address', async function () {
+        await transferAndCall.call(this, ethers.solidityPacked(['address'], [this.recipient.address]));
+        await expectWrappedTo.call(this, this.recipient);
+      });
+
+      it('rejects abi.encode(to) rather than decoding it as a left-padded address', async function () {
+        await expect(
+          transferAndCall.call(this, ethers.AbiCoder.defaultAbiCoder().encode(['address'], [this.recipient.address])),
+        )
+          .to.be.revertedWithCustomError(this.wrapper, 'InvalidWrapRecipientEncoding')
+          .withArgs(32);
+      });
+
+      it('rejects a 32-byte payload that is not an address at all', async function () {
+        // abi.encode(uint256(5)) is indistinguishable from a left-padded address. Decoding it would
+        // mint to address(0x05); rejecting the width is what keeps that from being a silent loss.
+        await expect(transferAndCall.call(this, ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [5])))
+          .to.be.revertedWithCustomError(this.wrapper, 'InvalidWrapRecipientEncoding')
+          .withArgs(32);
+      });
+
+      for (const [label, length] of [
+        ['shorter than an address', 19],
+        ['longer than an address', 21],
+        ['longer than a word', 33],
+      ] as const) {
+        it(`reverts for data ${label}`, async function () {
+          await expect(transferAndCall.call(this, ethers.hexlify(ethers.randomBytes(length))))
+            .to.be.revertedWithCustomError(this.wrapper, 'InvalidWrapRecipientEncoding')
+            .withArgs(length);
+        });
+      }
+    });
   });
 
   describe('Unwrap', async function () {
