@@ -100,7 +100,7 @@ CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}=
 # Ethereum mainnet DAO address
 CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3"   
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
-CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, e.g. 0xfe575a87
+CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, must match the underlying token
 CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false (enables the check)
 CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Required — set '[]' for none
 ```
@@ -115,6 +115,12 @@ CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Requir
 > | `0x00000000` | `false` | Check disabled |
 > | `0x00000000` | `true` | Check enabled against a zero selector |
 > | non-zero | `true` | Check enabled against that selector |
+
+> **The selector is token-specific — confirm it against the underlying before deploying.** Each
+> deny-listing token names its getter differently (USDT `getBlackListStatus(address)`, USDC
+> `isBlacklisted(address)`), so read the name off the token's verified source and compute the selector
+> with `cast sig "<getter>(address)"`. A selector the token does not implement reverts every wrap,
+> transfer and unwrap until the owner corrects it.
 
 ### Step 2 — Deploy
 
@@ -136,7 +142,7 @@ npx hardhat task:deployConfidentialWrapper \
   --underlying 0xdAC17F958D2ee523a2206206994597C13D831ec7 \
   --owner 0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3 \
   --blocked-users '[]' \
-  --underlying-deny-list-selector 0xfe575a87 \
+  --underlying-deny-list-selector 0x59bf1abe \
   --has-underlying-deny-list-selector true \
   --network mainnet
 ```
