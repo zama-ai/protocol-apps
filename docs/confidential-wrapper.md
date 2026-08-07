@@ -68,11 +68,13 @@ There are two ways to wrap. The single-transaction `transferAndCall` path is **r
 If the underlying token implements the [ERC-1363](https://eips.ethereum.org/EIPS/eip-1363) extension (`transferAndCall`), wrapping can be done in a **single transaction** without a prior approval. The wrapper implements `IERC1363Receiver`, so transferring the underlying token directly to the wrapper triggers its `onTransferReceived` callback, which mints the confidential token and refunds any excess.
 
 ```solidity
-// `data` is the abi-encoded recipient address; pass empty bytes to wrap to msg.sender.
+// `data` carries the recipient; pass empty bytes to wrap to msg.sender.
 underlyingToken.transferAndCall(address(wrapper), amount, abi.encodePacked(to));
 ```
 
-This avoids the two-transaction `approve` + `wrap` flow and its associated allowance management. The recipient is read from `data` (the abi-encoded `to` address); if `data` is shorter than 20 bytes, tokens are wrapped to the sender. The same `Wrap` event is emitted and excess tokens are refunded to the original sender.
+This avoids the two-transaction `approve` + `wrap` flow and its associated allowance management. The same `Wrap` event is emitted and excess tokens are refunded to the original sender.
+
+`data` must be empty to wrap to the sender, or exactly the 20-byte packed address `abi.encodePacked(to)`. Anything else reverts with `InvalidWrapRecipientEncoding`, including the 32-byte `abi.encode(to)`.
 
 {% hint style="info" %}
 ### **ERC-1363 support**

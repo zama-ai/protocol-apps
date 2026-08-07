@@ -38,6 +38,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
 
     error InvalidUnwrapRequest(bytes32 unwrapRequestId);
     error ERC7984TotalSupplyOverflow();
+    error InvalidWrapRecipientEncoding(uint256 length);
 
     event Wrap(address indexed to, uint256 roundedAmount, euint64 encryptedWrappedAmount);
 
@@ -70,6 +71,8 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * @dev `ERC1363` callback function which wraps tokens to the address specified in `data` or
      * the address `from` (if no address is specified in `data`). This function refunds any excess tokens
      * sent beyond the nearest multiple of {rate} to `from`. See {wrap} for more details on wrapping tokens.
+     *
+     * See {_wrapRecipient} for the accepted `data` encodings.
      */
     function onTransferReceived(
         address /*operator*/,
@@ -81,7 +84,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
         require(underlying() == msg.sender, ERC7984UnauthorizedCaller(msg.sender));
 
         // mint confidential token
-        address to = data.length < 20 ? from : address(bytes20(data));
+        address to = _wrapRecipient(from, data);
         euint64 encryptedWrappedAmount = _mint(to, FHE.asEuint64(SafeCast.toUint64(amount / rate())));
 
         // transfer excess back to the sender
@@ -263,6 +266,14 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
 
         emit UnwrapRequested(to, unwrapRequestId, unwrapAmount_);
         return unwrapRequestId;
+    }
+
+    /// @dev Resolves the wrap recipient from an ERC-1363 `data` payload. A 32-byte abi.encode(to) payload is rejected
+    /// rather than decoded as an address.
+    function _wrapRecipient(address from, bytes calldata data) internal pure virtual returns (address) {
+        if (data.length == 0) return from;
+        if (data.length == 20) return address(bytes20(data));
+        revert InvalidWrapRecipientEncoding(data.length);
     }
 
     /**
