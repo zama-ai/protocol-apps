@@ -257,8 +257,7 @@ abstract contract BaseForkTest is FhevmTest {
     }
 
     /// @notice Word holding `_underlyingDenyListSelector` (offset 0), the deprecated
-    /// `_hasUnderlyingDenyListSelectorDeprecated` flag (offset 4) and `_pauser` (offset 5),
-    /// which share one packed slot.
+    /// selector flag (offset 4) and `_pauser` (offset 5), which share one packed slot.
     function _v3PauserSlot() internal pure returns (bytes32) {
         return bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 2);
     }
