@@ -333,9 +333,9 @@ The wrapper refuses to move tokens for a denied address. Two independent sources
 
 | View function | Answers |
 | --- | --- |
-| `isBlocked(user)` | Is `user` denied by **either** source? |
-| `isBlockedOnWrapper(user)` | Is `user` on the **wrapper's own** denylist, managed by the wrapper owner via `blockUser` / `unblockUser`? |
-| `isBlockedOnUnderlying(user)` | Is `user` denied by the **underlying token**, as controlled by its issuer? |
+| `isBlocked(user)` | Is `user` able to wrap, unwrap or confidentially transfer? |
+| `isBlockedOnWrapper(user)` | Is `user` able to wrap, unwrap or confidentially transfer, because it is on the **wrapper's own denylist**? |
+| `isBlockedOnUnderlying(user)` | Is `user` able to wrap, unwrap or confidentially transfer, because it is denied by the **underlying token**? |
 
 ```solidity
 // The general case: can this address transact with the wrapper at all?
