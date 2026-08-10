@@ -401,7 +401,7 @@ contract ConfidentialWrapper is
         // to not block mints and burns, also needed because for e.g. USDT.getBlackListStatus(address(0))
         if (user == address(0)) return;
         require(!isBlockedOnWrapper(user), WrapperBlockedAddress(user));
-        if (_isBlockedOnUnderlying(user)) revert UnderlyingDenyListedAddress(user);
+        require(!isBlockedOnUnderlying(user), UnderlyingDenyListedAddress(user));
     }
 
     // ----- Overrides enforcing the denylist and the pause -----
