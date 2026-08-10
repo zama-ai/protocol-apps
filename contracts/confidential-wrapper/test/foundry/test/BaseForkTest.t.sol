@@ -178,6 +178,9 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Seeds a V3 blocked-user entry before the impl swap so {UpgradeTest} can prove the
     /// live V3 mapping still resolves through the upgraded implementation.
+    /// @dev Reads back through `isBlocked` rather than {ConfidentialWrapper-isBlockedOnWrapper}: this runs
+    /// against the live V3 implementation, which predates the split and has no `isBlockedOnWrapper`
+    /// selector to dispatch to. On V3 `isBlocked` is the wrapper-local list, which is what is seeded here.
     function _seedV3BlockedUser(address w) internal {
         PreUpgradeSnapshot storage $ = preUpgrade[w];
         address user = makeAddr(string.concat("pre-upgrade-blocked-", _label(w)));

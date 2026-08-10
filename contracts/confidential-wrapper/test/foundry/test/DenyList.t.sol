@@ -16,15 +16,48 @@ contract DenyListTest is BaseForkTest {
             address owner = _wrapperOwner(w);
             address user = makeAddr(string.concat("blocked-", sym));
 
-            assertFalse(_wrapper(w).isBlocked(user), string.concat(sym, ": user unexpectedly blocked"));
+            assertFalse(_wrapper(w).isBlockedOnWrapper(user), string.concat(sym, ": user unexpectedly blocked"));
 
             vm.prank(owner);
             _wrapper(w).blockUser(user);
-            assertTrue(_wrapper(w).isBlocked(user), string.concat(sym, ": user not blocked after blockUser"));
+            assertTrue(_wrapper(w).isBlockedOnWrapper(user), string.concat(sym, ": user not blocked after blockUser"));
 
             vm.prank(owner);
             _wrapper(w).unblockUser(user);
-            assertFalse(_wrapper(w).isBlocked(user), string.concat(sym, ": user still blocked after unblockUser"));
+            assertFalse(
+                _wrapper(w).isBlockedOnWrapper(user),
+                string.concat(sym, ": user still blocked after unblockUser")
+            );
+        }
+    }
+
+    /// @notice The combined view reports the wrapper-local list against the real deployed
+    /// wrappers, including those whose underlying deny-list check is enabled (the clean test
+    /// user is denied by neither, so the local list is the only source that can flip it).
+    function test_IsBlockedReflectsLocalList_AllWrappers() public {
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address w = wrappers[i];
+            string memory sym = _label(w);
+            address owner = _wrapperOwner(w);
+            address user = makeAddr(string.concat("combined-", sym));
+
+            assertFalse(_wrapper(w).isBlocked(user), string.concat(sym, ": clean user reported blocked"));
+            assertFalse(
+                _wrapper(w).isBlockedOnUnderlying(user),
+                string.concat(sym, ": clean user denied by underlying")
+            );
+
+            vm.prank(owner);
+            _wrapper(w).blockUser(user);
+
+            assertTrue(
+                _wrapper(w).isBlocked(user),
+                string.concat(sym, ": locally blocked user not reported by isBlocked")
+            );
+            assertFalse(
+                _wrapper(w).isBlockedOnUnderlying(user),
+                string.concat(sym, ": local block leaked into the underlying view")
+            );
         }
     }
 

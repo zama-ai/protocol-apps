@@ -73,6 +73,34 @@ contract UnderlyingDenyListTest is BaseForkTest {
         assertGt(exercised, 0, "no known blacklisted depositors among supported wrappers");
     }
 
+    /**
+     * @notice A known blacklisted mainnet address is reported by {isBlockedOnUnderlying} and by the
+     * combined {isBlocked}, while {isBlockedOnWrapper} stays false. This is the case the combined
+     * view exists for: an address no wrapper owner ever touched, that the underlying still denies.
+     */
+    function test_IsBlockedReportsKnownBlacklistedAddress() public view {
+        uint256 exercised;
+
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
+            if (w == address(0)) continue;
+            exercised++;
+            string memory sym = _label(w);
+
+            assertFalse(
+                _wrapper(w).isBlockedOnWrapper(denied),
+                string.concat(sym, ": blacklisted address unexpectedly on the wrapper-local list")
+            );
+            assertTrue(
+                _wrapper(w).isBlockedOnUnderlying(denied),
+                string.concat(sym, ": blacklisted address not reported by isBlockedOnUnderlying")
+            );
+            assertTrue(_wrapper(w).isBlocked(denied), string.concat(sym, ": isBlocked missed the underlying source"));
+        }
+
+        assertGt(exercised, 0, "no known blacklisted addresses among supported wrappers");
+    }
+
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrapRecipient() public {
         uint256 exercised;
 
@@ -194,6 +222,13 @@ contract UnderlyingDenyListTest is BaseForkTest {
             if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
             exercised++;
             string memory sym = _label(w);
+
+            // Both views carry the same exemption, so neither contradicts the mint/burn paths below.
+            assertFalse(
+                _wrapper(w).isBlockedOnUnderlying(address(0)),
+                string.concat(sym, ": isBlockedOnUnderlying reports the null address as denied")
+            );
+            assertFalse(_wrapper(w).isBlocked(address(0)), string.concat(sym, ": isBlocked reports the null address"));
 
             // Mint: wrap does _update(0, holder, ...); a denied null address must not block it.
             address holder = makeAddr(string.concat("null-deny-holder-", sym));

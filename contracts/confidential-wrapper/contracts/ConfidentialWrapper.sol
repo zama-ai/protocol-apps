@@ -226,12 +226,18 @@ contract ConfidentialWrapper is
     }
 
     /**
-     * @dev Returns whether `user` is on the wrapper-local denylist.
-     *
-     * NOTE: This is only one of the two sources {_requireNotBlocked} enforces. An address that is
-     * clear here can still be rejected by the underlying token, see {isBlockedOnUnderlying}.
+     * @dev Returns whether `user` is denied by either denylist, i.e. the predicate
+     * {_requireNotBlocked} enforces. This is the check integrators should use.
      */
     function isBlocked(address user) public view virtual returns (bool) {
+        return isBlockedOnWrapper(user) || isBlockedOnUnderlying(user);
+    }
+
+    /**
+     * @dev Returns whether `user` is on the wrapper-local denylist, the source the owner
+     * controls through {blockUser} and {unblockUser}.
+     */
+    function isBlockedOnWrapper(address user) public view virtual returns (bool) {
         return _getConfidentialWrapperV3Storage()._blockedUsers[user];
     }
 
@@ -393,7 +399,7 @@ contract ConfidentialWrapper is
     function _requireNotBlocked(address user) internal view {
         // to not block mints and burns, also needed because for e.g. USDT.getBlackListStatus(address(0))
         if (user == address(0)) return;
-        require(!isBlocked(user), BlockedUser(user));
+        require(!isBlockedOnWrapper(user), BlockedUser(user));
         if (_isBlockedOnUnderlying(user)) revert UnderlyingDenyListedAddress(user);
     }
 

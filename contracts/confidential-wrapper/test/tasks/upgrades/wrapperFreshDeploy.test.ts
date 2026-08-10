@@ -49,7 +49,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
 
       // Current state is initialized with provided values
       for (const address of blockedAddresses) {
-        expect(await wrapper.isBlocked(address)).to.be.true;
+        expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
       }
       const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
       expect(isSet).to.be.true;

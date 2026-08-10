@@ -84,7 +84,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     expect(await wrapper.underlying()).to.equal(underlyingAddress);
 
     for (const address of blockedAddresses) {
-      expect(await wrapper.isBlocked(address)).to.be.true;
+      expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
     }
 
     const [isSet, configuredSelector] = await wrapper.getUnderlyingDenyListSelector();
@@ -173,7 +173,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     expect(isSet).to.equal(true);
     expect(selector).to.equal(SELECTOR_CUSDC);
     for (const address of blockedAddresses) {
-      expect(await wrapper.isBlocked(address)).to.be.true;
+      expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
     }
   });
 

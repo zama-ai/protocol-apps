@@ -62,7 +62,7 @@ describe('ConfidentialWrapper Deployment', function () {
         expect(await confidentialWrapper.underlying()).to.equal(underlying);
         expect(await confidentialWrapper.owner()).to.equal(owner);
         for (const blockedUserAddress of blockedUsers) {
-          expect(await confidentialWrapper.isBlocked(blockedUserAddress)).to.equal(true);
+          expect(await confidentialWrapper.isBlockedOnWrapper(blockedUserAddress)).to.equal(true);
         }
         const [isSet, selector] = await confidentialWrapper.getUnderlyingDenyListSelector();
         expect(isSet).to.equal(hasUnderlyingDenyListSelector);

@@ -121,7 +121,7 @@ contract UpgradeTest is BaseForkTest {
             PreUpgradeSnapshot storage $ = preUpgrade[proxy];
 
             assertTrue(
-                _wrapper(proxy).isBlocked($.blockedUser),
+                _wrapper(proxy).isBlockedOnWrapper($.blockedUser),
                 string.concat(_label(proxy), ": seeded V3 blocked user not preserved")
             );
 

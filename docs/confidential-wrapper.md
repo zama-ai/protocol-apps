@@ -329,28 +329,30 @@ For moving tokens into a contract that reacts to the transfer, prefer `confident
 
 ### Denylist
 
-The wrapper refuses to move tokens for a denied address. Two independent sources are consulted, and each has its own view function:
+The wrapper refuses to move tokens for a denied address. Two independent sources are consulted, and three view functions expose them: one per source, plus a combined check.
 
-| Source | View function | Managed by |
-| --- | --- | --- |
-| The wrapper's own denylist | `isBlocked(user)` | The wrapper owner, via `blockUser` / `unblockUser` |
-| The underlying token's denylist | `isBlockedOnUnderlying(user)` | The underlying token issuer |
+| View function | Answers |
+| --- | --- |
+| `isBlocked(user)` | Is `user` denied by **either** source? |
+| `isBlockedOnWrapper(user)` | Is `user` on the **wrapper's own** denylist, managed by the wrapper owner via `blockUser` / `unblockUser`? |
+| `isBlockedOnUnderlying(user)` | Is `user` denied by the **underlying token**, as controlled by its issuer? |
 
 ```solidity
-// Denied by the wrapper itself
+// The general case: can this address transact with the wrapper at all?
 bool blocked = wrapper.isBlocked(user);
+
+// Denied by the wrapper itself
+bool blockedOnWrapper = wrapper.isBlockedOnWrapper(user);
 
 // Denied by the underlying token (e.g. USDT's `getBlackListStatus`)
 bool blockedOnUnderlying = wrapper.isBlockedOnUnderlying(user);
 ```
 
-{% hint style="warning" %}
-### **Check both**
-
-The two are independent: an address that is clear on one can still be denied by the other. An integrator that wants to know whether an address can currently transact must check both, since either one is enough to make an operation revert.
-{% endhint %}
-
 #### `isBlocked`
+
+Returns `true` if either source denies `user`, i.e. `isBlockedOnWrapper(user) || isBlockedOnUnderlying(user)`. The wrapper-local list is consulted first, so an address already denied there is reported without any call to the underlying token.
+
+#### `isBlockedOnWrapper`
 
 Reads the wrapper-local denylist only. It is a plain storage read: it never calls the underlying token and never reverts.
 
@@ -364,15 +366,15 @@ Forwards the query to the underlying token using the configured deny-list select
 Whether the check is enabled, and which selector is used, can be read with:
 
 ```solidity
-(bool isSet, bytes4 selector) = wrapper.getUnderlyingDenyListSelector();
+wrapper.getUnderlyingDenyListSelector();
 ```
 
-Only the owner can change this configuration, via `setUnderlyingDenyListSelector(isSet, selector)`.
+Only the owner can change this configuration, via `setUnderlyingDenyListSelector`.
 
-{% hint style="info" %}
-### **`isBlockedOnUnderlying` can revert**
+{% hint style="warning" %}
+### **`isBlocked` and `isBlockedOnUnderlying` can revert**
 
-Unlike `isBlocked`, this function performs a `staticcall` on the underlying token when the check is enabled. It reverts with `UnderlyingDenyListCallFailed` if that call fails, and with `InvalidUnderlyingDenyListResponse` if the returned data is not a 32-byte value. Callers that treat it as an infallible view should handle these cases.
+Unlike `isBlockedOnWrapper`, these perform a `staticcall` on the underlying token when the check is enabled. They revert with `UnderlyingDenyListCallFailed` if that call fails, and with `InvalidUnderlyingDenyListResponse` if the returned data is not a 32-byte value. Callers that treat them as infallible views should handle these cases. Note that the same failure would also make a wrap, transfer, or unwrap revert, so a reverting view reflects a genuinely unusable configuration rather than a quirk of the view.
 {% endhint %}
 
 #### Enforcement
