@@ -11,6 +11,7 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 * **Rate**: The conversion ratio between underlying token units and confidential token units (due to decimal differences).
 * **Operator**: An address authorized to transfer confidential tokens on behalf of another address.
 * **Observer**: An address authorized by the wrapper owner to decrypt the wrapper's encrypted amounts on its behalf. See [Observers](#observers).
+* **Denylist**: The set of addresses barred from wrapping, unwrapping, and transferring. See [Denylist](#denylist).
 * **Owner**: The owner of the wrapper contract. In the FHEVM protocol, this is initially set to the Protocol DAO governance (see [governance.md](governance.md)). Ownership will then be transferred to the underlying token's owner.
 * **Registry**: The registry contract that maps ERC-20 tokens to their corresponding confidential wrappers. More information [here](wrapper-registry.md).
 * **ACL**: The Access Control List (ACL) contract that manages the permissions for encrypted amounts. More information in the [FHEVM library documentation](https://docs.zama.org/protocol/protocol/overview/library#access-control).
@@ -326,6 +327,60 @@ bool isAuthorized = wrapper.isOperator(holder, spender);
 For moving tokens into a contract that reacts to the transfer, prefer `confidentialTransferAndCall` (see [Transfer with callback](#transfer-with-callback)) over the operator pattern: it delivers the tokens and notifies the recipient in a single transaction without a standing operator allowance.
 {% endhint %}
 
+### Denylist
+
+The wrapper refuses to move tokens for a denied address. Two independent sources are consulted, and each has its own view function:
+
+| Source | View function | Managed by |
+| --- | --- | --- |
+| The wrapper's own denylist | `isBlocked(user)` | The wrapper owner, via `blockUser` / `unblockUser` |
+| The underlying token's denylist | `isBlockedOnUnderlying(user)` | The underlying token issuer |
+
+```solidity
+// Denied by the wrapper itself
+bool blocked = wrapper.isBlocked(user);
+
+// Denied by the underlying token (e.g. USDT's `getBlackListStatus`)
+bool blockedOnUnderlying = wrapper.isBlockedOnUnderlying(user);
+```
+
+{% hint style="warning" %}
+### **Check both**
+
+The two are independent: an address that is clear on one can still be denied by the other. An integrator that wants to know whether an address can currently transact must check both, since either one is enough to make an operation revert.
+{% endhint %}
+
+#### `isBlocked`
+
+Reads the wrapper-local denylist only. It is a plain storage read: it never calls the underlying token and never reverts.
+
+#### `isBlockedOnUnderlying`
+
+Forwards the query to the underlying token using the configured deny-list selector, and returns `false` when:
+
+* the underlying deny-list check is disabled, or
+* `user` is the zero address, which is exempt so that mints and burns remain possible.
+
+Whether the check is enabled, and which selector is used, can be read with:
+
+```solidity
+(bool isSet, bytes4 selector) = wrapper.getUnderlyingDenyListSelector();
+```
+
+Only the owner can change this configuration, via `setUnderlyingDenyListSelector(isSet, selector)`.
+
+{% hint style="info" %}
+### **`isBlockedOnUnderlying` can revert**
+
+Unlike `isBlocked`, this function performs a `staticcall` on the underlying token when the check is enabled. It reverts with `UnderlyingDenyListCallFailed` if that call fails, and with `InvalidUnderlyingDenyListResponse` if the returned data is not a 32-byte value. Callers that treat it as an infallible view should handle these cases.
+{% endhint %}
+
+#### Enforcement
+
+Both sources are enforced together on every path that moves tokens: `wrap`, the ERC-1363 `onTransferReceived` callback, confidential transfers, `unwrap`, and `finalizeUnwrap`. The checked parties include the sender, the recipient, and the operator when a transfer is made on behalf of another address. `finalizeUnwrap` re-checks the holder, the operator, and the receiver from the original `unwrap` request, so an address that becomes denied between the two steps cannot complete its unwrap.
+
+A denied address causes the operation to revert with `BlockedUser(user)` when it is on the wrapper-local denylist, or `UnderlyingDenyListedAddress(user)` when it is denied by the underlying token.
+
 ### Observers
 
 An **observer** is an address that the wrapper owner authorizes to decrypt encrypted amounts on behalf of the wrapper contract. This can be used to meet a reporting or compliance obligation, for example.
@@ -468,6 +523,10 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
 | `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing non-existent unwrap request     |
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
+| `BlockedUser(user)`                                     | Address is on the wrapper-local denylist   |
+| `UnderlyingDenyListedAddress(user)`                     | Address is denied by the underlying token  |
+| `UnderlyingDenyListCallFailed()`                        | The deny-list `staticcall` on the underlying token failed |
+| `InvalidUnderlyingDenyListResponse()`                   | The underlying deny-list call did not return a 32-byte value |
 | `InvalidObserver(observer)`                             | Observer is the zero address, the wrapper itself, or `WILDCARD_CONTRACT` |
 | `ObserverAlreadyConfigured(observer)`                   | Adding an address that is already an observer |
 | `ObserverNotConfigured(observer)`                       | Removing or renouncing an address that is not an observer |
