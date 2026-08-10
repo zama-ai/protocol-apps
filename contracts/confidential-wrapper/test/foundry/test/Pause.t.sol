@@ -48,7 +48,7 @@ contract PauseTest is BaseForkTest {
             address owner = _wrapperOwner(w);
             address pauser = makeAddr(string.concat("pauser-", sym));
 
-            (bool hasSelectorBefore, bytes4 selectorBefore) = _wrapper(w).getUnderlyingDenyListSelector();
+            bytes4 selectorBefore = _wrapper(w).getUnderlyingDenyListSelector();
             bytes32 slotBefore = vm.load(w, _v3PauserSlot());
 
             vm.prank(owner);
@@ -57,15 +57,17 @@ contract PauseTest is BaseForkTest {
             _wrapper(w).setPauser(pauser);
             assertEq(_wrapper(w).pauser(), pauser, string.concat(sym, ": pauser not set"));
 
-            // The pauser packs above the deny-list selector and flag in the same word.
+            // The pauser packs above the deny-list selector and the legacy flag in the same word.
             assertEq(
                 vm.load(w, _v3PauserSlot()),
                 slotBefore | bytes32(uint256(uint160(pauser)) << 40),
                 string.concat(sym, ": pauser did not pack above the deny-list config")
             );
-            (bool hasSelectorAfter, bytes4 selectorAfter) = _wrapper(w).getUnderlyingDenyListSelector();
-            assertEq(hasSelectorAfter, hasSelectorBefore, string.concat(sym, ": deny-list flag clobbered"));
-            assertEq(selectorAfter, selectorBefore, string.concat(sym, ": deny-list selector clobbered"));
+            assertEq(
+                _wrapper(w).getUnderlyingDenyListSelector(),
+                selectorBefore,
+                string.concat(sym, ": deny-list selector clobbered")
+            );
 
             vm.prank(pauser);
             _wrapper(w).pause();

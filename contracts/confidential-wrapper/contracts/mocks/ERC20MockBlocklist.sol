@@ -94,8 +94,8 @@ contract ERC20MockRevertingDenyList is ERC20Mock {
 }
 
 /// @dev Underlying whose deny-list check answers on selector 0x00000000, exercised via the
-///      fallback. Proves (selector = 0x00000000, isSet = true) is a legal, active configuration:
-///      a mined zero selector is treated as an ordinary selector, not as "check disabled".
+///      fallback. Pins the wrapper's documented limitation: 0x00000000 always reads as "check
+///      disabled", so such an underlying is never queried even though it would answer.
 contract ERC20MockZeroSelector is ERC20Mock {
     mapping(address => bool) private _denyListed;
 

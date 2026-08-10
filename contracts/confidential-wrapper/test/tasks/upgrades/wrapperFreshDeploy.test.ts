@@ -36,7 +36,6 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         owner: this.owner,
         blockedUsers: blockedAddresses,
         underlyingDenyListSelector: SELECTOR_CUSDC,
-        hasUnderlyingDenyListSelector: true,
         initialObservers,
       });
 
@@ -51,9 +50,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       for (const address of blockedAddresses) {
         expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
       }
-      const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-      expect(isSet).to.be.true;
-      expect(selector).to.equal(SELECTOR_CUSDC);
+      expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
       expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
       // Pausing starts unset and unpaused; the owner arms it with setPauser
@@ -69,17 +66,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       await expect(
         wrapper
           .connect(this.deployer)
-          .initialize(
-            'test',
-            'TEST',
-            'uri',
-            this.underlyingAddress,
-            this.deployer.address,
-            [],
-            '0x00000000',
-            false,
-            [],
-          ),
+          .initialize('test', 'TEST', 'uri', this.underlyingAddress, this.deployer.address, [], '0x00000000', []),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });

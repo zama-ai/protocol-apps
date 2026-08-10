@@ -15,7 +15,6 @@ type DeployConfidentialWrapperOptions = {
   owner?: string;
   blockedUsers?: string[];
   underlyingDenyListSelector?: string;
-  hasUnderlyingDenyListSelector?: boolean;
   initialObservers?: string[];
 };
 
@@ -28,24 +27,13 @@ export async function deployConfidentialWrapper(
     owner = DEFAULT_WRAPPER_OWNER,
     blockedUsers = [],
     underlyingDenyListSelector = '0x00000000',
-    hasUnderlyingDenyListSelector = false,
     initialObservers = [],
   }: DeployConfidentialWrapperOptions = {},
 ) {
   const factory = await ethers.getContractFactory(CONTRACT_NAME);
   const proxy = await upgrades.deployProxy(
     factory,
-    [
-      name,
-      symbol,
-      contractUri,
-      token,
-      owner,
-      blockedUsers,
-      underlyingDenyListSelector,
-      hasUnderlyingDenyListSelector,
-      initialObservers,
-    ],
+    [name, symbol, contractUri, token, owner, blockedUsers, underlyingDenyListSelector, initialObservers],
     { initializer: 'initialize', kind: 'uups' },
   );
   await proxy.waitForDeployment();

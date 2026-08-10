@@ -39,6 +39,11 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_NAME_{i}` | Name of the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` | Version label appended to the saved implementation artifact (e.g. `v2`), shared for all wrappers in the batch upgrade/verify tasks |
 
+> **Underlying deny-list configuration:** the selector alone carries enablement.
+> Consumers of `getUnderlyingDenyListSelector` determine enablement with `selector != 0`. A deny-list
+> getter whose selector is genuinely `0x00000000` can exist in theory but is indistinguishable from
+> "disabled" here, so the wrapper does not support one.
+
 ## Hardhat Tasks
 
 ### `task:deployConfidentialWrapper`
@@ -55,8 +60,7 @@ Deploy a single confidential wrapper contract.
 | `--underlying` | `string` | Yes | The address of the underlying ERC20 token to wrap |
 | `--owner` | `string` | Yes | The address that will own the deployed wrapper contract |
 | `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initialize` |
-| `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist |
-| `--has-underlying-deny-list-selector` | `boolean` | Yes | Whether the underlying token denylist selector should be enabled |
+| `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist; `0x00000000` disables the check |
 | `--initial-observers` | `json` | No | JSON array of observer addresses to seed during `initialize` |
 
 **Example:**
@@ -70,7 +74,6 @@ npx hardhat task:deployConfidentialWrapper \
   --owner 0x9876543210987654321098765432109876543210 \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x00000000 \
-  --has-underlying-deny-list-selector false \
   --initial-observers '[]' \
   --network testnet
 ```
@@ -84,22 +87,8 @@ Each wrapper must also provide the V3 initializer configuration:
 | Variable | Description |
 | --- | --- |
 | `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
-| `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist |
-| `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Whether the underlying token denylist check is enabled |
+| `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist; `0x00000000` disables the check |
 | `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
-
-> **Underlying deny-list configuration:** Only
-> three `(selector, isSet)` pairs are legal; any `(non-zero selector, isSet = false)` reverts at
-> deploy/set time (`NonZeroSelectorRequiresIsSet`):
->
-> | `selector` | `isSet` | Meaning |
-> | --- | --- | --- |
-> | `0x00000000` | `false` | Check disabled |
-> | `0x00000000` | `true` | Check enabled against a zero selector |
-> | non-zero | `true` | Check enabled against that selector |
->
-> Enablement is carried **only** by `isSet`. Consumers of `getUnderlyingDenyListSelector` must read
-> the returned `isSet` bool and never infer enablement from `selector != 0`.
 
 **Parameters:** None (configuration is read from environment variables).
 

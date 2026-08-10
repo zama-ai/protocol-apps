@@ -14,7 +14,7 @@ Before starting, collect the following for each wrapper being deployed:
 | --- | --- |
 | Underlying ERC-20 address | Token issuer / public documentation |
 | Owner address for target chain (Protocol DAO) | [Addresses directory](https://github.com/zama-ai/protocol-apps/tree/main/docs/addresses) |
-| Denylist function selector (`bytes4`) | Underlying token contract ABI. Use `0x00000000` and `false` if the underlying has no denylist |
+| Denylist function selector (`bytes4`) | Underlying token contract ABI. Use `0x00000000` if the underlying has no denylist |
 | Initial blocked-users list (JSON array) | Compliance / legal. Use `'[]'` if none |
 | Initial observers list (JSON array) | Addresses authorized to decrypt confidential amounts on behalf of the wrapper. Use `'[]'` if none. See the observer scope warning below |
 | Contract URI JSON metadata | Follow the pattern `data:application/json;utf8,{"name":"...","symbol":"...","description":"..."}` |
@@ -100,21 +100,15 @@ CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}=
 # Ethereum mainnet DAO address
 CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3"   
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
-CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, must match the underlying token
-CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_{i}=  # true | false (enables the check)
+CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, must match the underlying token; 0x00000000 disables the check
 CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Required — set '[]' for none
 ```
 
 > ⚠️ **`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` is required.** It must be set explicitly — use `'[]'` when there are no observers. Observers can decrypt every confidential amount the wrapper processes (balances, total supply, and individual transfer/wrap/unwrap amounts), so seed them deliberately. Because `initialize` cannot be re-run at the same version, observers omitted at deployment can only be added afterwards through separate `addObserver` governance calls.
 
-> **The selector and flag are not independent.** Only three `(selector, has)` pairs are legal; any
-> `(non-zero selector, has = false)` reverts at deploy time (`NonZeroSelectorRequiresIsSet`):
->
-> | `selector` | `has` | Meaning |
-> | --- | --- | --- |
-> | `0x00000000` | `false` | Check disabled |
-> | `0x00000000` | `true` | Check enabled against a zero selector |
-> | non-zero | `true` | Check enabled against that selector |
+> **The selector alone carries enablement.**
+> A deny-list getter whose selector is genuinely `0x00000000` can exist in theory but is
+> indistinguishable from "disabled" here, so the wrapper does not support one.
 
 > **The selector is token-specific — confirm it against the underlying before deploying.** Each
 > deny-listing token names its getter differently (USDT `getBlackListStatus(address)`, USDC
@@ -143,7 +137,6 @@ npx hardhat task:deployConfidentialWrapper \
   --owner 0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3 \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x59bf1abe \
-  --has-underlying-deny-list-selector true \
   --network mainnet
 ```
 

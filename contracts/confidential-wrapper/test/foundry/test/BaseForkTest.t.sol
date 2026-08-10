@@ -10,6 +10,19 @@ import {ConfidentialWrapper} from "confidential-wrapper/ConfidentialWrapper.sol"
 import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrappersRegistry.sol";
 
 /**
+ * @notice The live implementation's deny-list getter, which returned the selector alongside the
+ * since-removed `isSet` flag.
+ * @dev Dropping `isSet` left the function name and arguments untouched, so both ABIs share selector
+ * `0x6aaafe4e`. A pre-upgrade call therefore succeeds but returns two words; decoding that through
+ * the current one-word ABI reads the `bool` word and reverts in the `bytes4` validator whenever the
+ * check is enabled. {BaseForkTest._snapshotPreUpgrade} reads live proxies before the impl swap, so
+ * it must use this shape.
+ */
+interface ILegacyUnderlyingDenyList {
+    function getUnderlyingDenyListSelector() external view returns (bool isSet, bytes4 selector);
+}
+
+/**
  * @title BaseForkTest
  * @notice Shared harness for mainnet-fork tests over the live Confidential Wrappers.
  *
@@ -79,10 +92,9 @@ abstract contract BaseForkTest is FhevmTest {
         bytes32[6] erc7984Slots;
         // wrapper: [_underlying+_decimals packed, _rate, _unwrapRequests base].
         bytes32[3] wrapperSlots;
-        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool + _pauser,
+        // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + legacy bool + _pauser,
         //      _observers values-array length, _observers positions base].
         bytes32[5] v3Slots;
-        bool hasUnderlyingDenyListSelector;
         bytes4 underlyingDenyListSelector;
         address blockedUser;
         // A pending unwrap request seeded into `_unwrapRequests` before the upgrade (see
@@ -203,7 +215,8 @@ abstract contract BaseForkTest is FhevmTest {
         $.owner = _wrapperOwner(w);
         $.maxTotalSupply = cw.maxTotalSupply();
         $.implementation = _implementationOf(w);
-        ($.hasUnderlyingDenyListSelector, $.underlyingDenyListSelector) = cw.getUnderlyingDenyListSelector();
+        // Read through the legacy two-word ABI: this runs before the impl swap.
+        (, $.underlyingDenyListSelector) = ILegacyUnderlyingDenyList(w).getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
             $.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
         }
@@ -240,8 +253,9 @@ abstract contract BaseForkTest is FhevmTest {
         return keccak256(abi.encode(requestId, uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 1));
     }
 
-    /// @notice Word holding `_underlyingDenyListSelector` (offset 0), `_hasUnderlyingDenyListSelector`
-    /// (offset 4) and `_pauser` (offset 5), which share one packed slot.
+    /// @notice Word holding `_underlyingDenyListSelector` (offset 0), the deprecated
+    /// `_hasUnderlyingDenyListSelectorDeprecated` flag (offset 4) and `_pauser` (offset 5),
+    /// which share one packed slot.
     function _v3PauserSlot() internal pure returns (bytes32) {
         return bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 2);
     }

@@ -14,11 +14,10 @@ const SELECTOR_CUSDT = '0x59bf1abe';
 const SELECTOR_TGBP = '0x97f735d5';
 const SELECTOR_XAUT = '0xfbac3951';
 
-async function deployV3(token: string, selector = '0x00000000', hasSelector = false, blockedUsers: string[] = []) {
+async function deployV3(token: string, selector = '0x00000000', blockedUsers: string[] = []) {
   return deployConfidentialWrapper(token, {
     blockedUsers,
     underlyingDenyListSelector: selector,
-    hasUnderlyingDenyListSelector: hasSelector,
   });
 }
 
@@ -114,7 +113,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     it('blocks addresses passed in the blockedUsers array', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
-      const wrapper = await deployV3(token.target as string, '0x00000000', false, seeds);
+      const wrapper = await deployV3(token.target as string, '0x00000000', seeds);
       expect(await wrapper.isBlockedOnWrapper(seeds[0])).to.be.true;
       expect(await wrapper.isBlockedOnWrapper(seeds[1])).to.be.true;
       expect(await wrapper.isBlockedOnWrapper(BLOCKED_ADDRESSES[2])).to.be.false;
@@ -123,7 +122,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     it('emits UserBlocked events for seeded addresses during initialize', async function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const seeds = [BLOCKED_ADDRESSES[0], BLOCKED_ADDRESSES[1]];
-      const wrapper = await deployV3(token.target as string, '0x00000000', false, seeds);
+      const wrapper = await deployV3(token.target as string, '0x00000000', seeds);
       const events = await wrapper.queryFilter(wrapper.filters.UserBlocked());
       expect(events.length).to.equal(seeds.length);
       expect(events[0].args[0]).to.equal(seeds[0]);
@@ -134,7 +133,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       const token = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
       const factory = await ethers.getContractFactory('ConfidentialWrapper');
       const dup = BLOCKED_ADDRESSES[0];
-      await expect(deployV3(token.target as string, '0x00000000', false, [dup, dup]))
+      await expect(deployV3(token.target as string, '0x00000000', [dup, dup]))
         .to.be.revertedWithCustomError(factory, 'UserAlreadyBlocked')
         .withArgs(dup);
     });
@@ -736,7 +735,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       token = await ethers.deployContract('ERC20MockCUSDC');
-      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -761,7 +760,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       token = await ethers.deployContract('ERC20MockCUSDT');
-      wrapper = await deployV3(token.target as string, SELECTOR_CUSDT, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_CUSDT);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -786,7 +785,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       token = await ethers.deployContract('ERC20MockTGBP');
-      wrapper = await deployV3(token.target as string, SELECTOR_TGBP, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_TGBP);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -811,7 +810,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       token = await ethers.deployContract('ERC20MockXAUt');
-      wrapper = await deployV3(token.target as string, SELECTOR_XAUT, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_XAUT);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -828,30 +827,35 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
-  describe('Underlying DenyList — zero selector (0x00000000) is a valid, active selector', function () {
+  describe('Underlying DenyList — zero selector (0x00000000) means disabled, never dispatched', function () {
     let wrapper: any;
     let holder: HardhatEthersSigner;
     let token: any;
 
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
+      // This underlying does answer a deny-list query on selector 0x00000000 (via its fallback),
+      // which the wrapper deliberately does not support: 0x00000000 always reads as "check off".
       token = await ethers.deployContract('ERC20MockZeroSelector');
-      // (selector = 0x00000000, isSet = true): a mined zero selector is an ordinary selector,
-      // enablement comes from the bool — never from selector != 0.
-      wrapper = await deployV3(token.target as string, '0x00000000', true);
+      wrapper = await deployV3(token.target as string, '0x00000000');
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
 
-    it('dispatches to selector 0x00000000 and allows wrap when address is not deny-listed', async function () {
+    it('reports the check as disabled', async function () {
+      expect(await wrapper.getUnderlyingDenyListSelector()).to.equal('0x00000000');
+    });
+
+    it('allows wrap even though the underlying would answer 0x00000000 with deny-listed = true', async function () {
+      await token.setDenyListed(holder.address, true);
       await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).not.to.be.reverted;
     });
 
-    it('dispatches to selector 0x00000000 and reverts wrap when address is deny-listed', async function () {
-      await token.setDenyListed(holder.address, true);
-      await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)))
-        .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListedAddress')
-        .withArgs(holder.address);
+    it('cannot be re-enabled on the zero selector through the setter', async function () {
+      const ownerSigner = await ethers.getSigner(owner);
+      await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector('0x00000000'))
+        .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListSelectorAlreadySet')
+        .withArgs('0x00000000');
     });
   });
 
@@ -864,7 +868,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
-      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -883,7 +887,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder] = await ethers.getSigners();
       const token: any = await ethers.deployContract('ERC20MockInvalidDenyList');
-      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
     });
@@ -899,7 +903,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     it('reverts wrap when configured selector does not exist on the underlying token', async function () {
       const [holder] = await ethers.getSigners();
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, '0xdeadbeef', true);
+      const wrapper = await deployV3(token.target as string, '0xdeadbeef');
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await expect(
@@ -908,11 +912,11 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     });
   });
 
-  describe('Underlying DenyList — hasSelector = false bypasses underlying check', function () {
+  describe('Underlying DenyList — unset selector bypasses underlying check', function () {
     it('allows wrap even when underlying would return blacklisted = true', async function () {
       const [holder] = await ethers.getSigners();
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      const wrapper = await deployV3(token.target as string, '0x00000000');
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await token.setDenyListed(holder.address, true);
@@ -925,7 +929,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       const [holder] = await ethers.getSigners();
       const ownerSigner = await ethers.getSigner(owner);
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await wrapper.connect(ownerSigner).blockUser(holder.address);
@@ -952,7 +956,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('agrees with wrap for an address denied only by the underlying', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
 
@@ -972,7 +976,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('is independent of the wrapper-local denylist', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await wrapper.connect(ownerSigner).blockUser(holder.address);
 
       expect(await wrapper.isBlockedOnWrapper(holder.address)).to.be.true;
@@ -981,7 +985,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('returns false when the underlying check is disabled', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      const wrapper = await deployV3(token.target as string, '0x00000000');
       await token.setDenyListed(holder.address, true);
 
       expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
@@ -989,25 +993,25 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('returns false for the zero address, matching the mint and burn exemption', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
 
       expect(await wrapper.isBlockedOnUnderlying(ethers.ZeroAddress)).to.be.false;
     });
 
     it('tracks a selector change made through setUnderlyingDenyListSelector', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDT');
-      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      const wrapper = await deployV3(token.target as string, '0x00000000');
       await token.setDenyListed(holder.address, true);
 
       expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.false;
 
-      await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDT);
+      await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDT);
       expect(await wrapper.isBlockedOnUnderlying(holder.address)).to.be.true;
     });
 
     it('reverts with UnderlyingDenyListCallFailed when the underlying call reverts', async function () {
       const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
 
       await expect(wrapper.isBlockedOnUnderlying(holder.address)).to.be.revertedWithCustomError(
         wrapper,
@@ -1017,7 +1021,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('reverts with InvalidUnderlyingDenyListResponse when the underlying returns wrong-length data', async function () {
       const token: any = await ethers.deployContract('ERC20MockInvalidDenyList');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
 
       await expect(wrapper.isBlockedOnUnderlying(holder.address)).to.be.revertedWithCustomError(
         wrapper,
@@ -1039,14 +1043,14 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('returns false when neither source denies the address', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
 
       expect(await wrapper.isBlocked(holder.address)).to.be.false;
     });
 
     it('returns true when only the wrapper-local denylist denies the address', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await wrapper.connect(ownerSigner).blockUser(holder.address);
 
       expect(await wrapper.isBlockedOnWrapper(holder.address)).to.be.true;
@@ -1056,7 +1060,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('returns true when only the underlying denies the address', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.setDenyListed(holder.address, true);
 
       expect(await wrapper.isBlockedOnWrapper(holder.address)).to.be.false;
@@ -1066,7 +1070,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('returns true when both sources deny the address', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await wrapper.connect(ownerSigner).blockUser(holder.address);
       await token.setDenyListed(holder.address, true);
 
@@ -1075,18 +1079,18 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('ignores the underlying source when the check is disabled', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, '0x00000000', false);
+      const wrapper = await deployV3(token.target as string, '0x00000000');
       await token.setDenyListed(holder.address, true);
 
       expect(await wrapper.isBlocked(holder.address)).to.be.false;
 
-      await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
+      await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC);
       expect(await wrapper.isBlocked(holder.address)).to.be.true;
     });
 
     it('returns false for the zero address, matching the mint and burn exemption', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.setDenyListed(ethers.ZeroAddress, true);
 
       expect(await wrapper.isBlocked(ethers.ZeroAddress)).to.be.false;
@@ -1094,7 +1098,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('reverts with UnderlyingDenyListCallFailed when the underlying call reverts', async function () {
       const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
 
       await expect(wrapper.isBlocked(holder.address)).to.be.revertedWithCustomError(
         wrapper,
@@ -1104,7 +1108,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('short-circuits the underlying call when the wrapper-local denylist already denies', async function () {
       const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await wrapper.connect(ownerSigner).blockUser(holder.address);
 
       // the underlying mock getter reverts for every address, so a true result here can only come
@@ -1114,7 +1118,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
     it('agrees with enforcement for an address denied only by the underlying', async function () {
       const token: any = await ethers.deployContract('ERC20MockCUSDC');
-      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('100', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await token.setDenyListed(holder.address, true);
@@ -1137,7 +1141,7 @@ describe('ConfidentialWrapperV3 DenyList', function () {
     beforeEach(async function () {
       [holder, recipient] = await ethers.getSigners();
       token = await ethers.deployContract('ERC20MockCUSDC');
-      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
+      wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
       await token.mint(holder.address, ethers.parseUnits('1000', 6));
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
       await wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6));
@@ -1213,20 +1217,16 @@ describe('ConfidentialWrapperV3 DenyList', function () {
 
   describe('Underlying DenyList — Admin', function () {
     describe('getUnderlyingDenyListSelector', function () {
-      it('returns (true, selector) when a selector is configured', async function () {
+      it('returns the selector when one is configured', async function () {
         const token: any = await ethers.deployContract('ERC20MockCUSDC');
-        const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC, true);
-        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-        expect(isSet).to.be.true;
-        expect(selector).to.equal(SELECTOR_CUSDC);
+        const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
+        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
       });
 
-      it('returns (false, 0x00000000) when no selector is configured', async function () {
+      it('returns 0x00000000 when no selector is configured', async function () {
         const token: any = await ethers.deployContract('$ERC20Mock', ['Mock', 'MOCK', 6]);
         const wrapper = await deployV3(token.target as string);
-        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-        expect(isSet).to.be.false;
-        expect(selector).to.equal('0x00000000');
+        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal('0x00000000');
       });
     });
 
@@ -1247,54 +1247,53 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       });
 
       it('activates the underlying check and emits UnderlyingDenyListSelectorUpdated', async function () {
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC))
           .to.emit(wrapper, 'UnderlyingDenyListSelectorUpdated')
-          .withArgs(SELECTOR_CUSDC, true);
+          .withArgs(SELECTOR_CUSDC);
 
-        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-        expect(isSet).to.be.true;
-        expect(selector).to.equal(SELECTOR_CUSDC);
+        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
       });
 
       it('blocking is enforced after activating the underlying check', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC);
         await token.setDenyListed(holder.address, true);
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)))
           .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListedAddress')
           .withArgs(holder.address);
       });
 
-      it('deactivates the underlying check by setting a zero selector with isSet false', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
+      it('deactivates the underlying check by setting the zero selector', async function () {
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC);
         await token.setDenyListed(holder.address, true);
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).to.be.reverted;
 
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(false, '0x00000000');
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector('0x00000000'))
+          .to.emit(wrapper, 'UnderlyingDenyListSelectorUpdated')
+          .withArgs('0x00000000');
+        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal('0x00000000');
         await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).not.to.be.reverted;
       });
 
-      it('reverts with NonZeroSelectorRequiresIsSet when a non-zero selector is paired with isSet false', async function () {
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(false, SELECTOR_CUSDC))
-          .to.be.revertedWithCustomError(wrapper, 'NonZeroSelectorRequiresIsSet')
+      it('reverts with UnderlyingDenyListSelectorAlreadySet when the same selector is re-sent', async function () {
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC);
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDC))
+          .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListSelectorAlreadySet')
           .withArgs(SELECTOR_CUSDC);
       });
 
-      it('reverts with UnderlyingDenyListSelectorAlreadySet when the same (selector, isSet) pair is re-sent', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC);
-        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
+      it('reverts with UnderlyingDenyListSelectorAlreadySet when disabling an already-disabled check', async function () {
+        await expect(wrapper.connect(ownerSigner).setUnderlyingDenyListSelector('0x00000000'))
           .to.be.revertedWithCustomError(wrapper, 'UnderlyingDenyListSelectorAlreadySet')
-          .withArgs(SELECTOR_CUSDC, true);
+          .withArgs('0x00000000');
       });
 
       it('changes the selector to a different one', async function () {
-        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(true, SELECTOR_CUSDT);
-        const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-        expect(isSet).to.be.true;
-        expect(selector).to.equal(SELECTOR_CUSDT);
+        await wrapper.connect(ownerSigner).setUnderlyingDenyListSelector(SELECTOR_CUSDT);
+        expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDT);
       });
 
       it('reverts for non-owner', async function () {
-        await expect(wrapper.connect(outsider).setUnderlyingDenyListSelector(true, SELECTOR_CUSDC))
+        await expect(wrapper.connect(outsider).setUnderlyingDenyListSelector(SELECTOR_CUSDC))
           .to.be.revertedWithCustomError(wrapper, 'OwnableUnauthorizedAccount')
           .withArgs(outsider.address);
       });

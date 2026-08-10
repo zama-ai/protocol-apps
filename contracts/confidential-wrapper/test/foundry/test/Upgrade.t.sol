@@ -28,15 +28,8 @@ contract UpgradeTest is BaseForkTest {
             assertEq(wrapper.rate(), $.rate, string.concat(sym, ": rate changed"));
             assertEq(_wrapperOwner(proxy), $.owner, string.concat(sym, ": owner changed"));
             assertEq(wrapper.maxTotalSupply(), $.maxTotalSupply, string.concat(sym, ": maxTotalSupply changed"));
-            (bool hasUnderlyingDenyListSelector, bytes4 underlyingDenyListSelector) = wrapper
-                .getUnderlyingDenyListSelector();
             assertEq(
-                hasUnderlyingDenyListSelector,
-                $.hasUnderlyingDenyListSelector,
-                string.concat(sym, ": underlying deny-list flag changed")
-            );
-            assertEq(
-                underlyingDenyListSelector,
+                wrapper.getUnderlyingDenyListSelector(),
                 $.underlyingDenyListSelector,
                 string.concat(sym, ": underlying deny-list selector changed")
             );
@@ -53,7 +46,7 @@ contract UpgradeTest is BaseForkTest {
             //   ERC7984 (6 words): _balances base, _operators base, _totalSupply handle, _name,
             //                      _symbol, _contractURI.
             //   wrapper (3 words): _underlying+_decimals (packed), _rate, _unwrapRequests base.
-            //   V3 (5 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + bool
+            //   V3 (5 words): _blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + legacy bool
             //                 + _pauser (one packed word), and the two _observers words. Covering the
             //                 observer set pins its offset: a field inserted above it would shift it
             //                 without touching the words below.
@@ -143,7 +136,7 @@ contract UpgradeTest is BaseForkTest {
             _wrapper(proxy).reinitializeV4(empty);
 
             vm.expectRevert(Initializable.InvalidInitialization.selector);
-            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), false, empty);
+            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), empty);
         }
     }
 

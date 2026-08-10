@@ -27,7 +27,6 @@ type ConfidentialWrapperInitConfig = {
   owner: string;
   blockedUsers: string[];
   underlyingDenyListSelector: string;
-  hasUnderlyingDenyListSelector: boolean;
   initialObservers: string[];
 };
 
@@ -35,45 +34,19 @@ function getRequiredJsonEnvVar<T>(name: string): T {
   return JSON.parse(getRequiredEnvVar(name)) as T;
 }
 
-function getRequiredBooleanEnvVar(name: string): boolean {
-  const value = getRequiredEnvVar(name);
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  throw new Error(`${name} must be either "true" or "false"`);
-}
-
 // Deploy a confidential wrapper contract as a function
 async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConfig, hre: HardhatRuntimeEnvironment) {
   const { ethers, upgrades, deployments, getNamedAccounts } = hre;
   const { save, getArtifact } = deployments;
   const { deployer } = await getNamedAccounts();
-  const {
-    name,
-    symbol,
-    contractUri,
-    underlying,
-    owner,
-    blockedUsers,
-    underlyingDenyListSelector,
-    hasUnderlyingDenyListSelector,
-    initialObservers,
-  } = initConfig;
+  const { name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers } =
+    initConfig;
 
   // Deploy the proxy contract
   const confidentialWrapperFactory = await ethers.getContractFactory(CONTRACT_NAME);
   const proxy = await upgrades.deployProxy(
     confidentialWrapperFactory,
-    [
-      name,
-      symbol,
-      contractUri,
-      underlying,
-      owner,
-      blockedUsers,
-      underlyingDenyListSelector,
-      hasUnderlyingDenyListSelector,
-      initialObservers,
-    ],
+    [name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers],
     { initializer: 'initialize', kind: 'uups' },
   );
 
@@ -112,7 +85,6 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
 // --owner "0x1234567890123456789012345678901234567890" \
 // --blocked-users '["0x1111111111111111111111111111111111111111"]' \
 // --underlying-deny-list-selector "0xfe575a87" \
-// --has-underlying-deny-list-selector true \
 // --network testnet
 task('task:deployConfidentialWrapper')
   .addParam('name', 'The name of the confidential wrapper contract to deploy', undefined, types.string)
@@ -133,29 +105,13 @@ task('task:deployConfidentialWrapper')
   )
   .addParam(
     'underlyingDenyListSelector',
-    'Function selector used to query the underlying token denylist',
+    'Function selector used to query the underlying token denylist; 0x00000000 disables the check',
     undefined,
     types.string,
   )
-  .addParam(
-    'hasUnderlyingDenyListSelector',
-    'Whether the underlying token denylist selector should be enabled',
-    undefined,
-    types.boolean,
-  )
   .addOptionalParam('initialObservers', 'JSON array of observer addresses to seed during initialize', [], types.json)
   .setAction(async function (
-    {
-      name,
-      symbol,
-      contractUri,
-      underlying,
-      owner,
-      blockedUsers,
-      underlyingDenyListSelector,
-      hasUnderlyingDenyListSelector,
-      initialObservers,
-    },
+    { name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers },
     hre,
   ) {
     await deployConfidentialWrapper(
@@ -167,7 +123,6 @@ task('task:deployConfidentialWrapper')
         owner,
         blockedUsers,
         underlyingDenyListSelector,
-        hasUnderlyingDenyListSelector,
         initialObservers,
       },
       hre,
@@ -192,9 +147,6 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const owner = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_${i}`);
     const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
     const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
-    const hasUnderlyingDenyListSelector = getRequiredBooleanEnvVar(
-      `CONFIDENTIAL_WRAPPER_HAS_UNDERLYING_DENY_LIST_SELECTOR_${i}`,
-    );
     const initialObservers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`);
 
     await hre.run('task:deployConfidentialWrapper', {
@@ -205,7 +157,6 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
       owner,
       blockedUsers,
       underlyingDenyListSelector,
-      hasUnderlyingDenyListSelector,
       initialObservers,
     });
   }

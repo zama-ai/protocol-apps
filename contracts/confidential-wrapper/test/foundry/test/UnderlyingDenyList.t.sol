@@ -25,8 +25,8 @@ contract UnderlyingDenyListTest is BaseForkTest {
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
             string memory sym = _label(w);
-            (bool isSet, bytes4 selector) = _wrapper(w).getUnderlyingDenyListSelector();
-            if (!isSet) continue;
+            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
+            if (selector == bytes4(0)) continue;
 
             configured++;
             address token = _wrapper(w).underlying();
@@ -178,8 +178,8 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
-            (bool isSet, bytes4 getter) = _wrapper(w).getUnderlyingDenyListSelector();
-            if (!isSet) continue;
+            bytes4 getter = _wrapper(w).getUnderlyingDenyListSelector();
+            if (getter == bytes4(0)) continue;
 
             address token = _wrapper(w).underlying();
             UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(token);
@@ -215,8 +215,8 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
-            (bool isSet, bytes4 selector) = _wrapper(w).getUnderlyingDenyListSelector();
-            if (!isSet) continue;
+            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
+            if (selector == bytes4(0)) continue;
             address token = _wrapper(w).underlying();
 
             if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
@@ -365,9 +365,8 @@ contract UnderlyingDenyListTest is BaseForkTest {
     function _configuredDenyListCase(
         address w
     ) internal view returns (address wrapper, bytes4 selector, address token, address denied) {
-        bool isSet;
-        (isSet, selector) = _wrapper(w).getUnderlyingDenyListSelector();
-        if (!isSet) return (address(0), bytes4(0), address(0), address(0));
+        selector = _wrapper(w).getUnderlyingDenyListSelector();
+        if (selector == bytes4(0)) return (address(0), bytes4(0), address(0), address(0));
 
         token = _wrapper(w).underlying();
         denied = _knownBlacklistedAddress(token);

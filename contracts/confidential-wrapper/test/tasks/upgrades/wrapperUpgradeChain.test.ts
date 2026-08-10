@@ -72,7 +72,6 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     underlyingAddress: string,
     blockedAddresses: string[],
     selector: string,
-    hasSelector: boolean,
     initialObservers: string[],
   ) {
     const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
@@ -87,9 +86,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
     }
 
-    const [isSet, configuredSelector] = await wrapper.getUnderlyingDenyListSelector();
-    expect(isSet).to.equal(hasSelector);
-    expect(configuredSelector).to.equal(selector);
+    expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(selector);
     expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
     // The upgraded proxy carries no pauser and is unpaused; arming it leaves the
@@ -100,9 +97,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       .to.emit(wrapper, 'PauserUpdated')
       .withArgs(outsider.address);
     await expect(wrapper.connect(outsider).pause()).to.emit(wrapper, 'Paused').withArgs(outsider.address);
-    const [isSetAfterPause, selectorAfterPause] = await wrapper.getUnderlyingDenyListSelector();
-    expect(isSetAfterPause).to.equal(hasSelector);
-    expect(selectorAfterPause).to.equal(selector);
+    expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(selector);
     await wrapper.connect(deployerSigner).unpause();
     await wrapper.connect(deployerSigner).setPauser(hre.ethers.ZeroAddress);
 
@@ -148,7 +143,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
     await wrapperV3.connect(deployerSigner).upgradeToAndCall(currentImplAddress, reinitializeV4Data);
 
     expect(await hre.upgrades.erc1967.getImplementationAddress(proxyAddress)).to.equal(currentImplAddress);
-    await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, true, initialObservers);
+    await expectCurrentState(proxyAddress, underlyingAddress, blockedAddresses, SELECTOR_CUSDC, initialObservers);
   });
 
   // reinitializeV4 seeds V4 state only, so an upgrade cannot alter the deny-list config it inherits.
@@ -169,12 +164,51 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
       .upgradeToAndCall(currentImplAddress, currentFactory.interface.encodeFunctionData('reinitializeV4', [[]]));
 
     const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
-    const [isSet, selector] = await wrapper.getUnderlyingDenyListSelector();
-    expect(isSet).to.equal(true);
-    expect(selector).to.equal(SELECTOR_CUSDC);
+    expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
     for (const address of blockedAddresses) {
       expect(await wrapper.isBlockedOnWrapper(address)).to.be.true;
     }
+  });
+
+  // PRO-647: historical V3 accepted (selector = 0x00000000, isSet = true), which made every gated
+  // path staticcall selector 0x00000000 on the underlying and revert. The current implementation
+  // reads enablement off the selector alone, so the stale isSet bit no longer bricks the proxy.
+  it('un-bricks a proxy left at (zero selector, isSet = true) by ignoring the legacy flag', async function () {
+    const underlying = await deployUnderlying();
+    const underlyingAddress = await underlying.getAddress();
+
+    const proxyAddress = await deployHistoricalV3Proxy(underlyingAddress, [], '0x00000000', true);
+
+    // Under the historical implementation the bad pair is live and blocks wrapping.
+    const wrapperV3: any = new hre.ethers.Contract(proxyAddress, oldConfidentialWrapperV3Artifact.abi, deployerSigner);
+    const [isSetBefore, selectorBefore] = await wrapperV3.getUnderlyingDenyListSelector();
+    expect(isSetBefore).to.be.true;
+    expect(selectorBefore).to.equal('0x00000000');
+    await expect(wrapperV3.connect(deployerSigner).wrap(user.address, 1)).to.be.revertedWithCustomError(
+      wrapperV3,
+      'UnderlyingDenyListCallFailed',
+    );
+
+    const currentImplAddress = await deployCurrentImplementation();
+    const currentFactory = await hre.ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
+    await wrapperV3
+      .connect(deployerSigner)
+      .upgradeToAndCall(currentImplAddress, currentFactory.interface.encodeFunctionData('reinitializeV4', [[]]));
+
+    // The legacy isSet bit is still set in storage (offset 4 of the packed V3 word) and is ignored.
+    const V3_STORAGE_LOCATION = '0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00';
+    const packedSlot = hre.ethers.toBeHex(BigInt(V3_STORAGE_LOCATION) + 2n, 32);
+    const packedWord = BigInt(await hre.ethers.provider.getStorage(proxyAddress, packedSlot));
+    expect((packedWord >> 32n) & 0xffn).to.equal(1n);
+
+    const wrapper: any = await hre.ethers.getContractAt(CONTRACT_NAME, proxyAddress);
+    expect(await wrapper.getUnderlyingDenyListSelector()).to.equal('0x00000000');
+    // The gate no longer fires; wrap now gets as far as the underlying transfer (which this
+    // unfunded caller fails), rather than being turned away by the deny-list staticcall.
+    await expect(wrapper.connect(deployerSigner).wrap(user.address, 1)).not.to.be.revertedWithCustomError(
+      wrapper,
+      'UnderlyingDenyListCallFailed',
+    );
   });
 
   // reinitializeV4 is onlyOwner: upgrade the implementation without running it, leaving the V4
