@@ -71,6 +71,8 @@ deny-list tests:
 | `test/WrapperFlows.t.sol` | Per-wrapper wrap, confidential transfer, unwrap/finalize, ERC-1363 receiver path |
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
 | `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
+| `test/Upgrade.t.sol` | Upgrades every live proxy onto the HEAD impl and asserts storage/enablement invariants (see `UPGRADE.md`) |
+| `UPGRADE.md` | Upgrade-process context and gotchas: versioning, storage packing, legacy deny-list flag |
 | `script/utils/resolve-fork.sh` | Resolves the fork target: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
 | `config/fork.json` | Pinned mainnet fork block |
 | `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |

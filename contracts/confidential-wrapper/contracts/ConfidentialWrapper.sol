@@ -47,9 +47,8 @@ contract ConfidentialWrapper is
         /// selector is `0x00000000` can exist in theory, but this contract cannot
         /// distinguish it from "disabled" and therefore does not support it as a deny-list getter.
         bytes4 _underlyingDenyListSelector;
-        /// @dev Deprecated. Nothing reads or writes this field.
-        /// @custom:oz-renamed-from _hasUnderlyingDenyListSelector
-        bool _hasUnderlyingDenyListSelectorDeprecated;
+        /// @dev Deprecated. Nothing reads or writes this slot.
+        bool _deprecated;
         address _pauser;
         EnumerableSet.AddressSet _observers;
     }

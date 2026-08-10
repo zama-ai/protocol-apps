@@ -95,6 +95,8 @@ abstract contract BaseForkTest is FhevmTest {
         // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + legacy bool + _pauser,
         //      _observers values-array length, _observers positions base].
         bytes32[5] v3Slots;
+        // Live V3 `(isSet, selector)` pair; {UpgradeTest} asserts `(selector != 0, isSet == false)` is absent.
+        bool hasUnderlyingDenyListSelector;
         bytes4 underlyingDenyListSelector;
         address blockedUser;
         // A pending unwrap request seeded into `_unwrapRequests` before the upgrade (see
@@ -215,8 +217,9 @@ abstract contract BaseForkTest is FhevmTest {
         $.owner = _wrapperOwner(w);
         $.maxTotalSupply = cw.maxTotalSupply();
         $.implementation = _implementationOf(w);
-        // Read through the legacy two-word ABI: this runs before the impl swap.
-        (, $.underlyingDenyListSelector) = ILegacyUnderlyingDenyList(w).getUnderlyingDenyListSelector();
+        // Legacy two-word ABI (pre-swap); keep `isSet` for the UpgradeTest invariant.
+        ($.hasUnderlyingDenyListSelector, $.underlyingDenyListSelector) = ILegacyUnderlyingDenyList(w)
+            .getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
             $.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
         }

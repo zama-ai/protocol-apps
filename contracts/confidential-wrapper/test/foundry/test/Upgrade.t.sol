@@ -151,4 +151,19 @@ contract UpgradeTest is BaseForkTest {
             _wrapper(proxy).upgradeToAndCall(address(freshImpl), "");
         }
     }
+
+    /// @notice No live proxy carries `(selector != 0, isSet == false)` — under V4 that pair would
+    /// silently enable the check. Snapshots are pre-upgrade.
+    function test_NoLiveProxyHasActiveSelectorWithDisabledFlag_AllWrappers() public view {
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address proxy = wrappers[i];
+            PreUpgradeSnapshot storage $ = preUpgrade[proxy];
+            if ($.underlyingDenyListSelector != bytes4(0)) {
+                assertTrue(
+                    $.hasUnderlyingDenyListSelector,
+                    string.concat(_label(proxy), ": live proxy has an active selector with isSet == false")
+                );
+            }
+        }
+    }
 }
