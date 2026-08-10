@@ -125,7 +125,7 @@ contract UpgradeTest is BaseForkTest {
                 string.concat(_label(proxy), ": seeded V3 blocked user not preserved")
             );
 
-            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.BlockedUser.selector, $.blockedUser));
+            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.WrapperBlockedAddress.selector, $.blockedUser));
             _wrapper(proxy).finalizeUnwrap($.pendingUnwrapId, 0, "");
         }
     }

@@ -381,7 +381,7 @@ Unlike `isBlockedOnWrapper`, these perform a `staticcall` on the underlying toke
 
 Both sources are enforced together on every path that moves tokens: `wrap`, the ERC-1363 `onTransferReceived` callback, confidential transfers, `unwrap`, and `finalizeUnwrap`. The checked parties include the sender, the recipient, and the operator when a transfer is made on behalf of another address. `finalizeUnwrap` re-checks the holder, the operator, and the receiver from the original `unwrap` request, so an address that becomes denied between the two steps cannot complete its unwrap.
 
-A denied address causes the operation to revert with `BlockedUser(user)` when it is on the wrapper-local denylist, or `UnderlyingDenyListedAddress(user)` when it is denied by the underlying token.
+A denied address causes the operation to revert with `WrapperBlockedAddress(user)` when it is on the wrapper-local denylist, or `UnderlyingDenyListedAddress(user)` when it is denied by the underlying token.
 
 ### Observers
 
@@ -525,7 +525,7 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
 | `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing non-existent unwrap request     |
 | `ERC7984TotalSupplyOverflow()`                          | Minting would exceed uint64 max            |
-| `BlockedUser(user)`                                     | Address is on the wrapper-local denylist   |
+| `WrapperBlockedAddress(user)`                           | Address is on the wrapper-local denylist   |
 | `UnderlyingDenyListedAddress(user)`                     | Address is denied by the underlying token  |
 | `UnderlyingDenyListCallFailed()`                        | The deny-list `staticcall` on the underlying token failed |
 | `InvalidUnderlyingDenyListResponse()`                   | The underlying deny-list call did not return a 32-byte value |

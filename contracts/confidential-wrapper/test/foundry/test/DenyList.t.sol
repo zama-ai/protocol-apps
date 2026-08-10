@@ -87,7 +87,7 @@ contract DenyListTest is BaseForkTest {
 
             vm.startPrank(depositor);
             _approve(underlying, w, amount);
-            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.BlockedUser.selector, depositor));
+            vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.WrapperBlockedAddress.selector, depositor));
             _wrapper(w).wrap(depositor, amount);
             vm.stopPrank();
         }

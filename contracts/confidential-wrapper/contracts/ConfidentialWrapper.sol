@@ -65,8 +65,8 @@ contract ConfidentialWrapper is
     /// @dev Emitted when the underlying deny-list selector configuration is updated.
     event UnderlyingDenyListSelectorUpdated(bytes4 indexed selector, bool isSet);
 
-    /// @dev Thrown when `user` is on the denylist and attempts a restricted operation.
-    error BlockedUser(address user);
+    /// @dev Thrown when `user` is on the wrapper-local denylist and attempts a restricted operation.
+    error WrapperBlockedAddress(address user);
 
     /// @dev Thrown when attempting to block a user that is already on the denylist.
     error UserAlreadyBlocked(address user);
@@ -230,6 +230,7 @@ contract ConfidentialWrapper is
      * {_requireNotBlocked} enforces. This is the check integrators should use.
      */
     function isBlocked(address user) public view virtual returns (bool) {
+        if (user == address(0)) return false;
         return isBlockedOnWrapper(user) || isBlockedOnUnderlying(user);
     }
 
@@ -399,7 +400,7 @@ contract ConfidentialWrapper is
     function _requireNotBlocked(address user) internal view {
         // to not block mints and burns, also needed because for e.g. USDT.getBlackListStatus(address(0))
         if (user == address(0)) return;
-        require(!isBlockedOnWrapper(user), BlockedUser(user));
+        require(!isBlockedOnWrapper(user), WrapperBlockedAddress(user));
         if (_isBlockedOnUnderlying(user)) revert UnderlyingDenyListedAddress(user);
     }
 
