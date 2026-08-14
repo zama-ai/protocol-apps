@@ -1,4 +1,4 @@
-.PHONY: setup fork-test build clean
+.PHONY: setup fork-test fork-test-batcher build clean
 
 # Installs the soldeer dependencies pinned in soldeer.toml (incl. forge-fhevm).
 setup:
@@ -14,6 +14,11 @@ build:
 fork-test:
 	@FORK_URL="$$(./script/utils/resolve-fork.sh)" || exit 1; \
 	forge test --fork-url "$${FORK_URL}" -vvv
+
+# Same fork, but the deployed-batcher suite under the `batcher` profile.
+fork-test-batcher:
+	@FORK_URL="$$(./script/utils/resolve-fork.sh)" || exit 1; \
+	FOUNDRY_PROFILE=batcher forge test --fork-url "$${FORK_URL}" -vvv
 
 clean:
 	forge clean

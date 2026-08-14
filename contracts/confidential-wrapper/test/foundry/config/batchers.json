@@ -1,0 +1,8 @@
+{
+  "_doc": "Deployed Confidential DeFi Gateway batchers on Ethereum mainnet, read by test/batcher/BatcherForkBase.t.sol. Mirrored from contracts/deployments/mainnet.json in zama-ai/confidential-defi; script/utils/check-batcher-manifest.sh fails CI when that manifest moves. The batchers are non-upgradeable, so these tests exercise the deployed bytecode against the candidate wrapper implementation. `depositBatcher` routes cUsdc -> cShare through IERC4626.deposit; `redeemBatcher` routes cShare -> cUsdc through IERC4626.redeem.",
+  "depositBatcher": "0x324EA89FD3784036673BfE6Ffee2334A088F40Cc",
+  "redeemBatcher": "0x96Cd3Faa7483783Ac2Eb715f6333361500F1eec9",
+  "cUsdc": "0xe978F22157048E5DB8E5d07971376e86671672B2",
+  "cShare": "0x66Bf74E96900D1a19c7070D939D124f2F565C458",
+  "morphoVault": "0xbEEF00A59B577423653A1526c7009bdE103F542B"
+}

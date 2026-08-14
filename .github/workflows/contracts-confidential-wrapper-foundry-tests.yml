@@ -61,8 +61,22 @@ jobs:
         working-directory: contracts/confidential-wrapper/test/foundry
         run: make build
 
+      # The batcher suite drives the deployed bytecode at the addresses in config/batchers.json, so
+      # a redeploy upstream would leave it testing dead contracts. Skips itself without a token.
+      - name: Check batcher deployment manifest is current
+        working-directory: contracts/confidential-wrapper/test/foundry
+        env:
+          GH_TOKEN: ${{ secrets.CONFIDENTIAL_DEFI_READ_TOKEN }}
+        run: ./script/utils/check-batcher-manifest.sh
+
       - name: Run live fork tests against archive node
         working-directory: contracts/confidential-wrapper/test/foundry
         env:
           ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
         run: make fork-test
+
+      - name: Run live fork tests against the deployed batchers
+        working-directory: contracts/confidential-wrapper/test/foundry
+        env:
+          ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
+        run: make fork-test-batcher

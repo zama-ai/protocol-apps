@@ -10,6 +10,10 @@ Foundry tests that exercise the **live** Confidential Wrappers deployed on Ether
 - underlying-token deny-list gating against real mainnet state, including known
   blacklisted mainnet addresses.
 
+A second suite under `test/batcher` drives the **deployed** Confidential DeFi Gateway batchers
+against the same candidate implementation, so a wrapper upgrade that breaks the batchers fails
+here. See [Deployed-batcher suite](#deployed-batcher-suite).
+
 Tests run against a **live mainnet fork**: `forge test --fork-url <archive RPC>` reads the code
 and storage the tests touch directly from the archive node.
 
@@ -28,6 +32,7 @@ make build     # forge build
 | Task | Command | Notes |
 | ---- | ------- | ----- |
 | Live fork run | `make fork-test` | Forks mainnet at the block pinned in `config/fork.json`. Reads the RPC (see below). |
+| Deployed-batcher run | `make fork-test-batcher` | Same fork, `test/batcher` under the `batcher` profile. |
 | Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Overrides the pinned block for one run. |
 
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
@@ -63,6 +68,27 @@ deny-list tests:
   reports it denied. These are real addresses denied at the forked block. Adding a token is a
   one-entry edit to each file.
 
+## Deployed-batcher suite
+
+`test/batcher` runs the deployed Confidential DeFi batchers against the candidate wrapper
+implementation. The batchers are read from mainnet, not deployed by the tests, so the suite checks
+the exact non-upgradeable bytecode a wrapper upgrade must support.
+
+Run it with:
+
+```
+make fork-test-batcher 
+```
+
+It uses the `batcher` Foundry profile, which enables
+`isolate = true` and keeps the regular `make fork-test` target scoped to the wrapper suite.
+
+Addresses live in `config/batchers.json`.
+
+The harness mutates fork storage to repoint the deployed batchers at the local fhEVM host and clear
+mainnet ciphertext handles that cannot be decoded locally. If a storage-layout guard fails, rederive
+the deployed layout before changing any `vm.store` slot.
+
 ## Layout
 
 | Path | Purpose |
@@ -72,10 +98,16 @@ deny-list tests:
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
 | `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
 | `test/Upgrade.t.sol` | Upgrades every live proxy onto the HEAD impl and asserts storage/enablement invariants |
+| `test/batcher/IVaultBatcher.sol` | Slice of the deployed batchers' ABI these tests drive |
+| `test/batcher/BatcherForkBase.t.sol` | Harness for the deployed batchers |
+| `test/batcher/BatcherFlows.t.sol` | Wiring guard, deposit/redeem round trip, operator join and quit, empty-batch dispatch |
+| `test/batcher/BatcherDenyList.t.sol` | Deny-list and pause behavior seen through a batcher |
 | `script/utils/resolve-fork.sh` | Resolves the fork target: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
+| `script/utils/check-batcher-manifest.sh` | Fails when `config/batchers.json` drifts from the upstream deployment manifest |
 | `config/fork.json` | Pinned mainnet fork block |
 | `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |
 | `config/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
+| `config/batchers.json` | Deployed batcher, wrapper and vault addresses |
 
 ## Troubleshooting
 
@@ -85,6 +117,27 @@ deny-list tests:
   forked block; check the RPC and the pinned `FORK_BLOCK`.
 - `seeded address not denied by real token state`: a `config/blacklist-seeds.json` address is no
   longer denied at the forked block; refresh the seed.
+- `MISMATCH <key>` from `check-batcher-manifest.sh`: the batchers were redeployed upstream; copy the
+  new addresses into `config/batchers.json` and re-run `make fork-test-batcher`.
+- `batcher: unexpected ACL` / `unexpected batcher layout`: the deployed batcher no longer matches
+  what the harness assumes (FHE config or `BatcherConfidential` storage slots). Re-derive it (see
+  below) rather than relaxing the guard — it is the only thing keeping the `vm.store` writes honest.
+
+### Re-deriving the batcher storage layout
+
+`BATCHES_SLOT` in `test/batcher/BatcherForkBase.t.sol` is the one hand-derived constant in the
+suite. Read it off the **deployed** contract, which resolves the verified source from Etherscan and
+prints the layout with live values:
+
+```bash
+cast storage 0x324EA89FD3784036673BfE6Ffee2334A088F40Cc \
+  --rpc-url "${MAINNET_RPC_URL}" \
+  --etherscan-api-key "${ETHERSCAN_API_KEY}" \
+  --block 25582172
+```
+
+Prefer this over reading the layout out of upstream source, which can
+drift from the mainnet deployment.
 
 ## How it works
 

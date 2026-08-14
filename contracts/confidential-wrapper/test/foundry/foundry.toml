@@ -14,8 +14,20 @@ optimizer_runs = 100
 # directories up and the sibling registry package three directories up.
 allow_paths = ["../../contracts", "../../../confidential-token-wrappers-registry"]
 
-# Tests read the deny-list config files (config/*.json) from disk.
+# Tests read the deny-list and batcher config files (config/*.json) from disk.
 fs_permissions = [{ access = "read", path = "./" }]
+
+# test/batcher runs under its own profile (below) and is excluded here so `make fork-test`
+# keeps covering exactly the wrapper suite it always has.
+no_match_path = "test/batcher/*"
+
+# The deployed-batcher suite. Isolation runs each top-level call as its own transaction, which is
+# how the fhEVM host meters HCU in production; without it Foundry collapses a whole batch flow into
+# one transaction and the independent join/dispatch/callback/claim calls share a single HCU budget.
+[profile.batcher]
+match_path = "test/batcher/*"
+no_match_path = "test/batcher/BatcherForkBase.t.sol"
+isolate = true
 
 [fmt]
 line_length = 120
