@@ -25,4 +25,5 @@ ignorePatterns:
   - pattern: "^https://app.zama.org.*$"
   - pattern: "^https://amoy.polygonscan.com.*$"
   - pattern: "^https://polygonscan.com.*$"
+  - pattern: "^https://explorer.solana.com.*$"
 useGitIgnore: true

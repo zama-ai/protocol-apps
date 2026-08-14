@@ -463,7 +463,6 @@ Transfer functions with `euint64` (not `externalEuint64`) require the caller to 
 | `ERC7984InvalidReceiver(receiver)`                      | Transfer to zero address                   |
 | `ERC7984InvalidSender(sender)`                          | Transfer from zero address                 |
 | `ERC7984UnauthorizedSpender(holder, spender)`           | Caller not authorized as operator          |
-| `ERC7984ZeroBalance(holder)`                            | Sender has never held tokens               |
 | `ERC7984UnauthorizedUseOfEncryptedAmount(amount, user)` | Caller lacks ACL permission for ciphertext |
 | `ERC7984UnauthorizedCaller(caller)`                     | Invalid caller for operation               |
 | `InvalidUnwrapRequest(unwrapRequestId)`                 | Finalizing non-existent unwrap request     |
