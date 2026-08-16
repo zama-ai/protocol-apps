@@ -5,9 +5,10 @@ forge-std = "1.14.0"
 "@openzeppelin-contracts" = "5.1.0"
 "@openzeppelin-contracts-upgradeable" = "5.1.0"
 "forge-fhevm" = { version = "0.1.0", git = "https://github.com/zama-ai/forge-fhevm", rev = "ff2b790db8cdc34894754d670b174b2b7e27e373" }
-# Pinned to 0.4.0 to match the version contracts/confidential-wrapper was built
+# Pinned to 0.530 to match the version contracts/confidential-wrapper was built
 # against (not forge-fhevm's bundled 6edd293). Interfaces are stable across both.
-"@openzeppelin-confidential-contracts" = { version = "0.4.0", git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts", tag = "v0.4.0" }
+# To update: delete the line and use forge soldeer install '@openzeppelin-confidential-contracts~[VERSION]' --git [URL] --tag [TAG] --config-location soldeer
+"@openzeppelin-confidential-contracts" = { version = "0.5.3", git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts", tag = "v0.5.3" }
 
 [soldeer]
 remappings_version = false

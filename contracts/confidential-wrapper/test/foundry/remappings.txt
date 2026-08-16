@@ -1,5 +1,6 @@
 @fhevm/host-contracts/=dependencies/forge-fhevm-0.1.0/src/fhevm-host/
 @fhevm/solidity/=dependencies/@fhevm-solidity-0.11.1/
+@openzeppelin-confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.5.3/
 @openzeppelin/confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.4.0/contracts/
 @openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/
 @openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/

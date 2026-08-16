@@ -1,5 +1,5 @@
-// Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/f0914b66f9f3766915403587b1ef1432d53054d3/test/token/ERC7984/ERC7984.test.ts
-// (0.3.0 version)
+// Ported from https://github.com/OpenZeppelin/openzeppelin-confidential-contracts/blob/4a4f6c71f58b75e391899b57e42e3b73d288dfe3/test/token/ERC7984/ERC7984.test.ts
+// (0.5.3 version)
 
 import { allowHandle } from './utils/accounts';
 import { FhevmType } from '@fhevm/hardhat-plugin';
@@ -243,6 +243,23 @@ describe('ERC7984', function () {
 
         // Edge cases to run with sender as caller
         if (asSender) {
+          it('to address with no balance should pass', async function () {
+            const encryptedInput = await fhevm
+              .createEncryptedInput(this.token.target, this.recipient.address)
+              .add64(100)
+              .encrypt();
+
+            await expect(
+              this.token
+                .connect(this.recipient)
+                ['confidentialTransfer(address,bytes32,bytes)'](
+                  this.holder.address,
+                  encryptedInput.handles[0],
+                  encryptedInput.inputProof,
+                ),
+            ).to.not.be.reverted;
+          });
+
           it('to zero address', async function () {
             const encryptedInput = await fhevm
               .createEncryptedInput(this.token.target, this.holder.address)
