@@ -18,6 +18,7 @@ ignorePatterns:
   - pattern: "^https://rpc.mainnet.zama.org.*$"
   - pattern: "^https://rpc.testnet.zama.org.*$"
   - pattern: "^https://solscan.io.*$"
+  - pattern: "^https://explorer.solana.com.*$"
   - pattern: "^https://layerzeroscan.com.*$"
   - pattern: "^https://bscscan.com.*$"
   - pattern: "^https://eth-hoodi.blockscout.com.*$"
