@@ -33,6 +33,24 @@ checksum = "87854223d14941d6fda3d78d900217e79e25755ea5bc48beca035766fa6a4e7e"
 integrity = "826fb621339dcee4261f848b283ec86364743d3c289d61f621747d95e315215a"
 
 [[dependencies]]
+name = "account-abstraction"
+version = "0.7.0"
+git = "https://github.com/eth-infinitism/account-abstraction"
+rev = "7af70c8993a6f42973f520ae0752386a5032abe7"
+
+[[dependencies]]
+name = "circle-buidl-wallet-contracts"
+version = "2.2.0"
+git = "https://github.com/circlefin/buidl-wallet-contracts"
+rev = "f5e82e50f91b0128c11052bd398e55c9db84fae7"
+
+[[dependencies]]
+name = "fcl"
+version = "0.0.0"
+git = "https://github.com/rdubois-crypto/FreshCryptoLib"
+rev = "8179e08cac72072bd260796633fec41fdfd5b441"
+
+[[dependencies]]
 name = "forge-fhevm"
 version = "0.1.0"
 git = "https://github.com/zama-ai/forge-fhevm"
@@ -44,3 +62,9 @@ version = "1.14.0"
 url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_14_0_05-01-2026_15:24:39_forge-std-1.14.zip"
 checksum = "d10079d1b7aac1a36dd2eeb4c5d042e8ed27b00f4ef89530b7f0a6ecd18cada3"
 integrity = "64133846def1b04b1726d2bf1292c19050a0e8cb832b60c6104c19595b9699f8"
+
+[[dependencies]]
+name = "modular-account-libs"
+version = "0.8.0-rc.0"
+git = "https://github.com/erc6900/modular-account-libs"
+rev = "d64adb5bd100d6ad64d0a83b5dc13b356423d852"

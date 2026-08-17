@@ -71,12 +71,11 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * the address `from` (if no address is specified in `data`). This function refunds any excess tokens
      * sent beyond the nearest multiple of {rate} to `from`. See {wrap} for more details on wrapping tokens.
      */
-    function onTransferReceived(
-        address /*operator*/,
-        address from,
-        uint256 amount,
-        bytes calldata data
-    ) public virtual returns (bytes4) {
+    function onTransferReceived(address, /*operator*/ address from, uint256 amount, bytes calldata data)
+        public
+        virtual
+        returns (bytes4)
+    {
         // check caller is the token contract
         require(underlying() == msg.sender, ERC7984UnauthorizedCaller(msg.sender));
 
@@ -104,7 +103,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     function wrap(address to, uint256 amount) public virtual override returns (euint64) {
         uint256 roundedAmount = amount - (amount % rate());
         // take ownership of the tokens
-        SafeERC20.safeTransferFrom(IERC20(underlying()), msg.sender, address(this), roundedAmount);
+        _depositUnderlyingFrom(msg.sender, roundedAmount);
 
         // mint confidential token
         euint64 wrappedAmountSent = _mint(to, FHE.asEuint64(SafeCast.toUint64(amount / rate())));
@@ -128,21 +127,19 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      *
      * NOTE: The unwrap request created by this function must be finalized by calling {finalizeUnwrap}.
      */
-    function unwrap(
-        address from,
-        address to,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
-    ) public virtual returns (bytes32) {
+    function unwrap(address from, address to, externalEuint64 encryptedAmount, bytes calldata inputProof)
+        public
+        virtual
+        returns (bytes32)
+    {
         return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
-    function finalizeUnwrap(
-        bytes32 unwrapRequestId,
-        uint64 unwrapAmountCleartext,
-        bytes calldata decryptionProof
-    ) public virtual {
+    function finalizeUnwrap(bytes32 unwrapRequestId, uint64 unwrapAmountCleartext, bytes calldata decryptionProof)
+        public
+        virtual
+    {
         address to = unwrapRequester(unwrapRequestId);
         require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
 
@@ -157,7 +154,7 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
 
         FHE.checkSignatures(handles, cleartexts, decryptionProof);
 
-        SafeERC20.safeTransfer(IERC20(underlying()), to, unwrapAmountCleartext * rate());
+        _payUnderlying(to, unwrapAmountCleartext * rate());
 
         emit UnwrapFinalized(to, unwrapRequestId, unwrapAmount_, unwrapAmountCleartext);
     }
@@ -186,13 +183,15 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /// @inheritdoc IERC165
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override(IERC165, ERC7984Upgradeable) returns (bool) {
-        return
-            interfaceId == type(IERC7984ERC20Wrapper).interfaceId ||
-            interfaceId == type(IERC1363Receiver).interfaceId ||
-            super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(IERC165, ERC7984Upgradeable)
+        returns (bool)
+    {
+        return interfaceId == type(IERC7984ERC20Wrapper).interfaceId
+            || interfaceId == type(IERC1363Receiver).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /**
@@ -204,7 +203,38 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * on {finalizeUnwrap}.
      */
     function inferredTotalSupply() public view virtual returns (uint256) {
-        return IERC20(underlying()).balanceOf(address(this)) / rate();
+        return _reserveBalance() / rate();
+    }
+
+    // ----- Reserve hooks -----
+    // Where the reserve lives and how it moves. Defaults keep it at `address(this)`.
+
+    /**
+     * @dev Account holding the underlying that backs {confidentialTotalSupply}. Defaults to this contract.
+     *
+     * IMPORTANT: The returned address's balance must be dedicated to this wrapper.
+     * {inferredTotalSupply} divides that balance by {rate}.
+     */
+    function _reserve() internal view virtual returns (address) {
+        return address(this);
+    }
+
+    /// @dev The underlying held by the reserve, in underlying units. Backs {inferredTotalSupply}.
+    function _reserveBalance() internal view virtual returns (uint256) {
+        return IERC20(underlying()).balanceOf(_reserve());
+    }
+
+    /**
+     * @dev Moves `amount` of underlying from `from` into the reserve, on the {wrap} path.
+     * Runs before the mint, so {_checkConfidentialTotalSupply} already sees the deposit.
+     */
+    function _depositUnderlyingFrom(address from, uint256 amount) internal virtual {
+        SafeERC20.safeTransferFrom(IERC20(underlying()), from, _reserve(), amount);
+    }
+
+    /// @dev Pays `amount` of underlying out of the reserve to `to`, on the {finalizeUnwrap} path.
+    function _payUnderlying(address to, uint256 amount) internal virtual {
+        SafeERC20.safeTransfer(IERC20(underlying()), to, amount);
     }
 
     /// @dev Returns the maximum total supply of wrapped tokens supported by the encrypted datatype.
@@ -282,9 +312,8 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     function _tryGetAssetDecimals(IERC20 asset_) private view returns (uint8 assetDecimals) {
-        (bool success, bytes memory encodedDecimals) = address(asset_).staticcall(
-            abi.encodeCall(IERC20Metadata.decimals, ())
-        );
+        (bool success, bytes memory encodedDecimals) =
+            address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
         if (success && encodedDecimals.length == 32) {
             return abi.decode(encodedDecimals, (uint8));
         }

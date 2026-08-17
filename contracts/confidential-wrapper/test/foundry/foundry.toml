@@ -17,6 +17,20 @@ allow_paths = ["../../contracts", "../../../confidential-token-wrappers-registry
 # Tests read the deny-list config files (config/*.json) from disk.
 fs_permissions = [{ access = "read", path = "./" }]
 
+# Local Circle helpers pin 0.8.24 exact. Skip them here; `profile.circle` compiles
+# Circle's package plus these helpers into `out-circle/` for `deployCode`.
+skip = ["src/msca/fixtures/**"]
+
+[profile.circle]
+src = "dependencies/circle-buidl-wallet-contracts-2.2.0/src"
+test = "src/msca/fixtures"
+solc_version = "0.8.24"
+out = "out-circle"
+cache_path = "cache/circle"
+# v0.8 MSCA needs `@erc6900/reference-implementation`, which is not a dep here.
+# Tests only deploy v0.7 factories and plugins.
+skip = ["dependencies/circle-buidl-wallet-contracts-2.2.0/src/msca/6900/v0.8/**"]
+
 [fmt]
 line_length = 120
 

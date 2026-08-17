@@ -9,6 +9,14 @@ forge-std = "1.14.0"
 # against (not forge-fhevm's bundled 6edd293). Interfaces are stable across both.
 "@openzeppelin-confidential-contracts" = { version = "0.4.0", git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts", tag = "v0.4.0" }
 
+# Circle ERC-6900 accounts for the treasury suites.
+# Soldeer, not npm: buidl-wallet-contracts@v2.2.0 depends on "@modular-account-libs" (invalid npm name).
+"circle-buidl-wallet-contracts" = { version = "2.2.0", git = "https://github.com/circlefin/buidl-wallet-contracts", tag = "v2.2.0" }
+"account-abstraction" = { version = "0.7.0", git = "https://github.com/eth-infinitism/account-abstraction", tag = "v0.7.0" }
+# Multisig plugin deps, pinned to Circle's package.json revisions.
+"fcl" = { version = "0.0.0", git = "https://github.com/rdubois-crypto/FreshCryptoLib", rev = "8179e08cac72072bd260796633fec41fdfd5b441" }
+"modular-account-libs" = { version = "0.8.0-rc.0", git = "https://github.com/erc6900/modular-account-libs", tag = "v0.8.0-rc.0" }
+
 [soldeer]
 remappings_version = false
 recursive_deps = true

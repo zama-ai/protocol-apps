@@ -1,8 +1,12 @@
+@account-abstraction/contracts/=dependencies/account-abstraction-0.7.0/contracts/
+@fcl/=dependencies/fcl-0.0.0/solidity/src/
 @fhevm/host-contracts/=dependencies/forge-fhevm-0.1.0/src/fhevm-host/
 @fhevm/solidity/=dependencies/@fhevm-solidity-0.11.1/
+@modular-account-libs/=dependencies/modular-account-libs-0.8.0-rc.0/src/
 @openzeppelin/confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.4.0/contracts/
 @openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/
 @openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/
+circle-msca/=dependencies/circle-buidl-wallet-contracts-2.2.0/src/
 confidential-wrapper/=../../contracts/
 encrypted-types/=dependencies/@encrypted-types-0.0.4/
 forge-fhevm/=dependencies/forge-fhevm-0.1.0/src/
