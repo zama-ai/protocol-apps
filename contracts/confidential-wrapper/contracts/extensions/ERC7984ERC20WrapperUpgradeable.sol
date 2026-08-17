@@ -71,11 +71,12 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      * the address `from` (if no address is specified in `data`). This function refunds any excess tokens
      * sent beyond the nearest multiple of {rate} to `from`. See {wrap} for more details on wrapping tokens.
      */
-    function onTransferReceived(address, /*operator*/ address from, uint256 amount, bytes calldata data)
-        public
-        virtual
-        returns (bytes4)
-    {
+    function onTransferReceived(
+        address /*operator*/,
+        address from,
+        uint256 amount,
+        bytes calldata data
+    ) public virtual returns (bytes4) {
         // check caller is the token contract
         require(underlying() == msg.sender, ERC7984UnauthorizedCaller(msg.sender));
 
@@ -127,19 +128,21 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
      *
      * NOTE: The unwrap request created by this function must be finalized by calling {finalizeUnwrap}.
      */
-    function unwrap(address from, address to, externalEuint64 encryptedAmount, bytes calldata inputProof)
-        public
-        virtual
-        returns (bytes32)
-    {
+    function unwrap(
+        address from,
+        address to,
+        externalEuint64 encryptedAmount,
+        bytes calldata inputProof
+    ) public virtual returns (bytes32) {
         return _unwrap(from, to, FHE.fromExternal(encryptedAmount, inputProof));
     }
 
     /// @inheritdoc IERC7984ERC20Wrapper
-    function finalizeUnwrap(bytes32 unwrapRequestId, uint64 unwrapAmountCleartext, bytes calldata decryptionProof)
-        public
-        virtual
-    {
+    function finalizeUnwrap(
+        bytes32 unwrapRequestId,
+        uint64 unwrapAmountCleartext,
+        bytes calldata decryptionProof
+    ) public virtual {
         address to = unwrapRequester(unwrapRequestId);
         require(to != address(0), InvalidUnwrapRequest(unwrapRequestId));
 
@@ -183,15 +186,13 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     /// @inheritdoc IERC165
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(IERC165, ERC7984Upgradeable)
-        returns (bool)
-    {
-        return interfaceId == type(IERC7984ERC20Wrapper).interfaceId
-            || interfaceId == type(IERC1363Receiver).interfaceId || super.supportsInterface(interfaceId);
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(IERC165, ERC7984Upgradeable) returns (bool) {
+        return
+            interfaceId == type(IERC7984ERC20Wrapper).interfaceId ||
+            interfaceId == type(IERC1363Receiver).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
@@ -312,8 +313,9 @@ abstract contract ERC7984ERC20WrapperUpgradeable is ERC7984Upgradeable, IERC7984
     }
 
     function _tryGetAssetDecimals(IERC20 asset_) private view returns (uint8 assetDecimals) {
-        (bool success, bytes memory encodedDecimals) =
-            address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
+        (bool success, bytes memory encodedDecimals) = address(asset_).staticcall(
+            abi.encodeCall(IERC20Metadata.decimals, ())
+        );
         if (success && encodedDecimals.length == 32) {
             return abi.decode(encodedDecimals, (uint8));
         }
