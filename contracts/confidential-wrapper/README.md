@@ -33,14 +33,6 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
 | `CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` | Address allowed to call `pause()`, set during initialization; the zero address disables pausing |
 
-### Task inputs (batch deploy upgrade implementations)
-
-| Variable | Description |
-| --- | --- |
-| `NUM_CONFIDENTIAL_WRAPPERS` | Same meaning as batch deployment: how many wrappers are listed in `.env` |
-| `CONFIDENTIAL_WRAPPER_NAME_{i}` | Name of the wrapper at index `i` |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` | Version label appended to the saved implementation artifact (e.g. `v2`), shared for all wrappers in the batch upgrade/verify tasks |
-
 > **Underlying deny-list configuration:** the selector alone carries enablement.
 > Consumers of `getUnderlyingDenyListSelector` determine enablement with `selector != 0`. A deny-list
 > getter whose selector is genuinely `0x00000000` can exist in theory but is indistinguishable from
@@ -133,63 +125,38 @@ Verify all deployed confidential wrapper contracts on Etherscan. Reads wrapper n
 npx hardhat task:verifyAllConfidentialWrappers --network <network>
 ```
 
-### `task:deployWrapperImplementation`
+### `task:deployConfidentialWrapperImpl`
 
-Deploy a new `ConfidentialWrapper` implementation contract without upgrading any proxy. The proxy upgrade is handled separately by the DAO.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `--name` | `string` | Yes | The name of the wrapper this implementation is for |
-| `--label` | `string` | Yes | A version label appended to the artifact name (e.g. `"v2"`) |
-
-**Example:**
-
-```bash
-npx hardhat task:deployWrapperImplementation --name "Confidential USDT" --label "v2" --network <network>
-```
-
-### `task:deployAllWrapperImplementations`
-
-Requires that `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` is set in the `.env` file.
-
-Deploy upgrade implementations for all wrappers defined in the `.env` file. Reads `NUM_CONFIDENTIAL_WRAPPERS`, `CONFIDENTIAL_WRAPPER_NAME_{i}`, and `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL`.
-
-**Parameters:** None (configuration is read from environment variables).
-
-**Example:**
-
-```bash
-npx hardhat task:deployAllWrapperImplementations --network <network>
-```
-
-### `task:verifyWrapperImplementation`
-
-Verify a single `ConfidentialWrapper` implementation contract on Etherscan.
+Deploy a new `ConfidentialWrapper` implementation contract without upgrading any proxy. The proxy upgrade is handled separately by the DAO. The artifact is saved as `ConfidentialWrapper_<label>_Impl`.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `--address` | `string` | Yes | The address of the implementation contract to verify |
+| `--label` | `string` | Yes | Version label appended to the saved artifact name (e.g. `"v4"`) |
 
 **Example:**
 
 ```bash
-npx hardhat task:verifyWrapperImplementation --address 0x1234567890123456789012345678901234567890 --network <network>
+npx hardhat task:deployConfidentialWrapperImpl --label v4 --network <network>
 ```
 
-### `task:verifyAllWrapperImplementations`
+### `task:verifyConfidentialWrapperImpl`
 
-Verify upgrade implementation contracts for all wrappers on Etherscan. Looks up deployment artifacts using `CONFIDENTIAL_WRAPPER_NAME_{i}` and `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL`.
+Verify a `ConfidentialWrapper` implementation contract on Etherscan.
 
-**Parameters:** None (configuration is read from environment variables and deployment artifacts).
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `--impl-address` | `string` | Yes | The address of the implementation contract to verify |
 
 **Example:**
 
 ```bash
-npx hardhat task:verifyAllWrapperImplementations --network <network>
+npx hardhat task:verifyConfidentialWrapperImpl \
+  --impl-address 0x1234567890123456789012345678901234567890 \
+  --network <network>
 ```
 
 ## Params-driven deployment

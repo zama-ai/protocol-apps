@@ -1,5 +1,5 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
-import { CONTRACT_NAME } from '../../../tasks/deploy';
+import { CONTRACT_NAME, getConfidentialWrapperUpgradeImplName } from '../../../tasks/deploy';
 import { expect } from 'chai';
 import { ethers as ethersUtils } from 'ethers';
 import hre from 'hardhat';
@@ -62,8 +62,8 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
   }
 
   async function deployCurrentImplementation() {
-    await hre.run('task:deployConfidentialWrapperImpl');
-    const implDeployment = await hre.deployments.get(`${CONTRACT_NAME}_Impl`);
+    await hre.run('task:deployConfidentialWrapperImpl', { label: 'v4' });
+    const implDeployment = await hre.deployments.get(getConfidentialWrapperUpgradeImplName('v4'));
     return implDeployment.address;
   }
 

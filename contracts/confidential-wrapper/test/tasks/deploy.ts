@@ -2,6 +2,7 @@ import {
   getConfidentialWrapperName,
   getConfidentialWrapperProxyName,
   getConfidentialWrapperImplName,
+  getConfidentialWrapperUpgradeImplName,
   CONTRACT_NAME,
 } from '../../tasks/deploy';
 import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
@@ -74,6 +75,10 @@ describe('ConfidentialWrapper Deployment', function () {
 
     it('Should generate correct ConfidentialWrapper implementation name', function () {
       expect(getConfidentialWrapperImplName('MyToken')).to.equal('ConfidentialWrapper_MyToken_Impl');
+    });
+
+    it('Should generate correct upgrade implementation artifact name', function () {
+      expect(getConfidentialWrapperUpgradeImplName('v4')).to.equal('ConfidentialWrapper_v4_Impl');
     });
   });
 });

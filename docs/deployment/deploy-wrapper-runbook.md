@@ -248,10 +248,10 @@ ETHERSCAN_API_KEY=
 Deploy the implementation contract:
 
 ```bash
-npx hardhat task:deployConfidentialWrapperImpl --network ethereum
+npx hardhat task:deployConfidentialWrapperImpl --label v4 --network ethereum
 ```
 
-The implementation is saved as `ConfidentialWrapper_Impl` in the deployments artifacts. Record the implementation address printed on success.
+The implementation is saved as `ConfidentialWrapper_<label>_Impl` (e.g. `ConfidentialWrapper_v4_Impl`) in the deployments artifacts. Record the implementation address printed on success.
 
 ### Step 4 — Verify the new implementation on Etherscan
 

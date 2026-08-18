@@ -46,6 +46,10 @@ export function getConfidentialWrapperImplName(tokenSymbol: string): string {
   return `ConfidentialWrapper_${tokenSymbol}_Impl`;
 }
 
+export function getConfidentialWrapperUpgradeImplName(label: string): string {
+  return `ConfidentialWrapper_${label}_Impl`;
+}
+
 export function getConfidentialWrapperProxyName(tokenSymbol: string): string {
   return `ConfidentialWrapper_${tokenSymbol}_Proxy`;
 }
@@ -232,11 +236,12 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
 
 // Deploy a bare ConfidentialWrapper implementation (no proxy), for an upgrade proposal: deploy it,
 // then call `upgradeToAndCall(implAddress, reinitializeVX_calldata)` on the existing proxy.
-async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
+async function deployConfidentialWrapperImpl(label: string, hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments, network } = hre;
   const { save, getArtifact } = deployments;
   const deployerSigner = await getDeployerSigner(hre);
   const deployer = await deployerSigner.getAddress();
+  const artifactName = getConfidentialWrapperUpgradeImplName(label);
 
   const factory = await ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
   const implementation = await factory.deploy();
@@ -248,6 +253,7 @@ async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
     [
       `✅ Deployed ${CONTRACT_NAME} implementation:`,
       `  - Implementation address: ${implementationAddress}`,
+      `  - Artifact: ${artifactName}`,
       `  - Deployed by deployer account: ${deployer}`,
       `  - Network: ${network.name}`,
       '',
@@ -255,15 +261,25 @@ async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
   );
 
   const artifact = await getArtifact(CONTRACT_NAME);
-  await save(`${CONTRACT_NAME}_Impl`, { address: implementationAddress, abi: artifact.abi });
+  await save(artifactName, { address: implementationAddress, abi: artifact.abi });
 
   return implementationAddress;
 }
 
-task('task:deployConfidentialWrapperImpl').setAction(async function (_, hre) {
-  console.log(`Deploying ${CONTRACT_NAME} implementation...\n`);
-  await deployConfidentialWrapperImpl(hre);
-});
+task('task:deployConfidentialWrapperImpl')
+  .addParam(
+    'label',
+    'Version label appended to the saved implementation artifact (e.g. "v4")',
+    undefined,
+    types.string,
+  )
+  .setAction(async function ({ label }, hre) {
+    if (typeof label !== 'string' || label.trim() === '') {
+      throw new Error('label must be a non-empty string');
+    }
+    console.log(`Deploying ${CONTRACT_NAME} implementation (${label})...\n`);
+    await deployConfidentialWrapperImpl(label.trim(), hre);
+  });
 
 task('task:verifyConfidentialWrapperImpl')
   .addParam('implAddress', 'The address of the implementation contract to verify', '', types.string)
