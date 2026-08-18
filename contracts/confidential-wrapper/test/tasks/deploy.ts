@@ -79,6 +79,7 @@ describe('ConfidentialWrapper Deployment', function () {
 
     it('Should generate correct upgrade implementation artifact name', function () {
       expect(getConfidentialWrapperUpgradeImplName('v4')).to.equal('ConfidentialWrapper_v4_Impl');
+      expect(getConfidentialWrapperUpgradeImplName('v4', 'cUSDT')).to.equal('ConfidentialWrapper_cUSDT_v4_Impl');
     });
   });
 });

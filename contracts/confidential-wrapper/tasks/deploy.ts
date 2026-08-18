@@ -46,8 +46,8 @@ export function getConfidentialWrapperImplName(tokenSymbol: string): string {
   return `ConfidentialWrapper_${tokenSymbol}_Impl`;
 }
 
-export function getConfidentialWrapperUpgradeImplName(label: string): string {
-  return `ConfidentialWrapper_${label}_Impl`;
+export function getConfidentialWrapperUpgradeImplName(label: string, name?: string): string {
+  return name ? `ConfidentialWrapper_${name}_${label}_Impl` : `ConfidentialWrapper_${label}_Impl`;
 }
 
 export function getConfidentialWrapperProxyName(tokenSymbol: string): string {
@@ -236,12 +236,25 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
 
 // Deploy a bare ConfidentialWrapper implementation (no proxy), for an upgrade proposal: deploy it,
 // then call `upgradeToAndCall(implAddress, reinitializeVX_calldata)` on the existing proxy.
-async function deployConfidentialWrapperImpl(label: string, hre: HardhatRuntimeEnvironment) {
+function resolveOptionalTaskInput(cliValue: unknown, envName: string): string | undefined {
+  if (typeof cliValue === 'string' && cliValue.trim() !== '') return cliValue.trim();
+  const fromEnv = process.env[envName]?.trim();
+  return fromEnv || undefined;
+}
+
+function assertArtifactSegment(value: string, field: string): string {
+  if (!/^[A-Za-z0-9._-]+$/.test(value)) {
+    throw new Error(`${field} must be a filesystem-safe identifier (e.g. cUSDT or v4), not "${value}"`);
+  }
+  return value;
+}
+
+async function deployConfidentialWrapperImpl(label: string, name: string | undefined, hre: HardhatRuntimeEnvironment) {
   const { ethers, deployments, network } = hre;
   const { save, getArtifact } = deployments;
   const deployerSigner = await getDeployerSigner(hre);
   const deployer = await deployerSigner.getAddress();
-  const artifactName = getConfidentialWrapperUpgradeImplName(label);
+  const artifactName = getConfidentialWrapperUpgradeImplName(label, name);
 
   const factory = await ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
   const implementation = await factory.deploy();
@@ -267,18 +280,29 @@ async function deployConfidentialWrapperImpl(label: string, hre: HardhatRuntimeE
 }
 
 task('task:deployConfidentialWrapperImpl')
-  .addParam(
-    'label',
-    'Version label appended to the saved implementation artifact (e.g. "v4")',
+  .addOptionalParam(
+    'name',
+    'Wrapper identifier included in the saved implementation artifact (e.g. "cUSDT"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_NAME',
     undefined,
     types.string,
   )
-  .setAction(async function ({ label }, hre) {
-    if (typeof label !== 'string' || label.trim() === '') {
-      throw new Error('label must be a non-empty string');
+  .addOptionalParam(
+    'label',
+    'Version label appended to the saved implementation artifact (e.g. "v4"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL',
+    undefined,
+    types.string,
+  )
+  .setAction(async function ({ name, label }, hre) {
+    const resolvedLabel = resolveOptionalTaskInput(label, 'CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL');
+    if (!resolvedLabel) {
+      throw new Error('Provide --label or set CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL');
     }
-    console.log(`Deploying ${CONTRACT_NAME} implementation (${label})...\n`);
-    await deployConfidentialWrapperImpl(label.trim(), hre);
+    const resolvedName = resolveOptionalTaskInput(name, 'CONFIDENTIAL_WRAPPER_UPGRADE_NAME');
+    const safeLabel = assertArtifactSegment(resolvedLabel, 'label');
+    const safeName = resolvedName ? assertArtifactSegment(resolvedName, 'name') : undefined;
+    const tag = safeName ? `${safeName} ${safeLabel}` : safeLabel;
+    console.log(`Deploying ${CONTRACT_NAME} implementation (${tag})...\n`);
+    await deployConfidentialWrapperImpl(safeLabel, safeName, hre);
   });
 
 task('task:verifyConfidentialWrapperImpl')
