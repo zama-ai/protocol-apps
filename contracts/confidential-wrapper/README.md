@@ -17,6 +17,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `MNEMONIC` or `PRIVATE_KEY` | Local signer for the deployer account |
 | `ETHEREUM_RPC_URL` | RPC URL for the `ethereum` network (mainnet) |
 | `SEPOLIA_RPC_URL` | RPC URL for the `sepolia` network (Sepolia testnet) |
+| `AMOY_RPC_URL`    | RPC URL for the `amoy` network (Polygon testnet)    |
 | `ETHERSCAN_API_KEY` | Etherscan API key (required for Etherscan verification; Blockscout/Sourcify need none) |
 
 ### Task inputs (batch deployment)
