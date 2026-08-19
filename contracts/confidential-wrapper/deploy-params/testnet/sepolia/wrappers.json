@@ -1,55 +1,56 @@
 {
   "cUSDCMock": {
     "underlying": "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
-    "name": "Confidential USDC (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "cUSDTMock": {
     "underlying": "0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0",
-    "name": "Confidential USDT (Mock)",
-    "contractUri": "data:application/json;utf8,{\"name\":\"Confidential USDT (Mock)\",\"symbol\":\"cUSDTMock\",\"description\":\"Confidential wrapper of USDT (Mock) shielding it into a confidential token\"}",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "cWETHMock": {
     "underlying": "0xff54739b16576FA5402F211D0b938469Ab9A5f3F",
-    "name": "Confidential WETH (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "cBRONMock": {
     "underlying": "0xFf021fB13cA64e5354c62c954b949a88cfDEb25E",
-    "name": "Confidential BRON (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "cZAMAMock": {
     "underlying": "0x75355a85c6FB9df5f0C80FF54e8747EEe9a0BF57",
-    "name": "Confidential ZAMA (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "ctGBPMock": {
     "underlying": "0x93c931278A2aad1916783F952f94276eA5111442",
-    "name": "Confidential tGBP (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "cXAUtMock": {
     "underlying": "0x24377AE4AA0C45ecEe71225007f17c5D423dd940",
-    "name": "Confidential XAUt (Mock)",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   },
   "ctGBP": {
     "underlying": "0xf6Ef9ADB61A48E29E36bc873070A46A3D2667ff3",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x97f735d5"
+    "underlyingDenyListSelector": "0x97f735d5",
+    "initialObservers": []
   },
   "cmTEST": {
     "underlying": "0x10513c06D40D1D2Ce410570DfADA40D5b3968B3b",
     "blockedUsers": [],
-    "underlyingDenyListSelector": "0x00000000"
+    "underlyingDenyListSelector": "0x00000000",
+    "initialObservers": []
   }
 }
