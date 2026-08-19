@@ -1,13 +1,11 @@
 # Deploy params schema
 
-Reviewed, source-of-truth inputs for the `contracts-confidential-wrapper-deploy`
-workflow. How to submit a change: [deploy params entry runbook](../../../docs/deployment/deploy-wrapper-param-entry-runbook.md).
+How to submit an entry: [deploy params entry runbook](../../../docs/deployment/deploy-wrapper-param-entry-runbook.md).
 
 ## Layout
 
 `<tier>/<network>/`, where **tier** = `testnet` | `mainnet` and **network** = the
-Hardhat network name / chain (`sepolia`, `ethereum`, …). The directory is the source
-of truth for the tier↔network mapping.
+Hardhat network name / chain (`sepolia`, `ethereum`, …).
 
 ```
 deploy-params/
@@ -26,9 +24,8 @@ deploy-params/
 
 ## `wrappers.json`
 
-`{ underlyingAddress: entry }` — keyed by the underlying ERC-20 address (e.g. `0xdAC17F…`).
-The deploy dispatch `underlying` input selects the entry; `symbol` on the entry drives
-deployment artifact names (`ConfidentialWrapper_<symbol>_Proxy`, etc.).
+`{ underlyingAddress: entry }` — keyed by the underlying address (e.g. `0xdAC17F…`).
+`symbol` on the entry drives deployment artifact names (`ConfidentialWrapper_<symbol>_Proxy`, etc.).
 
 The `name` and `contractUri` are derived following existing conventions, and `owner` is set to the `dao` entry in `network.json`.
 

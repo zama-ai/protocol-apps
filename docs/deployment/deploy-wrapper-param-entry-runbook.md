@@ -36,7 +36,7 @@ contracts/confidential-wrapper/deploy-params/
 
 ### Underlying address (JSON key)
 
-The ERC-20 being wrapped. Each entry is keyed by this address; the deploy workflow `underlying` input selects it directly:
+The address of the token being wrapped. Each entry is keyed by this address:
 
 - Each underlying may appear **only once** per network. A duplicate key is a hard error at deploy time.
 - Use the checksummed address from the token's own documentation or its verified explorer page.
@@ -74,22 +74,6 @@ Addresses seeded into the wrapper's own denylist at deployment. This is separate
 Addresses authorized to decrypt the confidential amounts the wrapper processes.
 
 > ⚠️ **Seed observers deliberately, and set `[]` when there are none.** Observers can decrypt **every** confidential amount the wrapper processes — balances, total supply, and individual transfer/wrap/unwrap.
-
-### Ownership (not submitted)
-
-The wrapper's `owner` is set to the target network's Protocol DAO (the `dao` entry in `network.json`). It is not part of your entry.
-
-> **Important:** the initial owner must be the Protocol DAO for the target chain, not the deployer. Otherwise governance proposals fail at execution, and correcting ownership requires an additional proposal for the DAO to `acceptOwnership` (`Ownable2StepUpgradeable`).
-
-### `name` and `contractUri` (not submitted)
-
-Both are derived following existing conventions — `name` as `Confidential <underlying symbol()>` (e.g. `Confidential USDC`), and `contractUri` as a `data:` blob built from the name and symbol:
-
-```
-data:application/json;utf8,{"name":"...","symbol":"...","description":"..."}
-```
-
-If a token needs to deviate from these conventions, raise it in the PR rather than hand-setting the fields.
 
 ---
 
@@ -131,19 +115,6 @@ The workflow runs against the merged params. You do not need access to it.
 ### Step 5 — Results land back in the repo
 
 A follow-up PR adds the deployment artifacts and addresses. Registry registration is a separate Protocol DAO governance action.
-
----
-
-## Pre-PR checklist
-
-- [ ] Entry is keyed by the underlying address, and that key is not already taken on this network
-- [ ] `symbol` is set and matches the `c` + underlying `symbol()` convention
-- [ ] The underlying address is canonical on the target chain
-- [ ] `underlyingDenyListSelector` was computed from the underlying's **verified source**, or is `0x00000000` because the token has no denylist
-- [ ] `blockedUsers` is present (`[]` if none)
-- [ ] `initialObservers` is present (`[]` if none) and every listed address is intended to decrypt all amounts
-- [ ] Entry contains only the required fields — no redundant `underlying`, `owner`, `name` or `contractUri`
-- [ ] File is valid JSON and the PR touches nothing else
 
 ---
 
