@@ -1,7 +1,7 @@
 # Deploy params schema
 
 Reviewed, source-of-truth inputs for the `contracts-confidential-wrapper-deploy`
-workflow. How to submit a change: [README.md](./README.md).
+workflow. How to submit a change: [deploy params entry runbook](../../../docs/deployment/deploy-wrapper-param-entry-runbook.md).
 
 ## Layout
 
@@ -26,15 +26,17 @@ deploy-params/
 
 ## `wrappers.json`
 
-`{ wrapperSymbol: entry }` — keyed by the wrapper symbol (e.g. `cUSDT`); the wrapped token is the `underlying` field (no separate `symbol` field). 
+`{ underlyingAddress: entry }` — keyed by the underlying ERC-20 address (e.g. `0xdAC17F…`).
+The deploy dispatch `underlying` input selects the entry; `symbol` on the entry drives
+deployment artifact names (`ConfidentialWrapper_<symbol>_Proxy`, etc.).
 
 The `name` and `contractUri` are derived following existing conventions, and `owner` is set to the `dao` entry in `network.json`.
 
-The following fields are required:
+The following fields are required on every entry:
 
 | Field                        | Type      | Notes                                                                                     |
 | ---------------------------- | --------- | ----------------------------------------------------------------------------------------- |
-| `underlying`                 | address   | The ERC-20 being wrapped (looked up by the deploy dispatch); each underlying appears once |
+| `symbol`                     | string    | Wrapper symbol (e.g. `cUSDT`); used for artifact filenames, not the JSON key              |
 | `blockedUsers`               | address[] | Seeded into the denylist; `[]` if none                                                    |
 | `underlyingDenyListSelector` | bytes4    | `0x00000000` disables the check; a non-zero selector enables it                           |
 | `initialObservers`           | address[] | Seeded V4 observers; `[]` if none                                                         |
@@ -43,8 +45,8 @@ Minimal entry:
 
 ```json
 {
-  "cUSDT": {
-    "underlying": "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF",
+  "0x9b5Cd13b8eFbB58Dc25A05CF411D8056058aDFfF": {
+    "symbol": "cUSDT",
     "blockedUsers": [],
     "underlyingDenyListSelector": "0x00000000",
     "initialObservers": []

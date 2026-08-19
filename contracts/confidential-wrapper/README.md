@@ -183,7 +183,7 @@ npx hardhat task:verifyConfidentialWrapperImpl \
 
 ## Params-driven deployment
 
-Live deployments run from a private workflow that reads the reviewed [`deploy-params/`](./deploy-params/) files and invokes the Hardhat tasks documented above. To request a deployment, open a PR that adds or edits a params entry — see [`deploy-params/README.md`](./deploy-params/README.md).
+Live deployments run from a private workflow that reads the reviewed [`deploy-params/`](./deploy-params/) files and invokes the Hardhat tasks documented above. To request a deployment, open a PR that adds or edits a params entry — see the [deploy params entry runbook](../../docs/deployment/deploy-wrapper-param-entry-runbook.md).
 
 ## Scripts
 

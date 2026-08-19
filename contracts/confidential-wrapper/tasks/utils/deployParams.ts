@@ -9,6 +9,7 @@ import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, resolve } from 'path';
 
 const DEPLOY_PARAMS_ROOT = resolve(__dirname, '../../deploy-params');
+const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
 export type NetworkConfig = {
   chainId: number;
@@ -17,15 +18,16 @@ export type NetworkConfig = {
   minDeployerBalanceWei: string;
 };
 
-/** Minimal shape needed to look up a wrappers.json entry by underlying address. */
+/** Minimal shape for a wrappers.json entry (key = underlying address). */
 export type WrapperParamsEntry = {
-  underlying: string;
+  symbol: string;
   name?: string;
   contractUri?: string;
   owner?: string;
-  blockedUsers?: unknown;
+  blockedUsers: unknown;
   underlyingDenyListSelector?: string;
   initialObservers?: unknown;
+  pauser?: string;
 };
 
 export function readJsonFile<T>(path: string): T {
@@ -86,8 +88,8 @@ export function loadNetworkConfig(networkName: string): NetworkConfig {
 }
 
 /**
- * Find the wrappers.json entry whose `underlying` matches (checksum-insensitive).
- * Entries are keyed by wrapper symbol; each underlying may appear once.
+ * Find the wrappers.json entry keyed by underlying address (checksum-insensitive).
+ * Each underlying may appear once; `symbol` lives on the entry and drives artifact names.
  */
 export function findWrapperByUnderlying(
   networkName: string,
@@ -102,33 +104,38 @@ export function findWrapperByUnderlying(
 
   const entries = readJsonFile<Record<string, WrapperParamsEntry>>(wrappersJson);
   const target = underlying.toLowerCase();
-  const matches: { symbol: string; entry: WrapperParamsEntry }[] = [];
 
-  for (const [symbol, entry] of Object.entries(entries)) {
-    if (!entry || typeof entry.underlying !== 'string') {
-      throw new Error(`Entry "${symbol}" in ${paramsFile} is missing an "underlying" address`);
-    }
-    if (entry.underlying.toLowerCase() === target) {
-      matches.push({ symbol, entry });
+  let matchedKey: string | undefined;
+  for (const key of Object.keys(entries)) {
+    if (key.toLowerCase() === target) {
+      matchedKey = key;
+      break;
     }
   }
 
-  if (matches.length === 0) {
+  if (!matchedKey) {
     throw new Error(
-      `${paramsFile} has no entry with underlying ${underlying} — add it and merge before deploying ` +
+      `${paramsFile} has no entry keyed by underlying ${underlying} — add it and merge before deploying ` +
         `(have: ${Object.keys(entries).join(', ') || '<none>'})`,
     );
   }
-  if (matches.length > 1) {
-    throw new Error(
-      `Multiple entries in ${paramsFile} share underlying ${underlying} (${matches.map(m => m.symbol).join(', ')}); ` +
-        `each underlying may appear once`,
-    );
+
+  if (!ADDRESS_RE.test(matchedKey)) {
+    throw new Error(`Entry key "${matchedKey}" in ${paramsFile} must be a 0x-prefixed 20-byte address`);
   }
 
-  const { symbol, entry } = matches[0];
-  if (symbol.length === 0) {
-    throw new Error(`Empty wrapper symbol key in ${paramsFile}`);
+  const entry = entries[matchedKey];
+  if (!entry || typeof entry !== 'object') {
+    throw new Error(`Entry at ${matchedKey} in ${paramsFile} is invalid`);
   }
-  return { symbol, entry, paramsFile };
+  if ('underlying' in entry) {
+    throw new Error(
+      `Entry at ${matchedKey} in ${paramsFile} must not include "underlying" — the JSON key is the underlying address`,
+    );
+  }
+  if (typeof entry.symbol !== 'string' || entry.symbol.trim() === '') {
+    throw new Error(`Entry at ${matchedKey} in ${paramsFile} is missing a non-empty "symbol"`);
+  }
+
+  return { symbol: entry.symbol.trim(), entry, paramsFile };
 }
