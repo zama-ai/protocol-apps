@@ -16,6 +16,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | --- | --- |
 | `MNEMONIC` or `PRIVATE_KEY` | Authentication for the deployer account |
 | `MAINNET_RPC_URL` | RPC URL for mainnet |
+| `POLYGON_RPC_URL` | RPC URL for Polygon mainnet |
 | `SEPOLIA_RPC_URL` | RPC URL for Sepolia testnet |
 | `ETHERSCAN_API_KEY` | Etherscan API key (required for contract verification) |
 
