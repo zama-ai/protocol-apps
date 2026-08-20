@@ -18,7 +18,7 @@ Before starting, collect the following for each wrapper being deployed:
 | Initial blocked-users list (JSON array) | Compliance / legal. Use `'[]'` if none |
 | Initial observers list (JSON array) | Addresses authorized to decrypt confidential amounts on behalf of the wrapper. Use `'[]'` if none. See the observer scope warning below |
 | Contract URI JSON metadata | Follow the pattern `data:application/json;utf8,{"name":"...","symbol":"...","description":"..."}` |
-| `MNEMONIC` or `PRIVATE_KEY` for the deployer | DFNS / internal secrets |
+| `MNEMONIC` or `PRIVATE_KEY` for the deployer | Self provided |
 | `ETHERSCAN_API_KEY` | Etherscan dashboard |
 | RPC URL for the target network | Infura / Alchemy / internal node / public endpoint |
 
@@ -87,7 +87,7 @@ Populate `.env` with all required values. For a batch of `N` wrappers (replace `
 ```dotenv
 # Auth
 MNEMONIC=                          # or PRIVATE_KEY=
-MAINNET_RPC_URL=
+ETHEREUM_RPC_URL=
 ETHERSCAN_API_KEY=
 
 NUM_CONFIDENTIAL_WRAPPERS=N
@@ -121,7 +121,7 @@ CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Requir
 **Batch (recommended when deploying multiple wrappers):**
 
 ```bash
-npx hardhat task:deployAllConfidentialWrappers --network mainnet
+npx hardhat task:deployAllConfidentialWrappers --network ethereum
 ```
 
 **Single wrapper:**
@@ -137,7 +137,7 @@ npx hardhat task:deployConfidentialWrapper \
   --owner 0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3 \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x59bf1abe \
-  --network mainnet
+  --network ethereum
 ```
 
 On success, each wrapper prints:
@@ -157,7 +157,7 @@ Record the proxy address for every wrapper.
 **Batch:**
 
 ```bash
-npx hardhat task:verifyAllConfidentialWrappers --network mainnet
+npx hardhat task:verifyAllConfidentialWrappers --network ethereum
 ```
 
 **Single:**
@@ -165,7 +165,7 @@ npx hardhat task:verifyAllConfidentialWrappers --network mainnet
 ```bash
 npx hardhat task:verifyConfidentialWrapper \
   --proxy-address <PROXY_ADDRESS> \
-  --network mainnet
+  --network ethereum
 ```
 
 This verifies both the proxy contract and the implementation contract. Since all wrappers share the same implementation bytecode, the implementation source will already be verified from the second wrapper onward. Etherscan will report a duplicate-verification notice, which is expected.
@@ -205,7 +205,7 @@ Before deploying, confirm whether a matching implementation for this version alr
 
 - Existing wrapper deployments may have the implementation that you need already
 - `.openzeppelin/<network>.json` for an entry matching the current source.
-- `deployments/<network>/` for prior `ConfidentialWrapper_<label>_Impl` artifacts.
+- `deployments/<network>/` for prior `ConfidentialWrapper_<label>_Impl` or `ConfidentialWrapper_<name>_<label>_Impl` artifacts.
 - (Optional) Etherscan to confirm the recorded implementation address is deployed and verified.
 
 If a usable implementation already exists onchain, skip Steps 3 and 4 and reuse that address in the DAO proposal at Step 5.
@@ -220,24 +220,24 @@ Minimal `.env` required for this step:
 
 ```dotenv
 MNEMONIC=                          # or PRIVATE_KEY=
-MAINNET_RPC_URL=
+ETHEREUM_RPC_URL=
 ETHERSCAN_API_KEY=
 ```
 
 Deploy the implementation contract:
 
 ```bash
-npx hardhat task:deployConfidentialWrapperImpl --network mainnet
+npx hardhat task:deployConfidentialWrapperImpl --label v4 --network ethereum
 ```
 
-The implementation is saved as `ConfidentialWrapper_Impl` in the deployments artifacts. Record the implementation address printed on success.
+Pass `--name <symbol>` (e.g. `cUSDT`) when you need a distinct artifact for that wrapper at this version. The implementation is saved as `ConfidentialWrapper_<label>_Impl`, or `ConfidentialWrapper_<name>_<label>_Impl` when a name is set. Record the implementation address printed on success.
 
 ### Step 4 — Verify the new implementation on Etherscan
 
 ```bash
 npx hardhat task:verifyConfidentialWrapperImpl \
   --impl-address <IMPL_ADDRESS> \
-  --network mainnet
+  --network ethereum
 ```
 
 ### Step 5 — Submit the DAO upgrade proposal

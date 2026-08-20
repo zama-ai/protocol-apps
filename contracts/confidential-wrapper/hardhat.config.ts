@@ -44,7 +44,7 @@ const accounts: HttpNetworkAccountsUserConfig | undefined = MNEMONIC
 
 if (accounts == null) {
   console.warn(
-    'Could not find MNEMONIC or PRIVATE_KEY environment variables. It will not be possible to execute transactions in your example.',
+    'No signer configured. Read-only tasks still work; to broadcast transactions, set MNEMONIC or PRIVATE_KEY.',
   );
 }
 
@@ -66,25 +66,54 @@ subtask(TASK_TEST_GET_TEST_FILES).setAction(async (args, _hre, runSuper) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: '0.8.27',
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 800,
+    // Hardhat picks the highest compiler matching a pragma, so listing 0.8.29 for
+    // hardhat-verify (OZ's precompiled ERC1967Proxy is 0.8.29) would also bump our
+    // ^0.8.27 impls. Pin ConfidentialWrapper via overrides; keep 0.8.29 in compilers
+    // so verify can match the proxy bytecode without CompilerVersionsMismatchError.
+    compilers: [
+      {
+        version: '0.8.27',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 800,
+          },
+          evmVersion: 'cancun',
+        },
       },
-      evmVersion: 'cancun',
+      {
+        version: '0.8.29',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 800,
+          },
+          evmVersion: 'cancun',
+        },
+      },
+    ],
+    overrides: {
+      'contracts/ConfidentialWrapper.sol': {
+        version: '0.8.27',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 800,
+          },
+          evmVersion: 'cancun',
+        },
+      },
     },
   },
   networks: {
     // ChainID must be specified in order to be able to verify contracts using the fhevm hardhat plugin
-    mainnet: {
-      url: process.env.MAINNET_RPC_URL || '',
+    ethereum: {
+      url: process.env.DEPLOYMENT_RPC_URL || process.env.ETHEREUM_RPC_URL || '',
       accounts,
       chainId: 1,
     },
-    // ChainID must be specified in order to be able to verify contracts using the fhevm hardhat plugin
-    testnet: {
-      url: process.env.SEPOLIA_RPC_URL || '',
+    sepolia: {
+      url: process.env.DEPLOYMENT_RPC_URL || process.env.SEPOLIA_RPC_URL || '',
       accounts,
       chainId: 11155111,
     },
@@ -120,6 +149,12 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY!,
+  },
+  sourcify: {
+    enabled: true,
+  },
+  blockscout: {
+    enabled: true,
   },
   exposed: {
     imports: true,

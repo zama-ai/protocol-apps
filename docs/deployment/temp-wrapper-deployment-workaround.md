@@ -52,7 +52,9 @@ npm install
 npm run compile
 ```
 
-Populate `.env`. V1 only takes the five constructor inputs (no blocked-users or denylist selector):
+Populate `.env`. V1 only takes the five constructor inputs (no blocked-users or denylist selector).
+The pinned V1 commit still uses Hardhat network `mainnet` and `MAINNET_RPC_URL` (not `ethereum` /
+`ETHEREUM_RPC_URL` from later revisions):
 
 ```dotenv
 # Auth

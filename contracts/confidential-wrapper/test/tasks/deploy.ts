@@ -2,6 +2,7 @@ import {
   getConfidentialWrapperName,
   getConfidentialWrapperProxyName,
   getConfidentialWrapperImplName,
+  getConfidentialWrapperUpgradeImplName,
   CONTRACT_NAME,
 } from '../../tasks/deploy';
 import { getRequiredEnvVar } from '../../tasks/utils/loadVariables';
@@ -37,9 +38,14 @@ describe('ConfidentialWrapper Deployment', function () {
         const owner = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_${i}`);
         const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
         const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
+        const initialObserversEnv = process.env[`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`];
+        const initialObservers =
+          initialObserversEnv === undefined || initialObserversEnv.trim() === ''
+            ? []
+            : (JSON.parse(initialObserversEnv) as string[]);
 
-        // Get the deployed proxy contract
-        const proxyDeployment = await hre.deployments.get(getConfidentialWrapperProxyName(name));
+        // Get the deployed proxy contract (artifacts are keyed by symbol)
+        const proxyDeployment = await hre.deployments.get(getConfidentialWrapperProxyName(symbol));
         const confidentialWrapper = await hre.ethers.getContractAt(CONTRACT_NAME, proxyDeployment.address);
 
         // Verify the contract was deployed
@@ -55,6 +61,7 @@ describe('ConfidentialWrapper Deployment', function () {
           expect(await confidentialWrapper.isBlockedOnWrapper(blockedUserAddress)).to.equal(true);
         }
         expect(await confidentialWrapper.getUnderlyingDenyListSelector()).to.equal(underlyingDenyListSelector);
+        expect(await confidentialWrapper.observers()).to.deep.equal(initialObservers);
       }
     });
   });
@@ -70,6 +77,11 @@ describe('ConfidentialWrapper Deployment', function () {
 
     it('Should generate correct ConfidentialWrapper implementation name', function () {
       expect(getConfidentialWrapperImplName('MyToken')).to.equal('ConfidentialWrapper_MyToken_Impl');
+    });
+
+    it('Should generate correct upgrade implementation artifact name', function () {
+      expect(getConfidentialWrapperUpgradeImplName('v4')).to.equal('ConfidentialWrapper_v4_Impl');
+      expect(getConfidentialWrapperUpgradeImplName('v4', 'cUSDT')).to.equal('ConfidentialWrapper_cUSDT_v4_Impl');
     });
   });
 });
