@@ -182,10 +182,6 @@ npx hardhat task:verifyConfidentialWrapperImpl \
   --network <network>
 ```
 
-## Params-driven deployment
-
-Live deployments run from a private workflow that reads the reviewed [`deploy-params/`](./deploy-params/) files and invokes the Hardhat tasks documented above. To request a deployment, open a PR that adds or edits a params entry — see the [deploy params entry runbook](../../docs/deployment/deploy-wrapper-param-entry-runbook.md).
-
 ## Scripts
 
 ### Foundry mainnet-fork tests
