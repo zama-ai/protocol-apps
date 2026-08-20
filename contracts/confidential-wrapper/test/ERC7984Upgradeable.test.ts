@@ -243,7 +243,7 @@ describe('ERC7984', function () {
 
         // Edge cases to run with sender as caller
         if (asSender) {
-          it('to address with no balance should pass', async function () {
+          it('from address with no balance should pass', async function () {
             const encryptedInput = await fhevm
               .createEncryptedInput(this.token.target, this.recipient.address)
               .add64(100)
