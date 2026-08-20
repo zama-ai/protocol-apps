@@ -11,8 +11,9 @@ import {IERC1363} from "@openzeppelin/contracts/interfaces/IERC1363.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @notice Pause behavior across every registered wrapper, running against live mainnet state.
-/// @dev The pauser is storage the live proxies have never written, so these tests also cover
-/// arming it on real V3 state without disturbing the deny-list config it shares a slot with.
+/// @dev The live proxies carry no pauser of their own and the upgrade in {BaseForkTest} seeds
+/// `address(0)`, so these tests also cover arming it on real V3 state without disturbing the
+/// deny-list config it shares a slot with.
 contract PauseTest is BaseForkTest {
     /// @dev Confidential token amount wrapped per case.
     uint64 internal constant CONFIDENTIAL_AMOUNT = 1_000_000;
@@ -23,7 +24,8 @@ contract PauseTest is BaseForkTest {
         disableHCUDepthLimit();
     }
 
-    /// @notice Live proxies come out of the upgrade unpaused with no pauser, so nobody can pause yet.
+    /// @notice Live proxies come out of the upgrade unpaused, with the zero pauser the
+    /// `reinitializeV4` calldata seeded, so nobody can pause yet.
     function test_PauserUnsetAfterUpgrade_AllWrappers() public {
         address anyone = makeAddr("anyone");
         for (uint256 i = 0; i < wrappers.length; i++) {

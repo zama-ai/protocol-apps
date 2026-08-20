@@ -450,6 +450,10 @@ address firstObserver = wrapper.observerAt(0);
 
 Observers can be configured up front rather than added afterwards. The `initialize` function takes an `initialObservers` array, and `reinitializeV4` takes the same array when an existing proxy is upgraded. Both revert with `ObserverAlreadyConfigured` if the array contains a duplicate entry. Pass an empty array to deploy or upgrade with no observers.
 
+#### Seed the pauser at deployment
+
+The pauser can also be set up front instead of through a separate `setPauser` transaction: `initialize` and `reinitializeV4` both take a trailing `pauser_` argument, emit `PauserUpdated`, and leave the wrapper unpaused. Passing `address(0)` deploys (or upgrades) with pausing disabled.
+
 ### Query ongoing unwrap request details
 
 ```solidity

@@ -133,10 +133,10 @@ contract UpgradeTest is BaseForkTest {
             // owner to prove the reinitializer is consumed rather than just tripping onlyOwner.
             vm.prank(_wrapper(proxy).owner());
             vm.expectRevert(Initializable.InvalidInitialization.selector);
-            _wrapper(proxy).reinitializeV4(empty);
+            _wrapper(proxy).reinitializeV4(empty, address(0));
 
             vm.expectRevert(Initializable.InvalidInitialization.selector);
-            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), empty);
+            _wrapper(proxy).initialize("", "", "", IERC20(address(0)), address(0), empty, bytes4(0), empty, address(0));
         }
     }
 
