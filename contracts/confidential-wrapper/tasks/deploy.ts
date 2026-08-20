@@ -1,4 +1,5 @@
 import { getRequiredEnvVar } from './utils/loadVariables';
+import { ZeroAddress } from 'ethers';
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
@@ -28,6 +29,7 @@ type ConfidentialWrapperInitConfig = {
   blockedUsers: string[];
   underlyingDenyListSelector: string;
   initialObservers: string[];
+  pauser: string;
 };
 
 function getRequiredJsonEnvVar<T>(name: string): T {
@@ -39,14 +41,23 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
   const { ethers, upgrades, deployments, getNamedAccounts } = hre;
   const { save, getArtifact } = deployments;
   const { deployer } = await getNamedAccounts();
-  const { name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers } =
-    initConfig;
+  const {
+    name,
+    symbol,
+    contractUri,
+    underlying,
+    owner,
+    blockedUsers,
+    underlyingDenyListSelector,
+    initialObservers,
+    pauser,
+  } = initConfig;
 
   // Deploy the proxy contract
   const confidentialWrapperFactory = await ethers.getContractFactory(CONTRACT_NAME);
   const proxy = await upgrades.deployProxy(
     confidentialWrapperFactory,
-    [name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers],
+    [name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers, pauser],
     { initializer: 'initialize', kind: 'uups' },
   );
 
@@ -62,6 +73,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
       `  - contract URI: ${contractUri}`,
       `  - underlying: ${underlying}`,
       `  - owner: ${owner}`,
+      `  - pauser: ${pauser}`,
       `  - Deployed by deployer account: ${deployer}`,
       `  - Network: ${hre.network.name}`,
       '',
@@ -85,6 +97,7 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
 // --owner "0x1234567890123456789012345678901234567890" \
 // --blocked-users '["0x1111111111111111111111111111111111111111"]' \
 // --underlying-deny-list-selector "0xfe575a87" \
+// --pauser "0x2222222222222222222222222222222222222222" \
 // --network testnet
 task('task:deployConfidentialWrapper')
   .addParam('name', 'The name of the confidential wrapper contract to deploy', undefined, types.string)
@@ -110,8 +123,24 @@ task('task:deployConfidentialWrapper')
     types.string,
   )
   .addOptionalParam('initialObservers', 'JSON array of observer addresses to seed during initialize', [], types.json)
+  .addOptionalParam(
+    'pauser',
+    'Address allowed to call pause(), set during initialize; the zero address disables pausing',
+    ZeroAddress,
+    types.string,
+  )
   .setAction(async function (
-    { name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers },
+    {
+      name,
+      symbol,
+      contractUri,
+      underlying,
+      owner,
+      blockedUsers,
+      underlyingDenyListSelector,
+      initialObservers,
+      pauser,
+    },
     hre,
   ) {
     await deployConfidentialWrapper(
@@ -124,6 +153,7 @@ task('task:deployConfidentialWrapper')
         blockedUsers,
         underlyingDenyListSelector,
         initialObservers,
+        pauser,
       },
       hre,
     );
@@ -148,6 +178,7 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
     const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
     const initialObservers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`);
+    const pauser = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_${i}`);
 
     await hre.run('task:deployConfidentialWrapper', {
       name,
@@ -158,6 +189,7 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
       blockedUsers,
       underlyingDenyListSelector,
       initialObservers,
+      pauser,
     });
   }
 

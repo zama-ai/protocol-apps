@@ -141,10 +141,10 @@ abstract contract BaseForkTest is FhevmTest {
     /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
     /// @dev HEAD is at reinitializer(4) and the live proxies are at version 3, so the upgrade must
-    /// carry encoded `reinitializeV4` calldata. It seeds no observers, mirroring the calldata a
-    /// production upgrade proposal would carry.
+    /// carry encoded `reinitializeV4` calldata. It seeds no observers and no pauser, mirroring the
+    /// calldata a production upgrade proposal would carry.
     function _upgradeAllWrappersToLatest() internal {
-        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0)));
+        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0), address(0)));
         newImplementation = new ConfidentialWrapper();
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];

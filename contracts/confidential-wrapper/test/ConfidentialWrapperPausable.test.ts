@@ -29,10 +29,49 @@ describe('ConfidentialWrapper Pausable', function () {
     await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
   });
 
-  describe('setPauser', function () {
-    it('leaves the pauser unset after initialize', async function () {
+  describe('initialize', function () {
+    it('seeds the pauser and emits PauserUpdated', async function () {
+      const seeded = await deployConfidentialWrapper(token.target as string, { pauser: pauser.address });
+
+      expect(await seeded.pauser()).to.equal(pauser.address);
+      expect(await seeded.paused()).to.be.false;
+      const events = await seeded.queryFilter(seeded.filters.PauserUpdated());
+      expect(events.map((event: any) => event.args[0])).to.deep.equal([pauser.address]);
+    });
+
+    it('lets the seeded pauser pause without a prior setPauser call', async function () {
+      const seeded = await deployConfidentialWrapper(token.target as string, { pauser: pauser.address });
+
+      await expect(seeded.connect(pauser).pause()).to.emit(seeded, 'Paused').withArgs(pauser.address);
+      expect(await seeded.paused()).to.be.true;
+      await expect(seeded.connect(outsider).pause())
+        .to.be.revertedWithCustomError(seeded, 'SenderNotPauser')
+        .withArgs(outsider.address);
+    });
+
+    it('leaves pausing disabled when seeded with the zero address', async function () {
+      // `wrapper` is deployed by the shared beforeEach, which seeds no pauser
       expect(await wrapper.pauser()).to.equal(ethers.ZeroAddress);
       expect(await wrapper.paused()).to.be.false;
+      const events = await wrapper.queryFilter(wrapper.filters.PauserUpdated());
+      expect(events.map((event: any) => event.args[0])).to.deep.equal([ethers.ZeroAddress]);
+      await expect(wrapper.connect(pauser).pause())
+        .to.be.revertedWithCustomError(wrapper, 'SenderNotPauser')
+        .withArgs(pauser.address);
+    });
+  });
+
+  describe('setPauser', function () {
+    it('replaces a pauser seeded at initialize', async function () {
+      const seeded = await deployConfidentialWrapper(token.target as string, { pauser: pauser.address });
+
+      await expect(seeded.connect(ownerSigner).setPauser(outsider.address))
+        .to.emit(seeded, 'PauserUpdated')
+        .withArgs(outsider.address);
+      expect(await seeded.pauser()).to.equal(outsider.address);
+      await expect(seeded.connect(pauser).pause())
+        .to.be.revertedWithCustomError(seeded, 'SenderNotPauser')
+        .withArgs(pauser.address);
     });
 
     it('sets the pauser and emits PauserUpdated', async function () {

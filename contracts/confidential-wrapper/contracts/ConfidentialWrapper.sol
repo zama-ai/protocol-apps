@@ -141,6 +141,7 @@ contract ConfidentialWrapper is
      * @notice Initializes the contract when deployed behind an empty proxy.
      * @dev Guarded by {onlyOnDeployment} so it can only run on a proxy whose initializer version is
      * still zero. Advances the initializer version to V4 so older reinitializers cannot be replayed.
+     * Pass `address(0)` for `pauser_` to deploy with pausing disabled.
      */
     /// @custom:oz-upgrades-validate-as-initializer
     function initialize(
@@ -151,23 +152,28 @@ contract ConfidentialWrapper is
         address owner_,
         address[] memory blockedUsers,
         bytes4 underlyingDenyListSelector,
-        address[] memory initialObservers
+        address[] memory initialObservers,
+        address pauser_
     ) public virtual onlyOnDeployment reinitializer(REINITIALIZER_VERSION) {
         __ConfidentialWrapper_init(name_, symbol_, contractURI_, underlying_, owner_);
         __ConfidentialWrapperV3_init(blockedUsers, underlyingDenyListSelector);
-        __ConfidentialWrapperV4_init(initialObservers);
+        __ConfidentialWrapperV4_init(initialObservers, pauser_);
     }
 
     /**
      * @notice Re-initializes the contract from V3. Optionally seeds the observer set with
-     * `initialObservers`; reverts if the array contains a duplicate.
+     * `initialObservers`; reverts if the array contains a duplicate. Also sets the pauser. Pass 
+     * `address(0)` to disable pausing.
      * @dev Seeds V4 state only, calling this directly from V1/V2 skips the V3
      * initializer, leaving the underlying deny-list check disabled.
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
     /// @custom:oz-upgrades-validate-as-initializer
-    function reinitializeV4(address[] memory initialObservers) public virtual onlyOwner reinitializer(REINITIALIZER_VERSION) {
-        __ConfidentialWrapperV4_init(initialObservers);
+    function reinitializeV4(
+        address[] memory initialObservers,
+        address pauser_
+    ) public virtual onlyOwner reinitializer(REINITIALIZER_VERSION) {
+        __ConfidentialWrapperV4_init(initialObservers, pauser_);
         __Pausable_init();
     }
 
@@ -203,15 +209,20 @@ contract ConfidentialWrapper is
     }
 
     /**
-     * @dev V4-specific initialization logic. Optionally seeds observers.
-     * Reverts if any observer entry appears more than once.
+     * @dev V4-specific initialization logic. Optionally seeds observers and sets the pauser.
+     * Reverts if any observer entry appears more than once. `pauser_` is always written, and passing
+     * `address(0)` disables pausing.
      */
     /// @custom:oz-upgrades-unsafe-allow missing-initializer-call
-    function __ConfidentialWrapperV4_init(address[] memory initialObservers) internal onlyInitializing {
+    function __ConfidentialWrapperV4_init(
+        address[] memory initialObservers,
+        address pauser_
+    ) internal onlyInitializing {
         uint256 length = initialObservers.length;
         for (uint256 i = 0; i < length; i++) {
             _addObserver(initialObservers[i]);
         }
+        _setPauser(pauser_);
     }
 
     /// @dev Adds `user` to the denylist.
@@ -335,8 +346,7 @@ contract ConfidentialWrapper is
 
     /// @dev Sets the address allowed to call {pause}. Set to `address(0)` to disable pausing.
     function setPauser(address pauser_) external virtual onlyOwner {
-        _getConfidentialWrapperV3Storage()._pauser = pauser_;
-        emit PauserUpdated(pauser_);
+        _setPauser(pauser_);
     }
 
     /// @dev Halts wrapping, unwrapping, unwrap finalization and confidential transfers.
@@ -399,6 +409,11 @@ contract ConfidentialWrapper is
             FHE.revokeUserDecryptionDelegation(observer, WILDCARD_CONTRACT);
             emit ObserverRemoved(observer);
         }
+    }
+
+    function _setPauser(address pauser_) internal {
+        _getConfidentialWrapperV3Storage()._pauser = pauser_;
+        emit PauserUpdated(pauser_);
     }
 
     /// @dev The enforced predicate, combining the wrapper-local and underlying denylist checks.

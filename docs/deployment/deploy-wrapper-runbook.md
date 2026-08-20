@@ -102,9 +102,16 @@ CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}="0xB6D69D5F334d8B97B194617B53c6aB62f8681E
 CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}=          # JSON array, e.g. '[]'
 CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}=   # bytes4, must match the underlying token; 0x00000000 disables the check
 CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}=      # JSON array, e.g. '[]'. Required — set '[]' for none
+CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}=         # address allowed to call pause(); the zero address disables pausing
 ```
 
 > ⚠️ **`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` is required.** It must be set explicitly — use `'[]'` when there are no observers. Observers can decrypt every confidential amount the wrapper processes (balances, total supply, and individual transfer/wrap/unwrap amounts), so seed them deliberately. Because `initialize` cannot be re-run at the same version, observers omitted at deployment can only be added afterwards through separate `addObserver` governance calls.
+
+> ⚠️ **`CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` is required too.** `initialize` arms the pauser
+> directly, so a deployment no longer needs a follow-up `setPauser` transaction. Set the zero address
+> to deploy with pausing disabled. The pauser can halt wrapping, unwrapping, unwrap finalization and
+> confidential transfers, and only the owner can `unpause`, so pick it deliberately. The owner can
+> rotate it later with `setPauser`.
 
 > **The selector alone carries enablement.**
 > A deny-list getter whose selector is genuinely `0x00000000` can exist in theory but is
@@ -257,10 +264,10 @@ See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.
 
 Use Foundry's `cast calldata` to ABI-encode the reinitializer call. Foundry must be installed. See the [Foundry docs](https://www.getfoundry.sh).
 
-For example, to get the calldata for a V4 wrapper with an initial observer set:
+For example, to get the calldata for a V4 wrapper with an initial observer set and a pauser:
 
 ```bash
-cast calldata "reinitializeV4(address[])" "[0xAddr1,0xAddr2]"
+cast calldata "reinitializeV4(address[],address)" "[0xAddr1,0xAddr2]" 0xPauser
 ```
 
 Update the above command for the correct reinitializer version and function parameters for your wrapper, and then paste the returned hex string as `data (bytes)` in the proposal:

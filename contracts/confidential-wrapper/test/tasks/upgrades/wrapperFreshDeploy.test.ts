@@ -28,6 +28,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       const initialObservers = Array.from({ length: 2 }, () =>
         hre.ethers.getAddress(hre.ethers.hexlify(hre.ethers.randomBytes(20))),
       );
+      const pauser = hre.ethers.getAddress(hre.ethers.hexlify(hre.ethers.randomBytes(20)));
 
       const wrapper = await deployConfidentialWrapper(this.underlyingAddress, {
         name: WRAPPER_NAME,
@@ -37,6 +38,7 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
         blockedUsers: blockedAddresses,
         underlyingDenyListSelector: SELECTOR_CUSDC,
         initialObservers,
+        pauser,
       });
 
       // Base state is fully initialized
@@ -53,20 +55,29 @@ describe('ConfidentialWrapper Fresh Deploy', function () {
       expect(await wrapper.getUnderlyingDenyListSelector()).to.equal(SELECTOR_CUSDC);
       expect(await wrapper.observers()).to.deep.equal(initialObservers);
 
-      // Pausing starts unset and unpaused; the owner arms it with setPauser
-      expect(await wrapper.pauser()).to.equal(hre.ethers.ZeroAddress);
+      // The pauser is armed by initialize itself, and the wrapper starts unpaused
+      expect(await wrapper.pauser()).to.equal(pauser);
       expect(await wrapper.paused()).to.be.false;
 
       // Current reinitializer is locked and cannot replay
-      await expect(wrapper.connect(this.deployer).reinitializeV4([])).to.be.revertedWithCustomError(
-        wrapper,
-        'InvalidInitialization',
-      );
+      await expect(
+        wrapper.connect(this.deployer).reinitializeV4([], hre.ethers.ZeroAddress),
+      ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
 
       await expect(
         wrapper
           .connect(this.deployer)
-          .initialize('test', 'TEST', 'uri', this.underlyingAddress, this.deployer.address, [], '0x00000000', []),
+          .initialize(
+            'test',
+            'TEST',
+            'uri',
+            this.underlyingAddress,
+            this.deployer.address,
+            [],
+            '0x00000000',
+            [],
+            hre.ethers.ZeroAddress,
+          ),
       ).to.be.revertedWithCustomError(wrapper, 'InvalidInitialization');
     });
   });

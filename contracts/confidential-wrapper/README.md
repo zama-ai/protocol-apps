@@ -31,6 +31,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}` | Address of the underlying ERC20 token for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}` | Owner address for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
+| `CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` | Address allowed to call `pause()`, set during initialization; the zero address disables pausing |
 
 ### Task inputs (batch deploy upgrade implementations)
 
@@ -63,6 +64,7 @@ Deploy a single confidential wrapper contract.
 | `--blocked-users` | `json` | Yes | JSON array of addresses to seed into the wrapper denylist during `initialize` |
 | `--underlying-deny-list-selector` | `string` | Yes | Function selector used to query the underlying token denylist; `0x00000000` disables the check |
 | `--initial-observers` | `json` | No | JSON array of observer addresses to seed during `initialize` |
+| `--pauser` | `string` | No | Address allowed to call `pause()`, set during `initialize`; defaults to the zero address, which disables pausing |
 
 **Example:**
 
@@ -76,6 +78,7 @@ npx hardhat task:deployConfidentialWrapper \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x00000000 \
   --initial-observers '[]' \
+  --pauser 0x2222222222222222222222222222222222222222 \
   --network testnet
 ```
 
@@ -90,6 +93,7 @@ Each wrapper must also provide the V3 initializer configuration:
 | `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist; `0x00000000` disables the check |
 | `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
+| `CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` | Address allowed to call `pause()`; the zero address disables pausing |
 
 **Parameters:** None (configuration is read from environment variables).
 

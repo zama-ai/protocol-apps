@@ -37,6 +37,7 @@ describe('ConfidentialWrapper Deployment', function () {
         const owner = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_${i}`);
         const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
         const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
+        const pauser = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_${i}`);
 
         // Get the deployed proxy contract
         const proxyDeployment = await hre.deployments.get(getConfidentialWrapperProxyName(name));
@@ -55,6 +56,7 @@ describe('ConfidentialWrapper Deployment', function () {
           expect(await confidentialWrapper.isBlockedOnWrapper(blockedUserAddress)).to.equal(true);
         }
         expect(await confidentialWrapper.getUnderlyingDenyListSelector()).to.equal(underlyingDenyListSelector);
+        expect(await confidentialWrapper.pauser()).to.equal(pauser);
       }
     });
   });
