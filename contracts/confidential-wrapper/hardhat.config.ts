@@ -82,6 +82,13 @@ const config: HardhatUserConfig = {
       accounts,
       chainId: 1,
     },
+    // FHEVM config for chainId 137 comes from the locally vendored
+    // contracts/fhevm/ZamaConfig.sol (aligned with @fhevm/solidity 0.13.2).
+    polygon: {
+      url: process.env.POLYGON_RPC_URL || '',
+      accounts,
+      chainId: 137,
+    },
     // ChainID must be specified in order to be able to verify contracts using the fhevm hardhat plugin
     testnet: {
       url: process.env.SEPOLIA_RPC_URL || '',

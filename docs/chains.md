@@ -7,6 +7,7 @@ This page lists the chains involved in the Zama protocol, their block explorers,
 ### Block explorers
 
 * Ethereum: [https://etherscan.io/](https://etherscan.io/)
+* Polygon: [https://polygonscan.com/](https://polygonscan.com/)
 * Gateway: [https://explorer.mainnet.zama.org/](https://explorer.mainnet.zama.org/)
 * BSC: [https://bscscan.com/](https://bscscan.com/)
 * HyperEVM: [https://hyperevmscan.io/](https://hyperevmscan.io/)
@@ -23,6 +24,7 @@ Not to be confused with Endpoint IDs (see section below).
 | Name                  |  Chain ID  |
 | --------------------- | ---------- |
 | `Ethereum`            |     1      |
+| `Polygon`             |    137     |
 | `Gateway`             |  261131    |
 | `BSC`                 |    56      |
 | `HyperEVM`            |    999     |
@@ -38,6 +40,7 @@ Those are LayerZero specific and should not be confused with Chain IDs (see sect
 | Name                  | Endpoint ID (eid) |
 | --------------------- | ----------------- |
 | `Ethereum`            |      30101        |
+| `Polygon`             |      30109        |
 | `Gateway`             |      30397        |
 | `BSC`                 |      30102        |
 | `SOL`                 |      30168        |
