@@ -80,6 +80,11 @@ const config: HardhatUserConfig = {
       url: process.env.MAINNET_RPC_URL || '',
       accounts,
     },
+    polygon: {
+      url: process.env.POLYGON_RPC_URL || '',
+      accounts,
+      chainId: 137,
+    },
     testnet: {
       url: process.env.SEPOLIA_RPC_URL || '',
       accounts,
