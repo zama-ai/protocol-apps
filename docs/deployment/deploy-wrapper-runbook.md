@@ -84,7 +84,11 @@ Populate `.env` with all required values. For a batch of `N` wrappers (replace `
 ```dotenv
 # Auth
 MNEMONIC=                          # or PRIVATE_KEY=
-MAINNET_RPC_URL=
+# Set the RPC URL for your target network:
+# MAINNET_RPC_URL=      # --network mainnet
+# SEPOLIA_RPC_URL=      # --network testnet
+# POLYGON_RPC_URL=      # --network polygon
+# AMOY_RPC_URL=         # --network polygon-amoy
 ETHERSCAN_API_KEY=
 
 NUM_CONFIDENTIAL_WRAPPERS=N
@@ -218,7 +222,18 @@ If a usable implementation already exists onchain, skip Steps 3 and 4 and reuse 
 
 ### Step 2 — Run the upgrade test on a fork
 
-**WIP -- Coming soon**
+Verify the fork tests have passed on your deployment commit, or run them locally.
+
+The fork tests require archive RPC access through `ETHEREUM_MAINNET_FORK_RPC_URL` in the environment
+or in `contracts/confidential-wrapper/.env`.
+
+```bash
+cd test/foundry
+make setup
+make build
+make fork-test
+make fork-test-batcher
+```
 
 ### Step 3 — Deploy the new implementation
 
@@ -288,5 +303,6 @@ After completing a deployment or upgrade, confirm each of the following:
 - [ ] `name()` and `symbol()` return the expected values when called on the proxy
 - [ ] `underlying()` returns the correct underlying address
 - [ ] `owner()` returns the Protocol DAO address
+- [ ] `observers()` returns the intended observer list
 - [ ] `pauser()` returns the intended pauser (or the zero address when pausing is disabled)
 - [ ] `isConfidentialTokenValid(proxyAddress)` returns `true` on the registry (post-registration)
