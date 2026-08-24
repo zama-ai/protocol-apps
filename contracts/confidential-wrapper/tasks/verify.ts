@@ -1,24 +1,34 @@
-import { getConfidentialWrapperProxyName } from './deploy';
+import { CONTRACT_NAME, getConfidentialWrapperProxyName } from './deploy';
 import { getRequiredEnvVar } from './utils/loadVariables';
 import { task, types } from 'hardhat/config';
 import type { HardhatRuntimeEnvironment } from 'hardhat/types';
 
+const ALREADY_VERIFIED = /already verified/i;
+
+/**
+ * Whether an explorer failure is nothing but "this is already verified".
+ */
 function isAlreadyVerified(err: unknown): boolean {
-  return /already verified/i.test(err instanceof Error ? err.message : String(err));
+  const message = err instanceof Error ? err.message : String(err);
+  const entries = message.split(/\n\n(?:Error|Warning) \d+: /).slice(1);
+  if (entries.length === 0) {
+    return ALREADY_VERIFIED.test(message);
+  }
+  return entries.every(entry => ALREADY_VERIFIED.test(entry));
 }
 
 /**
  * Verify on every explorer enabled in hardhat.config.
  *
  * - Etherscan: required (OZ hardhat-upgrades intercepts `verify:etherscan` for proxies).
- * - Blockscout / Sourcify: best-effort — proxy bytecode is OZ's precompiled 0.8.29 artifact, so
- *   those providers often cannot match this repo's 0.8.27 compile; failures must not fail the task
- *   after Etherscan succeeds. (`verify:verify` also skips Blockscout entirely.)
+ * - Blockscout / Sourcify: best-effort — failures must not fail the task after Etherscan has
+ *   already succeeded. Pass `bestEffort: false` to skip them for an address they cannot verify.
  */
 async function verifyOnEnabledExplorers(
   hre: HardhatRuntimeEnvironment,
   address: string,
   constructorArguments: unknown[] = [],
+  { bestEffort = true }: { bestEffort?: boolean } = {},
 ): Promise<void> {
   const { run, config } = hre;
 
@@ -35,6 +45,8 @@ async function verifyOnEnabledExplorers(
       console.log(`Already verified on Etherscan: ${address}`);
     }
   }
+
+  if (!bestEffort) return;
 
   if (config.blockscout?.enabled) {
     try {
@@ -73,11 +85,28 @@ task('task:verifyConfidentialWrapper')
 
     const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
 
+    // Etherscan only for the proxy: it is OZ's precompiled ERC1967Proxy, not an artifact of this
+    // project, and it takes two constructor arguments. Blockscout and Sourcify would therefore warn
+    // on every single run, training operators to ignore the warnings that do matter on the
+    // implementation. Etherscan still gets the call because that is what links proxy to
+    // implementation in its UI.
     console.log(`Verifying confidential wrapper proxy contract at ${proxyAddress}...\n`);
-    await verifyOnEnabledExplorers(hre, proxyAddress, []);
+    await verifyOnEnabledExplorers(hre, proxyAddress, [], { bestEffort: false });
 
     console.log(`Verifying confidential wrapper implementation contract at ${implementationAddress}...\n`);
     await verifyOnEnabledExplorers(hre, implementationAddress, []);
+  });
+
+// Verify a bare ConfidentialWrapper implementation (no proxy).
+// Example usage:
+// npx hardhat task:verifyConfidentialWrapperImpl \
+//   --impl-address 0x1234567890123456789012345678901234567890 \
+//   --network sepolia
+task('task:verifyConfidentialWrapperImpl')
+  .addParam('implAddress', 'The address of the implementation contract to verify', '', types.string)
+  .setAction(async function ({ implAddress }, hre) {
+    console.log(`Verifying ${CONTRACT_NAME} implementation at ${implAddress}...\n`);
+    await verifyOnEnabledExplorers(hre, implAddress, []);
   });
 
 // Verify all confidential wrapper contracts

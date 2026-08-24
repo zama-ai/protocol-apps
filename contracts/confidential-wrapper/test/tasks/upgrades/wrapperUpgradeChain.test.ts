@@ -62,7 +62,7 @@ describe('ConfidentialWrapper Upgrade Chain', function () {
   }
 
   async function deployCurrentImplementation() {
-    await hre.run('task:deployConfidentialWrapperImpl', { label: 'v4' });
+    await hre.run('task:deployConfidentialWrapperImpl', { versionTag: 'v4' });
     const implDeployment = await hre.deployments.get(getConfidentialWrapperUpgradeImplName('v4'));
     return implDeployment.address;
   }

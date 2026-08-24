@@ -215,7 +215,7 @@ Before deploying, confirm whether a matching implementation for this version alr
 
 - Existing wrapper deployments may have the implementation that you need already
 - `.openzeppelin/<network>.json` for an entry matching the current source.
-- `deployments/<network>/` for prior `ConfidentialWrapper_<label>_Impl` or `ConfidentialWrapper_<name>_<label>_Impl` artifacts.
+- `deployments/<network>/` for prior `ConfidentialWrapper_<versionTag>_Impl` or `ConfidentialWrapper_<name>_<versionTag>_Impl` artifacts.
 - (Optional) Etherscan to confirm the recorded implementation address is deployed and verified.
 
 If a usable implementation already exists onchain, skip Steps 3 and 4 and reuse that address in the DAO proposal at Step 5.
@@ -248,10 +248,10 @@ ETHERSCAN_API_KEY=
 Deploy the implementation contract:
 
 ```bash
-npx hardhat task:deployConfidentialWrapperImpl --label v4 --network ethereum
+npx hardhat task:deployConfidentialWrapperImpl --version-tag v4 --network ethereum
 ```
 
-Pass `--name <symbol>` (e.g. `cUSDT`) when you need a distinct artifact for that wrapper at this version. The implementation is saved as `ConfidentialWrapper_<label>_Impl`, or `ConfidentialWrapper_<name>_<label>_Impl` when a name is set. Record the implementation address printed on success.
+Pass `--name <symbol>` (e.g. `cUSDT`) when you need a distinct artifact for that wrapper at this version. The implementation is saved as `ConfidentialWrapper_<versionTag>_Impl`, or `ConfidentialWrapper_<name>_<versionTag>_Impl` when a name is set. Record the implementation address printed on success.
 
 ### Step 4 — Verify the new implementation on Etherscan
 

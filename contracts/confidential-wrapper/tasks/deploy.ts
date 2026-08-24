@@ -46,8 +46,10 @@ export function getConfidentialWrapperImplName(tokenSymbol: string): string {
   return `ConfidentialWrapper_${tokenSymbol}_Impl`;
 }
 
-export function getConfidentialWrapperUpgradeImplName(label: string, name?: string): string {
-  return name ? `ConfidentialWrapper_${name}_${label}_Impl` : `ConfidentialWrapper_${label}_Impl`;
+// `name` is optional because one version usually ships a single shared implementation; it exists for
+// the cases where a version needs more than one implementation live at once (e.g. treasury variants).
+export function getConfidentialWrapperUpgradeImplName(versionTag: string, name?: string): string {
+  return name ? `ConfidentialWrapper_${name}_${versionTag}_Impl` : `ConfidentialWrapper_${versionTag}_Impl`;
 }
 
 export function getConfidentialWrapperProxyName(tokenSymbol: string): string {
@@ -234,8 +236,6 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
   console.log('✅ All confidential wrapper contracts deployed\n');
 });
 
-// Deploy a bare ConfidentialWrapper implementation (no proxy), for an upgrade proposal: deploy it,
-// then call `upgradeToAndCall(implAddress, reinitializeVX_calldata)` on the existing proxy.
 function resolveOptionalTaskInput(cliValue: unknown, envName: string): string | undefined {
   if (typeof cliValue === 'string' && cliValue.trim() !== '') return cliValue.trim();
   const fromEnv = process.env[envName]?.trim();
@@ -249,12 +249,17 @@ function assertArtifactSegment(value: string, field: string): string {
   return value;
 }
 
-async function deployConfidentialWrapperImpl(label: string, name: string | undefined, hre: HardhatRuntimeEnvironment) {
+// Deploy a bare ConfidentialWrapper implementation (no proxy).
+async function deployConfidentialWrapperImpl(
+  versionTag: string,
+  name: string | undefined,
+  hre: HardhatRuntimeEnvironment,
+) {
   const { ethers, deployments, network } = hre;
   const { save, getArtifact } = deployments;
   const deployerSigner = await getDeployerSigner(hre);
   const deployer = await deployerSigner.getAddress();
-  const artifactName = getConfidentialWrapperUpgradeImplName(label, name);
+  const artifactName = getConfidentialWrapperUpgradeImplName(versionTag, name);
 
   const factory = await ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
   const implementation = await factory.deploy();
@@ -287,28 +292,20 @@ task('task:deployConfidentialWrapperImpl')
     types.string,
   )
   .addOptionalParam(
-    'label',
-    'Version label appended to the saved implementation artifact (e.g. "v4"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL',
+    'versionTag',
+    'Version tag appended to the saved implementation artifact (e.g. "v4"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG',
     undefined,
     types.string,
   )
-  .setAction(async function ({ name, label }, hre) {
-    const resolvedLabel = resolveOptionalTaskInput(label, 'CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL');
-    if (!resolvedLabel) {
-      throw new Error('Provide --label or set CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL');
+  .setAction(async function ({ name, versionTag }, hre) {
+    const resolvedVersionTag = resolveOptionalTaskInput(versionTag, 'CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG');
+    if (!resolvedVersionTag) {
+      throw new Error('Provide --version-tag or set CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG');
     }
     const resolvedName = resolveOptionalTaskInput(name, 'CONFIDENTIAL_WRAPPER_UPGRADE_NAME');
-    const safeLabel = assertArtifactSegment(resolvedLabel, 'label');
+    const safeVersionTag = assertArtifactSegment(resolvedVersionTag, 'versionTag');
     const safeName = resolvedName ? assertArtifactSegment(resolvedName, 'name') : undefined;
-    const tag = safeName ? `${safeName} ${safeLabel}` : safeLabel;
+    const tag = safeName ? `${safeName} ${safeVersionTag}` : safeVersionTag;
     console.log(`Deploying ${CONTRACT_NAME} implementation (${tag})...\n`);
-    await deployConfidentialWrapperImpl(safeLabel, safeName, hre);
-  });
-
-task('task:verifyConfidentialWrapperImpl')
-  .addParam('implAddress', 'The address of the implementation contract to verify', '', types.string)
-  .setAction(async function ({ implAddress }, hre) {
-    const { run } = hre;
-    console.log(`Verifying ${CONTRACT_NAME} implementation at ${implAddress}...\n`);
-    await run('verify:verify', { address: implAddress, constructorArguments: [] });
+    await deployConfidentialWrapperImpl(safeVersionTag, safeName, hre);
   });
