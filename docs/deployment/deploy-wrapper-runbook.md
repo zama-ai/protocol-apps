@@ -1,7 +1,5 @@
 # Confidential Wrapper deployment
 
-> ⚠️ **Temporary workaround required for fresh deployments.** The current audited contract source cannot be deployed directly as V3 in a fresh deployment. Until this is fixed in V4, fresh deployments must follow the temporary workaround: deploy V1 from a pinned commit, then upgrade to V3 and register the wrapper in a single DAO proposal. See [`temp-wrapper-deployment-workaround.md`](./temp-wrapper-deployment-workaround.md) before using Option 1 below.
-
 > The Protocol Apps team deploys **ConfidentialWrapper** UUPS proxy contracts that wrap standard ERC-20 tokens into confidential ERC-7984 tokens using FHE. After deployment and Etherscan verification the Protocol DAO registers each wrapper in the **ConfidentialTokenWrappersRegistry**. The DAO is the only entity that can register or revoke wrappers in the registry.
 
 ---
@@ -17,6 +15,7 @@ Before starting, collect the following for each wrapper being deployed:
 | Denylist function selector (`bytes4`) | Underlying token contract ABI. Use `0x00000000` if the underlying has no denylist |
 | Initial blocked-users list (JSON array) | Compliance / legal. Use `'[]'` if none |
 | Initial observers list (JSON array) | Addresses authorized to decrypt confidential amounts on behalf of the wrapper. Use `'[]'` if none. See the observer scope warning below |
+| Pauser address | Address allowed to call `pause()`. Use the zero address to deploy with pausing disabled |
 | Contract URI JSON metadata | Follow the pattern `data:application/json;utf8,{"name":"...","symbol":"...","description":"..."}` |
 | `MNEMONIC` or `PRIVATE_KEY` for the deployer | DFNS / internal secrets |
 | `ETHERSCAN_API_KEY` | Etherscan dashboard |
@@ -69,8 +68,6 @@ Pick the option that matches your task:
 ---
 
 ## Option 1 — Fresh wrapper contract deployment
-
-> ⚠️ **Do not use as-is.** Fresh V3 deployments are blocked until V4 ships. Follow [`temp-wrapper-deployment-workaround.md`](./temp-wrapper-deployment-workaround.md) instead.
 
 ### Step 1 — Set up the environment
 
@@ -144,6 +141,8 @@ npx hardhat task:deployConfidentialWrapper \
   --owner 0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3 \
   --blocked-users '[]' \
   --underlying-deny-list-selector 0x59bf1abe \
+  --initial-observers '[]' \
+  --pauser 0x0000000000000000000000000000000000000000 \
   --network mainnet
 ```
 
@@ -289,4 +288,5 @@ After completing a deployment or upgrade, confirm each of the following:
 - [ ] `name()` and `symbol()` return the expected values when called on the proxy
 - [ ] `underlying()` returns the correct underlying address
 - [ ] `owner()` returns the Protocol DAO address
+- [ ] `pauser()` returns the intended pauser (or the zero address when pausing is disabled)
 - [ ] `isConfidentialTokenValid(proxyAddress)` returns `true` on the registry (post-registration)
