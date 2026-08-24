@@ -68,7 +68,7 @@
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\"",
     "test": "hardhat test",
-    "test:sepolia": "hardhat test --network testnet"
+    "test:sepolia": "hardhat test --network sepolia"
   },
   "overrides": {
     "@fhevm/solidity": "0.11.1",

@@ -18,7 +18,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `ETHEREUM_RPC_URL` | RPC URL for the `ethereum` network (mainnet) |
 | `POLYGON_RPC_URL` | RPC URL for the `polygon` network (Polygon mainnet) |
 | `SEPOLIA_RPC_URL` | RPC URL for the `sepolia` network (Sepolia testnet) |
-| `AMOY_RPC_URL`    | RPC URL for the `amoy` network (Polygon testnet)    |
+| `AMOY_RPC_URL` | RPC URL for the `polygon-amoy` network (Polygon testnet) |
 | `ETHERSCAN_API_KEY` | Etherscan API key (required for Etherscan verification; Blockscout/Sourcify need none) |
 
 ### Task inputs (batch deployment)
@@ -31,15 +31,19 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `CONFIDENTIAL_WRAPPER_CONTRACT_URI_{i}` | Contract URI metadata for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_ADDRESS_{i}` | Address of the underlying ERC20 token for the wrapper at index `i` |
 | `CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_{i}` | Owner address for the wrapper at index `i` |
-| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
+| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | JSON array of observer addresses to seed during initialization; use `[]` for none |
 | `CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` | Address allowed to call `pause()`, set during initialization; the zero address disables pausing |
+
+Every variable above is required in the batch path — a missing or misspelled one aborts the run
+rather than deploying a wrapper with no observers or no pauser. Opt out explicitly with `[]` and the
+zero address.
 
 ### Task inputs (upgrade implementation)
 
 | Variable | Description |
 | --- | --- |
 | `CONFIDENTIAL_WRAPPER_UPGRADE_NAME` | Optional wrapper identifier included in the artifact (e.g. `cUSDT`). Used by `task:deployConfidentialWrapperImpl` when `--name` is omitted. Omit for a shared implementation |
-| `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` | Version label appended to the saved implementation artifact (e.g. `v4`). Used by `task:deployConfidentialWrapperImpl` when `--label` is omitted |
+| `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG` | Version tag appended to the saved implementation artifact (e.g. `v4`). Used by `task:deployConfidentialWrapperImpl` when `--version-tag` is omitted |
 
 > **Underlying deny-list configuration:** the selector alone carries enablement.
 > Consumers of `getUnderlyingDenyListSelector` determine enablement with `selector != 0`. A deny-list
@@ -86,13 +90,13 @@ npx hardhat task:deployConfidentialWrapper \
 
 Deploy all confidential wrapper contracts defined in the `.env` file. Reads `NUM_CONFIDENTIAL_WRAPPERS` and iterates over each wrapper's environment variables (`CONFIDENTIAL_WRAPPER_NAME_{i}`, `CONFIDENTIAL_WRAPPER_SYMBOL_{i}`, etc.).
 
-Each wrapper must also provide the V3 initializer configuration:
+Each wrapper must also provide the V3/V4 initializer configuration:
 
 | Variable | Description |
 | --- | --- |
 | `CONFIDENTIAL_WRAPPER_BLOCKED_USERS_{i}` | JSON array of addresses to seed into the wrapper denylist |
 | `CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_{i}` | Function selector used to query the underlying token denylist; `0x00000000` disables the check |
-| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | Optional JSON array of observer addresses to seed during initialization |
+| `CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` | JSON array of observer addresses to seed during initialization; use `[]` for none |
 | `CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` | Address allowed to call `pause()`; the zero address disables pausing |
 
 **Parameters:** None (configuration is read from environment variables).
@@ -137,28 +141,28 @@ npx hardhat task:verifyAllConfidentialWrappers --network <network>
 
 Deploy a new `ConfidentialWrapper` implementation contract without upgrading any proxy. The proxy upgrade is handled separately by the DAO.
 
-The artifact is `ConfidentialWrapper_<label>_Impl`, or `ConfidentialWrapper_<name>_<label>_Impl` when a name is provided.
+The artifact is `ConfidentialWrapper_<versionTag>_Impl`, or `ConfidentialWrapper_<name>_<versionTag>_Impl` when a name is provided.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `--name` | `string` | No | Wrapper identifier in the artifact (e.g. `"cUSDT"`). |
-| `--label` | `string` | No | Version label appended to the saved artifact name (e.g. `"v4"`). Defaults to `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` |
+| `--version-tag` | `string` | No | Version tag appended to the saved artifact name (e.g. `"v4"`). Defaults to `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG` |
 
 **Example:**
 
 ```bash
-npx hardhat task:deployConfidentialWrapperImpl --name cUSDT --label v4 --network <network>
+npx hardhat task:deployConfidentialWrapperImpl --name cUSDT --version-tag v4 --network <network>
 ```
 
 Shared implementation (no per-wrapper name):
 
 ```bash
-npx hardhat task:deployConfidentialWrapperImpl --label v4 --network <network>
+npx hardhat task:deployConfidentialWrapperImpl --version-tag v4 --network <network>
 ```
 
-Or, with `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_LABEL` (and optionally `CONFIDENTIAL_WRAPPER_UPGRADE_NAME`) set in `.env`:
+Or, with `CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG` (and optionally `CONFIDENTIAL_WRAPPER_UPGRADE_NAME`) set in `.env`:
 
 ```bash
 npx hardhat task:deployConfidentialWrapperImpl --network <network>
