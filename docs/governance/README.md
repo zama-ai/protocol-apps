@@ -22,18 +22,17 @@ Operational runbooks for creating, reviewing, and managing governance proposals 
 Creator                          Reviewer                          Anyone
 ───────                          ────────                          ──────
 1. Read creator runbooks
-2. Create a community forum post
-3. Create proposal via Aragon frontend
-4. Submit proposal
-5. Notify reviewers
+2. Create proposal via Aragon frontend
+3. Submit proposal
+4. Notify reviewers
   - First code owners
   - Then DAO members
-                                 6. Read reviewer runbooks
-                                 7. Verify via Aragon frontend
-                                 8. Verify via CLI inspector
-                                 9. (DAO member only) Sign 
+                                 5. Read reviewer runbooks
+                                 6. Verify via Aragon frontend
+                                 7. Verify via CLI inspector
+                                 8. (DAO member only) Sign 
                                     proposal in wallet
-                                                                  10. (In case of failure)
+                                                                  9. (In case of failure)
                                                                      Execute lzReceive on the
                                                                      destination chain manually
                            

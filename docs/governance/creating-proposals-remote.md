@@ -19,10 +19,6 @@ destinations (ids, addresses, RPC vars) is in
 
 ---
 
-## Step 0: Create a community forum post
-
-Before creating the on-chain proposal, publish a post in the [governance community forum](https://community.zama.org/c/protocol/governance/) to present and add context on the proposal so DAO members can review it. Use the [forum post template](forum-post-template.md). Keep the post's URL — you'll link it in the proposal's **Resources** when filling in the proposal details (Step 5).
-
 ## One-time setup.
 
 ```bash
@@ -110,8 +106,3 @@ LayerZero execution gas, and writes:
 ![Decoded proposal](images/aragon-decoded-proposal.png)
 
 3. As in [Creating Ethereum Proposals](creating-proposals-ethereum.md#step-3-simulate-and-submit): **simulate** the proposal, then submit.
-
-
-## Step 4: Upload the json files to the community forum
-
-Upload the `aragonProposal.json` and `remote-proposal-filled.json` files to the community forum post created in Step 0.
