@@ -49,12 +49,7 @@ branches in this repo; fork PRs skip the whole job, since GitHub withholds the s
 The fork block is optional and resolved by `script/utils/resolve-fork.sh`.
 
 Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → chain tip when
-`ethereumMainnet.block` is `null`, which is the committed default. Running at the tip keeps the
-suite honest about *current* mainnet state, and avoids the pin ageing out of the archive node's
-retention window. The trade-off is that the run is not reproducible: the suite asserts against real
-mainnet state, so a `config/blacklist-seeds.json` address removed from a token's blacklist breaks a
-tip run (refresh the seed). Set `ethereumMainnet.block` to an integer, or export `FORK_BLOCK`, to pin
-a run while reproducing a failure.
+`ethereumMainnet.block` is `null`, which is the committed default. Set `ethereumMainnet.block` to an integer, or export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config
 
