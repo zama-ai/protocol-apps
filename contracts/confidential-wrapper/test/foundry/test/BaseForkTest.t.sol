@@ -2,25 +2,13 @@
 pragma solidity ^0.8.27;
 
 import {FhevmTest} from "forge-fhevm/FhevmTest.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {euint64} from "encrypted-types/EncryptedTypes.sol";
 
 import {ConfidentialWrapper} from "confidential-wrapper/ConfidentialWrapper.sol";
 import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrappersRegistry.sol";
-
-/**
- * @notice The live implementation's deny-list getter, which returned the selector alongside the
- * since-removed `isSet` flag.
- * @dev Dropping `isSet` left the function name and arguments untouched, so both ABIs share selector
- * `0x6aaafe4e`. A pre-upgrade call therefore succeeds but returns two words; decoding that through
- * the current one-word ABI reads the `bool` word and reverts in the `bytes4` validator whenever the
- * check is enabled. {BaseForkTest._snapshotPreUpgrade} reads live proxies before the impl swap, so
- * it must use this shape.
- */
-interface ILegacyUnderlyingDenyList {
-    function getUnderlyingDenyListSelector() external view returns (bool isSet, bytes4 selector);
-}
 
 /**
  * @title BaseForkTest
@@ -45,6 +33,10 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @dev ERC-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1).
     bytes32 internal constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+    /// @dev OpenZeppelin `Initializable` ERC-7201 storage base, holding `_initialized` (uint64) packed
+    /// with `_initializing` (bool). Read directly because `_getInitializedVersion` is internal.
+    bytes32 internal constant INITIALIZABLE_STORAGE =
+        0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
     /// @dev ERC7984Upgradeable ERC-7201 storage base (name/symbol/contractURI/balances/operators/totalSupply).
     bytes32 internal constant ERC7984_STORAGE_BASE = 0xabe6faf3f1b202c971f9850194a6389c7b24dbc9035a913f45a1f82a5d968c00;
     /// @dev ERC7984ERC20WrapperUpgradeable ERC-7201 storage base (underlying+decimals packed, rate, unwrapRequests).
@@ -86,6 +78,9 @@ abstract contract BaseForkTest is FhevmTest {
         address owner;
         uint256 maxTotalSupply;
         address implementation;
+        // Initializer version the live proxy carried before the setUp upgrade; {UpgradeTest} asserts
+        // it is not ahead of the version HEAD's initializers advance to.
+        uint64 initializedVersion;
         // Contiguous head of each ERC-7201 struct, captured raw so {UpgradeTest} can prove the
         // storage layout did not shift under the impl swap.
         // ERC7984: [_balances base, _operators base, _totalSupply, _name, _symbol, _contractURI].
@@ -95,8 +90,6 @@ abstract contract BaseForkTest is FhevmTest {
         // V3: [_blockedUsers base, _unwrapContexts base, _underlyingDenyListSelector + legacy bool + _pauser,
         //      _observers values-array length, _observers positions base].
         bytes32[5] v3Slots;
-        // Live V3 `(isSet, selector)` pair; {UpgradeTest} asserts `(selector != 0, isSet == false)` is absent.
-        bool hasUnderlyingDenyListSelector;
         bytes4 underlyingDenyListSelector;
         address blockedUser;
         // A pending unwrap request seeded into `_unwrapRequests` before the upgrade (see
@@ -111,6 +104,11 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @dev The freshly-compiled implementation every proxy is upgraded to in {setUp}.
     ConfidentialWrapper internal newImplementation;
+
+    /// @dev HEAD's `REINITIALIZER_VERSION`, the version every initializer entry point advances to.
+    /// The constant is private to the audited implementation, so it is recovered from behavior in
+    /// {_upgradeAllWrappersToLatest}: the version a fresh `initialize` lands on is that constant.
+    uint64 internal reinitializerVersion;
 
     /// @notice Address-keyed underlying deny-list interface config (getter selectors), read by
     /// these tests. Known-denied test vectors live separately in config/blacklist-seeds.json.
@@ -140,12 +138,16 @@ abstract contract BaseForkTest is FhevmTest {
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
     /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
-    /// @dev HEAD is at reinitializer(4) and the live proxies are at version 3, so the upgrade must
-    /// carry encoded `reinitializeV4` calldata. It seeds no observers and no pauser, mirroring the
-    /// calldata a production upgrade proposal would carry.
+    /// @dev The calldata mirrors what a production upgrade proposal would carry, which depends on
+    /// where each proxy sits relative to HEAD: a proxy below {reinitializerVersion} still needs
+    /// HEAD's reinitializer, while one already at it (mainnet has run that upgrade) has consumed it
+    /// and takes a bare implementation swap. Branching covers both phases of an upgrade cycle, so
+    /// the only edit a future version needs here is the encoded `reinitializeVX` call itself.
     function _upgradeAllWrappersToLatest() internal {
-        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0), address(0)));
         newImplementation = new ConfidentialWrapper();
+        reinitializerVersion = _initializedVersion(_deployFreshProxy());
+        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0), address(0)));
+
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
             _repointFhevmConfig(w);
@@ -153,8 +155,38 @@ abstract contract BaseForkTest is FhevmTest {
             _seedPendingUnwrap(w);
             _snapshotPreUpgrade(w);
             vm.prank(_wrapperOwner(w));
-            ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), reinitData);
+            ConfidentialWrapper(w).upgradeToAndCall(
+                address(newImplementation),
+                _initializedVersion(w) < reinitializerVersion ? reinitData : bytes("")
+            );
         }
+    }
+
+    /// @notice Deploys a fresh proxy over {newImplementation} through {ConfidentialWrapper-initialize}.
+    /// @dev Reuses a live underlying so the wrapper initializes against real token metadata. Called
+    /// before any proxy is upgraded, so it reads `underlying()` off the live implementation.
+    function _deployFreshProxy() internal returns (address) {
+        require(wrappers.length > 0, "no wrappers enumerated");
+        return
+            address(
+                new ERC1967Proxy(
+                    address(newImplementation),
+                    abi.encodeCall(
+                        ConfidentialWrapper.initialize,
+                        (
+                            "fresh",
+                            "FRESH",
+                            "",
+                            _underlying(wrappers[0]),
+                            makeAddr("fresh-owner"),
+                            new address[](0),
+                            bytes4(0),
+                            new address[](0),
+                            address(0)
+                        )
+                    )
+                )
+            );
     }
 
     /// @notice Repoints `w`'s FHE config at the in-process forge-fhevm host and zeroes its cached
@@ -192,9 +224,8 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Seeds a V3 blocked-user entry before the impl swap so {UpgradeTest} can prove the
     /// live V3 mapping still resolves through the upgraded implementation.
-    /// @dev Reads back through `isBlocked` rather than {ConfidentialWrapper-isBlockedOnWrapper}: this runs
-    /// against the live V3 implementation, which predates the split and has no `isBlockedOnWrapper`
-    /// selector to dispatch to. On V3 `isBlocked` is the wrapper-local list, which is what is seeded here.
+    /// @dev Reads back through `isBlocked`, which the wrapper-local list alone is enough to satisfy:
+    /// `user` is a fresh address, so the underlying deny-list arm of the check is false.
     function _seedV3BlockedUser(address w) internal {
         PreUpgradeSnapshot storage $ = preUpgrade[w];
         address user = makeAddr(string.concat("pre-upgrade-blocked-", _label(w)));
@@ -217,9 +248,8 @@ abstract contract BaseForkTest is FhevmTest {
         $.owner = _wrapperOwner(w);
         $.maxTotalSupply = cw.maxTotalSupply();
         $.implementation = _implementationOf(w);
-        // Legacy two-word ABI (pre-swap); keep `isSet` for the UpgradeTest invariant.
-        ($.hasUnderlyingDenyListSelector, $.underlyingDenyListSelector) = ILegacyUnderlyingDenyList(w)
-            .getUnderlyingDenyListSelector();
+        $.initializedVersion = _initializedVersion(w);
+        $.underlyingDenyListSelector = cw.getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
             $.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));
         }
@@ -234,6 +264,11 @@ abstract contract BaseForkTest is FhevmTest {
     /// @notice Reads the ERC-1967 implementation address of proxy `w`.
     function _implementationOf(address w) internal view returns (address) {
         return address(uint160(uint256(vm.load(w, IMPL_SLOT))));
+    }
+
+    /// @notice Reads the OpenZeppelin `Initializable` version stored in `w` (`_initialized`).
+    function _initializedVersion(address w) internal view returns (uint64) {
+        return uint64(uint256(vm.load(w, INITIALIZABLE_STORAGE)));
     }
 
     function _wrapper(address w) internal pure returns (ConfidentialWrapper) {
