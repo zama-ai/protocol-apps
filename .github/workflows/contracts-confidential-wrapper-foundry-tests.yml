@@ -1,4 +1,5 @@
 # Run Foundry live mainnet-fork tests
+# Test
 name: contracts-confidential-wrapper-foundry-tests
 
 on:
