@@ -33,9 +33,6 @@ tooling and the registry, so there's a single source of truth:
   of truth — always re-verify addresses there. (It publishes mainnet/testnet
   only; devnet addresses come from the devnet deployment.)
 
-Current ids: `gateway-mainnet`, `gateway-testnet`, `gateway-devnet`,
-`polygon-amoy-testnet`, `polygon-amoy-devnet`.
-
 > **Manual-execution recovery only:** the destination's `EndpointV2` (used by
 > [manual execution recovery](manual-execution-remote.md), not by the
 > fill/decode scripts) is `0x6F475642a6e85809B1c36Fa62763669b1b48DD5B` for
@@ -43,7 +40,3 @@ Current ids: `gateway-mainnet`, `gateway-testnet`, `gateway-devnet`,
 > look it up in the
 > [LayerZero deployments](https://docs.layerzero.network/v2/deployments/deployed-contracts)
 > or [protocol-registry](https://github.com/zama-ai/protocol-registry).
-
-> **Polygon mainnet** governance is coming soon (the LayerZero config already
-> exists in the contracts). A `polygon-mainnet` destination will be added once
-> its sender/receiver/multisig are deployed and published to protocol-registry.
