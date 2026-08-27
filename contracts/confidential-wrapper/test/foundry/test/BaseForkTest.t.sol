@@ -78,9 +78,6 @@ abstract contract BaseForkTest is FhevmTest {
         address owner;
         uint256 maxTotalSupply;
         address implementation;
-        // Initializer version the live proxy carried before the setUp upgrade; {UpgradeTest} asserts
-        // it is not ahead of the version HEAD's initializers advance to.
-        uint64 initializedVersion;
         // Contiguous head of each ERC-7201 struct, captured raw so {UpgradeTest} can prove the
         // storage layout did not shift under the impl swap.
         // ERC7984: [_balances base, _operators base, _totalSupply, _name, _symbol, _contractURI].
@@ -138,15 +135,12 @@ abstract contract BaseForkTest is FhevmTest {
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
     /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
-    /// @dev The calldata mirrors what a production upgrade proposal would carry, which depends on
-    /// where each proxy sits relative to HEAD: a proxy below {reinitializerVersion} still needs
-    /// HEAD's reinitializer, while one already at it (mainnet has run that upgrade) has consumed it
-    /// and takes a bare implementation swap. Branching covers both phases of an upgrade cycle, so
-    /// the only edit a future version needs here is the encoded `reinitializeVX` call itself.
+    /// @dev Live proxies must already sit at HEAD's initializer version. The harness then uses an
+    /// empty calldata upgrade so tests exercise the freshly compiled implementation without replaying
+    /// an already-consumed reinitializer.
     function _upgradeAllWrappersToLatest() internal {
         newImplementation = new ConfidentialWrapper();
         reinitializerVersion = _initializedVersion(_deployFreshProxy());
-        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0), address(0)));
 
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
@@ -154,11 +148,14 @@ abstract contract BaseForkTest is FhevmTest {
             _seedV3BlockedUser(w);
             _seedPendingUnwrap(w);
             _snapshotPreUpgrade(w);
+
+            uint64 liveVersion = _initializedVersion(w);
+            if (liveVersion != reinitializerVersion) {
+                fail(string.concat(_label(w), ": live proxy initializer version does not match repo HEAD"));
+            }
+
             vm.prank(_wrapperOwner(w));
-            ConfidentialWrapper(w).upgradeToAndCall(
-                address(newImplementation),
-                _initializedVersion(w) < reinitializerVersion ? reinitData : bytes("")
-            );
+            ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), bytes(""));
         }
     }
 
@@ -248,7 +245,6 @@ abstract contract BaseForkTest is FhevmTest {
         $.owner = _wrapperOwner(w);
         $.maxTotalSupply = cw.maxTotalSupply();
         $.implementation = _implementationOf(w);
-        $.initializedVersion = _initializedVersion(w);
         $.underlyingDenyListSelector = cw.getUnderlyingDenyListSelector();
         for (uint256 i = 0; i < 6; i++) {
             $.erc7984Slots[i] = vm.load(w, bytes32(uint256(ERC7984_STORAGE_BASE) + i));

@@ -201,22 +201,6 @@ contract UpgradeTest is BaseForkTest {
         }
     }
 
-    /// @notice Freshness guard: repo HEAD is at least as new as every live proxy's initializer version.
-    /// @dev Deliberately `<=` rather than `==`, so a version bump does not require editing this test;
-    /// {BaseForkTest._upgradeAllWrappersToLatest} handles both cases. Above it means HEAD is behind
-    /// mainnet — the candidate implementation is stale and the whole run is testing the wrong thing.
-    /// Snapshots are pre-upgrade; the setUp swap would otherwise mask this.
-    function test_RepoHeadNotStaleVersusLiveProxies_AllWrappers() public view {
-        for (uint256 i = 0; i < wrappers.length; i++) {
-            address proxy = wrappers[i];
-            assertLe(
-                uint256(preUpgrade[proxy].initializedVersion),
-                uint256(reinitializerVersion),
-                string.concat(_label(proxy), ": repo HEAD is behind this live proxy's initializer version")
-            );
-        }
-    }
-
     /// @notice The UUPS upgrade entrypoint stays owner-gated.
     function test_NonOwnerCannotUpgrade_AllWrappers() public {
         ConfidentialWrapper freshImpl = new ConfidentialWrapper();
