@@ -31,7 +31,7 @@ make build     # forge build
 
 | Task | Command | Notes |
 | ---- | ------- | ----- |
-| Live fork run | `make fork-test` | Forks mainnet at the chain tip by default (see [Fork block](#fork-block)). Reads the RPC (see below). |
+| Live fork run | `make fork-test` | Forks mainnet at latest - 50 by default (see [Fork block](#fork-block)). Reads the RPC (see below). |
 | Deployed-batcher run | `make fork-test-batcher` | Same fork, `test/batcher` under the `batcher` profile. |
 | Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Pins one run to a specific block. |
 
@@ -48,7 +48,7 @@ branches in this repo; fork PRs skip the whole job, since GitHub withholds the s
 
 The fork block is optional and resolved by `script/utils/resolve-fork.sh`.
 
-Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → chain tip when
+Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → latest - 50 when
 `ethereumMainnet.block` is `null`, which is the committed default. Set `ethereumMainnet.block` to an integer, or export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config

@@ -7,13 +7,14 @@
 # if neither provides it.
 #
 # Block: the FORK_BLOCK environment variable (ad-hoc override) first, then the committed
-# config/fork.json pin (read with jq), and finally the chain tip when the pin is null.
+# config/fork.json pin (read with jq), and finally latest - 50 when the pin is null.
 #
 # Run from the foundry package root (test/foundry), where make invokes it, so ../../.env and
 # ./config/fork.json resolve.
 set -euo pipefail
 
 URL="${ETHEREUM_MAINNET_FORK_RPC_URL:-}"
+LATEST_BLOCK_OFFSET=50
 
 if [ -z "${URL}" ] && [ -f ../../.env ]; then
   URL="$(. ../../.env && printf '%s' "${ETHEREUM_MAINNET_FORK_RPC_URL:-}")"
@@ -42,10 +43,15 @@ if [ -z "${BLOCK}" ] && [ -f config/fork.json ]; then
   ' config/fork.json)"
 fi
 
-if [ -n "${BLOCK}" ]; then
-  echo "Forking Ethereum mainnet at block ${BLOCK}" >&2
-  printf '%s@%s' "${URL}" "${BLOCK}"
-else
-  echo "Forking Ethereum mainnet at chain tip (no pinned block)" >&2
-  printf '%s' "${URL}"
+if [ -z "${BLOCK}" ]; then
+  if ! command -v cast >/dev/null 2>&1; then
+    echo "cast is required to resolve latest - ${LATEST_BLOCK_OFFSET} (install Foundry, or set FORK_BLOCK to bypass)." >&2
+    exit 1
+  fi
+
+  LATEST_BLOCK="$(cast block-number --rpc-url "${URL}")"
+  BLOCK="$((LATEST_BLOCK - LATEST_BLOCK_OFFSET))"
 fi
+
+echo "Forking Ethereum mainnet at block ${BLOCK}" >&2
+printf '%s@%s' "${URL}" "${BLOCK}"

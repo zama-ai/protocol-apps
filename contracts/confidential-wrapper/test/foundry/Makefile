@@ -10,7 +10,7 @@ build:
 # Network-bound test run against a live mainnet fork. Reads
 # ETHEREUM_MAINNET_FORK_RPC_URL from the environment (CI secret) or
 # contracts/confidential-wrapper/.env (see .env.example). The fork block comes from
-# config/fork.json, which is unpinned by default so runs cover current mainnet state;
+# config/fork.json, which is unpinned by default so runs cover latest - 50;
 # FORK_BLOCK pins a run ad hoc.
 fork-test:
 	@FORK_URL="$$(./script/utils/resolve-fork.sh)" || exit 1; \

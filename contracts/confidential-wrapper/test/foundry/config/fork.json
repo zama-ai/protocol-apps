@@ -1,5 +1,5 @@
 {
-  "_doc": "Optional fork block for `make fork-test`, read by script/utils/resolve-fork.sh. Null (the default) forks the chain tip; set a positive integer to pin a run. FORK_BLOCK overrides this file.",
+  "_doc": "Optional fork block for `make fork-test`, read by script/utils/resolve-fork.sh. Null (the default) forks latest - 50; set a positive integer to pin a run. FORK_BLOCK overrides this file.",
   "ethereumMainnet": {
     "block": null
   }
