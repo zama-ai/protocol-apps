@@ -23,7 +23,6 @@ updates:
   # upgrades so non-major security fixes can still produce PRs.
   - package-ecosystem: "npm"
     directories:
-      - "/contracts/confidential-batcher"
       - "/contracts/confidential-token-wrappers-registry"
       - "/contracts/confidential-wrapper"
       - "/contracts/feesBurner"
