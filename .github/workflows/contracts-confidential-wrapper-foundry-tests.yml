@@ -1,15 +1,23 @@
 # Run Foundry live mainnet-fork tests
 name: contracts-confidential-wrapper-foundry-tests
 
+# The fork suites upgrade the live proxies onto the candidate implementation, so they only have
+# something to say when that implementation or the suites themselves change. Everything else in the
+# wrapper package (Hardhat tests, tasks, deployments) is covered by its own workflow, and the registry
+# is read from its live mainnet address rather than this repo's source.
 on:
   pull_request:
     paths:
       - '.github/workflows/contracts-confidential-wrapper-foundry-tests.yml'
-      - 'contracts/confidential-wrapper/**'
-      - 'contracts/confidential-token-wrappers-registry/**'
+      - 'contracts/confidential-wrapper/contracts/**'
+      - 'contracts/confidential-wrapper/test/foundry/**'
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/contracts-confidential-wrapper-foundry-tests.yml'
+      - 'contracts/confidential-wrapper/contracts/**'
+      - 'contracts/confidential-wrapper/test/foundry/**'
   workflow_dispatch:
 
 permissions: {}
@@ -49,9 +57,10 @@ jobs:
           submodules: false
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1.7.0
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: v1.3.1
+          cache: false
 
       - name: Install Foundry dependencies
         working-directory: contracts/confidential-wrapper/test/foundry

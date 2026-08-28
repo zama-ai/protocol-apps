@@ -31,9 +31,9 @@ make build     # forge build
 
 | Task | Command | Notes |
 | ---- | ------- | ----- |
-| Live fork run | `make fork-test` | Forks mainnet at the block pinned in `config/fork.json`. Reads the RPC (see below). |
+| Live fork run | `make fork-test` | Forks mainnet at latest - 50 by default (see [Fork block](#fork-block)). Reads the RPC (see below). |
 | Deployed-batcher run | `make fork-test-batcher` | Same fork, `test/batcher` under the `batcher` profile. |
-| Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Overrides the pinned block for one run. |
+| Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Pins one run to a specific block. |
 
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
@@ -46,14 +46,10 @@ branches in this repo; fork PRs skip the whole job, since GitHub withholds the s
 
 ## Fork block
 
-The fork block lives in `config/fork.json` and is resolved by
-`script/utils/resolve-fork.sh`, so CI and local runs fork the same state. This matters
-because the suite asserts against real mainnet state — a `config/blacklist-seeds.json` address
-removed from a token's blacklist would break an unpinned run.
+The fork block is optional and resolved by `script/utils/resolve-fork.sh`.
 
-Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → chain tip when
-`ethereumMainnet.block` is `null`. Bump the pin (and refresh the deny-list seeds if the run then
-fails) when the suite should cover newer state.
+Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → latest - 50 when
+`ethereumMainnet.block` is `null`, which is the committed default. Set `ethereumMainnet.block` to an integer, or export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config
 
@@ -65,7 +61,7 @@ deny-list tests:
   TGBP `isBanned(address)`). Read by `test/BaseForkTest.t.sol`.
 - `config/blacklist-seeds.json` — a handful of known-denied addresses per token, used as test
   vectors. The suite reads each seed's deny-list slot from the live fork and asserts the token
-  reports it denied. These are real addresses denied at the forked block. Adding a token is a
+  reports it denied. These are real addresses that must still be denied at the forked block. Adding a token is a
   one-entry edit to each file.
 
 ## Deployed-batcher suite
@@ -97,14 +93,14 @@ the deployed layout before changing any `vm.store` slot.
 | `test/WrapperFlows.t.sol` | Per-wrapper wrap, confidential transfer, unwrap/finalize, ERC-1363 receiver path |
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
 | `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
-| `test/Upgrade.t.sol` | Upgrades every live proxy onto the HEAD impl and asserts storage/enablement invariants |
+| `test/Upgrade.t.sol` | Upgrades every live proxy onto the HEAD impl and asserts storage, enablement and initializer-version invariants |
 | `test/batcher/IVaultBatcher.sol` | Slice of the deployed batchers' ABI these tests drive |
 | `test/batcher/BatcherForkBase.t.sol` | Harness for the deployed batchers |
 | `test/batcher/BatcherFlows.t.sol` | Wiring guard, deposit/redeem round trip, operator join and quit, empty-batch dispatch |
 | `test/batcher/BatcherDenyList.t.sol` | Deny-list and pause behavior seen through a batcher |
 | `script/utils/resolve-fork.sh` | Resolves the fork target: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
 | `script/utils/check-batcher-manifest.sh` | Fails when `config/batchers.json` drifts from the upstream deployment manifest |
-| `config/fork.json` | Pinned mainnet fork block |
+| `config/fork.json` | Optional mainnet fork block pin (`null` = chain tip) |
 | `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |
 | `config/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
 | `config/batchers.json` | Deployed batcher, wrapper and vault addresses |
@@ -116,7 +112,8 @@ the deployed layout before changing any `vm.store` slot.
 - `missing underlying token code`: the archive node did not return code for that address at the
   forked block; check the RPC and the pinned `FORK_BLOCK`.
 - `seeded address not denied by real token state`: a `config/blacklist-seeds.json` address is no
-  longer denied at the forked block; refresh the seed.
+  longer denied at the forked block; refresh the seed. Runs default to the chain tip, so this
+  tracks live mainnet state.
 - `MISMATCH <key>` from `check-batcher-manifest.sh`: the batchers were redeployed upstream; copy the
   new addresses into `config/batchers.json` and re-run `make fork-test-batcher`.
 - `batcher: unexpected ACL` / `unexpected batcher layout`: the deployed batcher no longer matches

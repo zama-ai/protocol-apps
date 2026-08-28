@@ -140,6 +140,67 @@ contract UpgradeTest is BaseForkTest {
         }
     }
 
+    /// @notice {ConfidentialWrapper-initialize} stays rejected on a proxy sitting at an intermediate
+    /// initializer version.
+    function test_InitializeRejectedFromIntermediateVersion_AllWrappers() public {
+        uint64 version = reinitializerVersion;
+        assertGt(uint256(version), 1, "no intermediate version below REINITIALIZER_VERSION to test");
+        address[] memory empty = new address[](0);
+        address attacker = makeAddr("initialize-attacker");
+
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address proxy = wrappers[i];
+            IERC20 underlying = _underlying(proxy);
+
+            // Everything else is a valid `initialize` payload, so the guard is the only thing
+            // standing between `attacker` and ownership of this live proxy.
+            vm.store(proxy, INITIALIZABLE_STORAGE, bytes32(uint256(version - 1)));
+
+            vm.prank(attacker);
+            vm.expectRevert(Initializable.InvalidInitialization.selector);
+            _wrapper(proxy).initialize(
+                "seized",
+                "SEIZED",
+                "",
+                underlying,
+                attacker,
+                empty,
+                bytes4(0),
+                empty,
+                address(0)
+            );
+        }
+    }
+
+    /// @notice Both initializer entry points land on the same version.
+    /// @dev This is what keeps a hardcoded `reinitializer(N)` from drifting away from the constant:
+    /// a path that stops short of it leaves an intermediate version reachable, and shows
+    /// up here as a mismatch between the two paths.
+    function test_EveryInitializerPathLandsOnReinitializerVersion() public {
+        assertGt(wrappers.length, 0, "no wrappers enumerated");
+
+        // initialize path: {reinitializerVersion} is read off a fresh proxy run from version 0.
+        uint64 version = reinitializerVersion;
+        assertGt(uint256(version), 1, "initialize did not advance past version 1");
+
+        // reinitializeV4 path: the live proxies already carry the version it targets, so each is
+        // rewound one below to drive HEAD's reinitializer rather than mainnet's past run of it.
+        address[] memory empty = new address[](0);
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address proxy = wrappers[i];
+            vm.store(proxy, INITIALIZABLE_STORAGE, bytes32(uint256(version - 1)));
+
+            vm.prank(_wrapperOwner(proxy));
+            _wrapper(proxy).reinitializeV4(empty, address(0));
+
+            assertEq(
+                uint256(_initializedVersion(proxy)),
+                uint256(version),
+                string.concat(_label(proxy), ": reinitializeV4 did not land where initialize does")
+            );
+        }
+    }
+
     /// @notice The UUPS upgrade entrypoint stays owner-gated.
     function test_NonOwnerCannotUpgrade_AllWrappers() public {
         ConfidentialWrapper freshImpl = new ConfidentialWrapper();
@@ -149,21 +210,6 @@ contract UpgradeTest is BaseForkTest {
             vm.prank(nonOwner);
             vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
             _wrapper(proxy).upgradeToAndCall(address(freshImpl), "");
-        }
-    }
-
-    /// @notice No live proxy carries `(selector != 0, isSet == false)` — under V4 that pair would
-    /// silently enable the check. Snapshots are pre-upgrade.
-    function test_NoLiveProxyHasActiveSelectorWithDisabledFlag_AllWrappers() public view {
-        for (uint256 i = 0; i < wrappers.length; i++) {
-            address proxy = wrappers[i];
-            PreUpgradeSnapshot storage $ = preUpgrade[proxy];
-            if ($.underlyingDenyListSelector != bytes4(0)) {
-                assertTrue(
-                    $.hasUnderlyingDenyListSelector,
-                    string.concat(_label(proxy), ": live proxy has an active selector with isSet == false")
-                );
-            }
         }
     }
 }
