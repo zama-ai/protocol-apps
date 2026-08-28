@@ -135,12 +135,16 @@ abstract contract BaseForkTest is FhevmTest {
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
     /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
-    /// @dev Live proxies must already sit at HEAD's initializer version. The harness then uses an
-    /// empty calldata upgrade so tests exercise the freshly compiled implementation without replaying
-    /// an already-consumed reinitializer.
+    /// @dev Every proxy is repointed at the fresh implementation whatever its live version, so the suite
+    /// always drives HEAD's bytecode rather than mainnet's. Only the initializer call differs: a proxy
+    /// behind HEAD runs `reinitializeV4` as part of the swap, while one already at HEAD's version has no
+    /// migration left to replay and is upgraded with empty calldata. A proxy ahead of HEAD's reinitializer version
+    /// is a stale checkout or a missed reinitializer bump, and fails rather than silently pointing the
+    /// suite at older bytecode than mainnet runs.
     function _upgradeAllWrappersToLatest() internal {
         newImplementation = new ConfidentialWrapper();
         reinitializerVersion = _initializedVersion(_deployFreshProxy());
+        bytes memory reinitData = abi.encodeCall(ConfidentialWrapper.reinitializeV4, (new address[](0), address(0)));
 
         for (uint256 i = 0; i < wrappers.length; i++) {
             address w = wrappers[i];
@@ -150,12 +154,15 @@ abstract contract BaseForkTest is FhevmTest {
             _snapshotPreUpgrade(w);
 
             uint64 liveVersion = _initializedVersion(w);
-            if (liveVersion != reinitializerVersion) {
-                fail(string.concat(_label(w), ": live proxy initializer version does not match repo HEAD"));
+            if (liveVersion > reinitializerVersion) {
+                fail(string.concat(_label(w), ": live proxy is ahead of repo HEAD's reinitializer version"));
             }
 
             vm.prank(_wrapperOwner(w));
-            ConfidentialWrapper(w).upgradeToAndCall(address(newImplementation), bytes(""));
+            ConfidentialWrapper(w).upgradeToAndCall(
+                address(newImplementation),
+                liveVersion < reinitializerVersion ? reinitData : bytes("")
+            );
         }
     }
 
