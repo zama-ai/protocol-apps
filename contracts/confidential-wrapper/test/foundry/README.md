@@ -40,27 +40,27 @@ make build     # forge build
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
 
-`make fork-test` resolves the network's RPC variable — `config/fork.json`'s `rpcUrlEnv`, e.g.
-`ETHEREUM_MAINNET_FORK_RPC_URL` — from the process environment first (CI injects it from a GitHub
-secret), then `contracts/confidential-wrapper/.env` for local dev (see `.env.example`). CI runs
-every matrix network on pushes to `main`, manual dispatch, and PRs from branches in this repo; fork
-PRs skip the whole job, since GitHub withholds the secrets from them.
+Each network is an `[rpc_endpoints]` alias in `foundry.toml` pointing at its RPC variable, e.g.
+`ETHEREUM_MAINNET_FORK_RPC_URL`, which `forge` and `cast` resolve from the environment. CI sets
+those variables from GitHub secrets; locally `script/utils/fork-test.sh` loads them from
+`contracts/confidential-wrapper/.env` (see `.env.example`).
 
 ## Networks
 
-`NETWORK` (default `ethereum`) selects the chain. It names an entry in `config/fork.json`, and the 
-`config/<network>/` directory holding that chain's deny-list and batcher files.
+`NETWORK` (default `ethereum`) selects the chain. It names an entry in `config/fork.json`, the
+`[rpc_endpoints]` alias in `foundry.toml` that resolves its RPC URL, and the `config/<network>/`
+directory holding that chain's deny-list and batcher files.
 
 To add a network:
 
-1. Add its entry to `config/fork.json`.
+1. Add its entry to `config/fork.json` and its alias to `foundry.toml`'s `[rpc_endpoints]`.
 2. Add a `config/<network>/` directory for the deny-list tokens and batchers it has, if any.
 3. Add it to the matrix in `.github/workflows/contracts-confidential-wrapper-foundry-tests.yml`,
    with its RPC variable in the job `env` and the matching repository secret.
 
 ## Fork block
 
-The fork block is optional and resolved by `script/utils/resolve-fork.sh`.
+The fork block is optional and resolved by `script/utils/fork-test.sh`.
 
 Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → latest - 50 when the selected
 network's `block` is `null`, which is the committed default. Set `<network>.block` to an integer, or
@@ -113,9 +113,9 @@ the deployed layout before changing any `vm.store` slot.
 | `test/batcher/BatcherForkBase.t.sol` | Harness for the deployed batchers |
 | `test/batcher/BatcherFlows.t.sol` | Wiring guard, deposit/redeem round trip, operator join and quit, empty-batch dispatch |
 | `test/batcher/BatcherDenyList.t.sol` | Deny-list and pause behavior seen through a batcher |
-| `script/utils/resolve-fork.sh` | Resolves the fork target for `NETWORK`: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
+| `script/utils/fork-test.sh` | Runs `forge test` against a fork of `NETWORK`: loads its RPC variable from `.env` when unset, resolves the block from `FORK_BLOCK` or `config/fork.json` |
 | `script/utils/check-batcher-manifest.sh` | Fails when `config/<network>/batchers.json` drifts from the upstream deployment manifest |
-| `config/fork.json` | Per-network registry address, RPC variable name, and optional fork block pin (`null` = chain tip) |
+| `config/fork.json` | Per-network registry address and optional fork block pin (`null` = chain tip) |
 | `config/<network>/blacklist-interfaces.json` | Per-token deny-list getter selectors |
 | `config/<network>/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
 | `config/<network>/batchers.json` | Deployed batcher, wrapper and vault addresses |

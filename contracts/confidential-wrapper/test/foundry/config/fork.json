@@ -1,12 +1,10 @@
 {
-  "_doc": "Per-network fork config, read by script/utils/resolve-fork.sh (rpcUrlEnv, block) and test/BaseForkTest.t.sol (registry). Select one with `make fork-test NETWORK=<key>`; the key also names the config/<key>/ directory holding that network's deny-list and batcher files. `block` null (the default) forks latest - 50; a positive integer pins a run, and FORK_BLOCK overrides it.",
+  "_doc": "Per-network fork config, read by script/utils/fork-test.sh (block) and test/BaseForkTest.t.sol (registry). Select one with `make fork-test NETWORK=<key>`; the key also names the config/<key>/ directory holding that network's deny-list and batcher files, and the foundry.toml [rpc_endpoints] alias resolving to its RPC URL. `block` null (the default) forks latest - 50; a positive integer pins a run, and FORK_BLOCK overrides it.",
   "ethereum": {
-    "rpcUrlEnv": "ETHEREUM_MAINNET_FORK_RPC_URL",
     "registry": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
     "block": null
   },
   "polygon": {
-    "rpcUrlEnv": "POLYGON_MAINNET_FORK_RPC_URL",
     "registry": "0x0000000000000000000000000000000000000000",
     "block": null
   }
