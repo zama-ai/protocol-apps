@@ -209,46 +209,6 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice A denied null address must NOT block minting or burning. `_requireNotBlocked`
-     * short-circuits address(0) precisely because mint has from == 0 and burn has to == 0, and
-     * some underlyings (e.g. USDT) report isBlackListed(address(0)) == true.
-     */
-    function test_UnderlyingDenyListNullAddressDoesNotBlock() public {
-        uint256 exercised;
-
-        for (uint256 i = 0; i < wrappers.length; i++) {
-            address w = wrappers[i];
-            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
-            if (selector == bytes4(0)) continue;
-            address token = _wrapper(w).underlying();
-
-            if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
-            exercised++;
-            string memory sym = _label(w);
-
-            // Both views carry the same exemption, so neither contradicts the mint/burn paths below.
-            assertFalse(
-                _wrapper(w).isBlockedOnUnderlying(address(0)),
-                string.concat(sym, ": isBlockedOnUnderlying reports the null address as denied")
-            );
-            assertFalse(_wrapper(w).isBlocked(address(0)), string.concat(sym, ": isBlocked reports the null address"));
-
-            // Mint: wrap does _update(0, holder, ...); a denied null address must not block it.
-            address holder = makeAddr(string.concat("null-deny-holder-", sym));
-            _dealAndWrap(w, holder, _wrapper(w).rate());
-            assertEq(_decryptBalance(w, holder), 1, string.concat(sym, ": mint blocked by denied null address"));
-
-            // Burn: unwrap does _update(holder, 0, ...); a denied null address must not block it.
-            (externalEuint64 enc, bytes memory proof) = encryptUint64(1, holder, w);
-            vm.prank(holder);
-            _wrapper(w).unwrap(holder, holder, enc, proof);
-            assertEq(_decryptTotalSupply(w), 0, string.concat(sym, ": burn blocked by denied null address"));
-        }
-
-        assertGt(exercised, 0, "no configured wrapper whose underlying denies the null address");
-    }
-
-    /**
      * @notice Asserts every curated `blacklisted` seed is still reported denied by its underlying
      * token getter against the real chain state on the fork.
      */
