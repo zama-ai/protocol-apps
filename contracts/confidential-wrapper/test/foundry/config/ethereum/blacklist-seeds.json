@@ -1,5 +1,5 @@
 {
-  "_doc": "Curated known-denied test vectors per underlying, read by test/UnderlyingDenyList.t.sol. These are real mainnet-blacklisted addresses; the suite reads each token's deny-list getter for these addresses on the live fork and asserts they are reported denied. A handful per token is enough (the suite checks at most 5). Fields: token = underlying address; blacklisted = denied addresses. To add a token, add an entry.",
+  "_doc": "Curated known-denied test vectors per underlying for the network named by the parent directory, read by test/UnderlyingDenyList.t.sol. These are real blacklisted addresses on that chain; the suite reads each token's deny-list getter for these addresses on the live fork and asserts they are reported denied. A handful per token is enough (the suite checks at most 5). Fields: token = underlying address; blacklisted = denied addresses. To add a token, add an entry.",
   "tokens": [
     {
       "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",

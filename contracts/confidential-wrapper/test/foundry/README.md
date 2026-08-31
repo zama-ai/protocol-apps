@@ -1,21 +1,22 @@
-# Foundry Mainnet-Fork Tests: Confidential Wrappers
+# Foundry Fork Tests: Confidential Wrappers
 
-Foundry tests that exercise the **live** Confidential Wrappers deployed on Ethereum mainnet.
+Foundry tests that exercise the **live** Confidential Wrappers deployed on a supported chain.
 `BaseForkTest` enumerates every valid wrapper from the on-chain
 `ConfidentialTokenWrappersRegistry`, and the suite checks:
 
 - direct wrap, confidential transfer, unwrap, finalize, and ERC-1363 receiver flows;
 - per-wrapper deny-list behavior (owner gating, block/unblock, blocked-wrap guard);
 - configured underlying-token deny-list selectors against the deployed underlying token code;
-- underlying-token deny-list gating against real mainnet state, including known
-  blacklisted mainnet addresses.
+- underlying-token deny-list gating against real chain state, including known
+  blacklisted addresses.
 
 A second suite under `test/batcher` drives the **deployed** Confidential DeFi Gateway batchers
 against the same candidate implementation, so a wrapper upgrade that breaks the batchers fails
 here. See [Deployed-batcher suite](#deployed-batcher-suite).
 
-Tests run against a **live mainnet fork**: `forge test --fork-url <archive RPC>` reads the code
-and storage the tests touch directly from the archive node.
+Tests run against a **live fork**: `forge test --fork-url <archive RPC>` reads the code
+and storage the tests touch directly from the archive node. The chain is selected with
+`NETWORK` (default `ethereum`); see [Networks](#networks).
 
 ## Setup
 
@@ -31,43 +32,57 @@ make build     # forge build
 
 | Task | Command | Notes |
 | ---- | ------- | ----- |
-| Live fork run | `make fork-test` | Forks mainnet at latest - 50 by default (see [Fork block](#fork-block)). Reads the RPC (see below). |
+| Live fork run | `make fork-test` | Forks the network at latest - 50 by default (see [Fork block](#fork-block)). Reads the RPC (see below). |
 | Deployed-batcher run | `make fork-test-batcher` | Same fork, `test/batcher` under the `batcher` profile. |
+| Another network | `make fork-test NETWORK=polygon` | Any key in `config/fork.json`. |
 | Ad-hoc block | `FORK_BLOCK=<n> make fork-test` | Pins one run to a specific block. |
 
 Test cases are isolated: each `test_*` starts from its own `setUp()` state; mutations do not
 leak across tests or files.
 
-`make fork-test` resolves `ETHEREUM_MAINNET_FORK_RPC_URL` via
-`script/utils/resolve-fork.sh`: the process environment first (CI injects it from a GitHub
+`make fork-test` resolves the network's RPC variable — `config/fork.json`'s `rpcUrlEnv`, e.g.
+`ETHEREUM_MAINNET_FORK_RPC_URL` — from the process environment first (CI injects it from a GitHub
 secret), then `contracts/confidential-wrapper/.env` for local dev (see `.env.example`). CI runs
-`make fork-test` against the archive node on pushes to `main`, manual dispatch, and PRs from
-branches in this repo; fork PRs skip the whole job, since GitHub withholds the secret from them.
+every matrix network on pushes to `main`, manual dispatch, and PRs from branches in this repo; fork
+PRs skip the whole job, since GitHub withholds the secrets from them.
+
+## Networks
+
+`NETWORK` (default `ethereum`) selects the chain. It names an entry in `config/fork.json`, and the 
+`config/<network>/` directory holding that chain's deny-list and batcher files.
+
+To add a network:
+
+1. Add its entry to `config/fork.json`.
+2. Add a `config/<network>/` directory for the deny-list tokens and batchers it has, if any.
+3. Add it to the matrix in `.github/workflows/contracts-confidential-wrapper-foundry-tests.yml`,
+   with its RPC variable in the job `env` and the matching repository secret.
 
 ## Fork block
 
 The fork block is optional and resolved by `script/utils/resolve-fork.sh`.
 
-Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → latest - 50 when
-`ethereumMainnet.block` is `null`, which is the committed default. Set `ethereumMainnet.block` to an integer, or export `FORK_BLOCK`, to pin a run while reproducing a failure.
+Precedence: `FORK_BLOCK` (ad-hoc override) → `config/fork.json` → latest - 50 when the selected
+network's `block` is `null`, which is the committed default. Set `<network>.block` to an integer, or
+export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config
 
-USDC, USDT, XAUT, and TGBP carry on-chain deny lists. Two small committed files drive the
-deny-list tests:
+On Ethereum, USDC, USDT, XAUT, and TGBP carry on-chain deny lists. Two small committed files per
+network drive the deny-list tests:
 
-- `config/blacklist-interfaces.json` — the bool-returning `getter` selector per token
+- `config/<network>/blacklist-interfaces.json` — the bool-returning `getter` selector per token
   (USDC `isBlacklisted(address)`, USDT `isBlackListed(address)`, XAUT `isBlocked(address)`,
   TGBP `isBanned(address)`). Read by `test/BaseForkTest.t.sol`.
-- `config/blacklist-seeds.json` — a handful of known-denied addresses per token, used as test
-  vectors. The suite reads each seed's deny-list slot from the live fork and asserts the token
+- `config/<network>/blacklist-seeds.json` — a handful of known-denied addresses per token, used as
+  test vectors. The suite reads each seed's deny-list slot from the live fork and asserts the token
   reports it denied. These are real addresses that must still be denied at the forked block. Adding a token is a
   one-entry edit to each file.
 
 ## Deployed-batcher suite
 
 `test/batcher` runs the deployed Confidential DeFi batchers against the candidate wrapper
-implementation. The batchers are read from mainnet, not deployed by the tests, so the suite checks
+implementation. The batchers are read from the chain, not deployed by the tests, so the suite checks
 the exact non-upgradeable bytecode a wrapper upgrade must support.
 
 Run it with:
@@ -79,10 +94,10 @@ make fork-test-batcher
 It uses the `batcher` Foundry profile, which enables
 `isolate = true` and keeps the regular `make fork-test` target scoped to the wrapper suite.
 
-Addresses live in `config/batchers.json`.
+Addresses live in `config/<network>/batchers.json`.
 
 The harness mutates fork storage to repoint the deployed batchers at the local fhEVM host and clear
-mainnet ciphertext handles that cannot be decoded locally. If a storage-layout guard fails, rederive
+live ciphertext handles that cannot be decoded locally. If a storage-layout guard fails, rederive
 the deployed layout before changing any `vm.store` slot.
 
 ## Layout
@@ -92,30 +107,28 @@ the deployed layout before changing any `vm.store` slot.
 | `test/BaseForkTest.t.sol` | `FhevmTest` harness: enumerate registry wrappers, repoint FHE config at the local host, shared token/KMS helpers |
 | `test/WrapperFlows.t.sol` | Per-wrapper wrap, confidential transfer, unwrap/finalize, ERC-1363 receiver path |
 | `test/DenyList.t.sol` | Local block/unblock, owner gating, blocked wrap guard |
-| `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted mainnet addresses |
+| `test/UnderlyingDenyList.t.sol` | Underlying deny-list selectors vs. token code and known blacklisted addresses |
 | `test/Upgrade.t.sol` | Upgrades every live proxy onto the HEAD impl and asserts storage, enablement and initializer-version invariants |
 | `test/batcher/IVaultBatcher.sol` | Slice of the deployed batchers' ABI these tests drive |
 | `test/batcher/BatcherForkBase.t.sol` | Harness for the deployed batchers |
 | `test/batcher/BatcherFlows.t.sol` | Wiring guard, deposit/redeem round trip, operator join and quit, empty-batch dispatch |
 | `test/batcher/BatcherDenyList.t.sol` | Deny-list and pause behavior seen through a batcher |
-| `script/utils/resolve-fork.sh` | Resolves the fork target: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
-| `script/utils/check-batcher-manifest.sh` | Fails when `config/batchers.json` drifts from the upstream deployment manifest |
-| `config/fork.json` | Optional mainnet fork block pin (`null` = chain tip) |
-| `config/blacklist-interfaces.json` | Per-token deny-list getter selectors |
-| `config/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
-| `config/batchers.json` | Deployed batcher, wrapper and vault addresses |
+| `script/utils/resolve-fork.sh` | Resolves the fork target for `NETWORK`: RPC URL from the environment or `.env`, block from `FORK_BLOCK` or `config/fork.json` |
+| `script/utils/check-batcher-manifest.sh` | Fails when `config/<network>/batchers.json` drifts from the upstream deployment manifest |
+| `config/fork.json` | Per-network registry address, RPC variable name, and optional fork block pin (`null` = chain tip) |
+| `config/<network>/blacklist-interfaces.json` | Per-token deny-list getter selectors |
+| `config/<network>/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
+| `config/<network>/batchers.json` | Deployed batcher, wrapper and vault addresses |
 
 ## Troubleshooting
 
-- `ETHEREUM_MAINNET_FORK_RPC_URL is not set`: export the archive RPC or set it in
-  `contracts/confidential-wrapper/.env` (see `.env.example`).
 - `missing underlying token code`: the archive node did not return code for that address at the
   forked block; check the RPC and the pinned `FORK_BLOCK`.
-- `seeded address not denied by real token state`: a `config/blacklist-seeds.json` address is no
-  longer denied at the forked block; refresh the seed. Runs default to the chain tip, so this
-  tracks live mainnet state.
+- `seeded address not denied by real token state`: a `config/<network>/blacklist-seeds.json` address
+  is no longer denied at the forked block; refresh the seed. Runs default to the chain tip, so this
+  tracks live chain state.
 - `MISMATCH <key>` from `check-batcher-manifest.sh`: the batchers were redeployed upstream; copy the
-  new addresses into `config/batchers.json` and re-run `make fork-test-batcher`.
+  new addresses into `config/<network>/batchers.json` and re-run `make fork-test-batcher`.
 - `batcher: unexpected ACL` / `unexpected batcher layout`: the deployed batcher no longer matches
   what the harness assumes (FHE config or `BatcherConfidential` storage slots). Re-derive it (see
   below) rather than relaxing the guard — it is the only thing keeping the `vm.store` writes honest.
@@ -140,14 +153,14 @@ drift from the mainnet deployment.
 
 ### FHE on a live fork
 
-The deployed wrappers point their FHE config at the real Zama mainnet coprocessor (compute
+The deployed wrappers point their FHE config at the real Zama coprocessor for their chain (compute
 happens off-chain), so a bare fork can't produce usable ciphertext/decryptions. Zama's
 [`forge-fhevm`](https://github.com/zama-ai/forge-fhevm) closes the gap:
 
 - The inherited `FhevmTest.setUp()` deploys the local fhEVM host stack (at canonical addresses)
   and records executor logs into an in-memory plaintext DB.
 - `BaseForkTest.setUp()` then repoints each wrapper's three FHE config slots at those local host
-  addresses and **zeroes the cached total-supply handle** (a mainnet handle has no entry in the
+  addresses and **zeroes the cached total-supply handle** (a live handle has no entry in the
   local plaintext DB, so the first local mint/burn rebuilds it against the local executor).
 - `finalizeUnwrap` verifies a scalar `abi.encode(uint64)` payload, so tests use
   `buildDecryptionProof(handle, abi.encode(cleartext))` rather than the generic
