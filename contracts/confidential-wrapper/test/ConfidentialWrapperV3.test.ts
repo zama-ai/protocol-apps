@@ -1109,15 +1109,11 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
 
       // Mint path: wrap → _update(0, holder, ...)
-      await expect(
-        wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)),
-      ).not.to.be.reverted;
+      await expect(wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6))).not.to.be.reverted;
 
       // Burn path: unwrap → _update(holder, 0, ...)
       const balance = await wrapper.confidentialBalanceOf(holder.address);
-      await expect(
-        wrapper.connect(holder).unwrap(holder.address, holder.address, balance),
-      ).not.to.be.reverted;
+      await expect(wrapper.connect(holder).unwrap(holder.address, holder.address, balance)).not.to.be.reverted;
     });
 
     it('reverts with UnderlyingDenyListCallFailed when the underlying call reverts', async function () {
