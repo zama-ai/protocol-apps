@@ -1096,6 +1096,30 @@ describe('ConfidentialWrapperV3 DenyList', function () {
       expect(await wrapper.isBlocked(ethers.ZeroAddress)).to.be.false;
     });
 
+    it('allows wrap and unwrap when the underlying denies the zero address', async function () {
+      const token: any = await ethers.deployContract('ERC20MockCUSDC');
+      const wrapper: any = await deployV3(token.target as string, SELECTOR_CUSDC);
+      await token.setDenyListed(ethers.ZeroAddress, true);
+
+      // Sanity: underlying denies zero, wrapper exempts it
+      expect(await token.isBlacklisted(ethers.ZeroAddress)).to.be.true;
+      expect(await wrapper.isBlocked(ethers.ZeroAddress)).to.be.false;
+
+      await token.mint(holder.address, ethers.parseUnits('100', 6));
+      await token.connect(holder).approve(wrapper.target, ethers.MaxUint256);
+
+      // Mint path: wrap → _update(0, holder, ...)
+      await expect(
+        wrapper.connect(holder).wrap(holder.address, ethers.parseUnits('100', 6)),
+      ).not.to.be.reverted;
+
+      // Burn path: unwrap → _update(holder, 0, ...)
+      const balance = await wrapper.confidentialBalanceOf(holder.address);
+      await expect(
+        wrapper.connect(holder).unwrap(holder.address, holder.address, balance),
+      ).not.to.be.reverted;
+    });
+
     it('reverts with UnderlyingDenyListCallFailed when the underlying call reverts', async function () {
       const token: any = await ethers.deployContract('ERC20MockRevertingDenyList');
       const wrapper = await deployV3(token.target as string, SELECTOR_CUSDC);
