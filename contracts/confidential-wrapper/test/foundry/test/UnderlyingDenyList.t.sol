@@ -249,17 +249,11 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
-     * denied by the underlying token getter against the real chain state on the fork.
+     * @notice Asserts every curated `blacklisted` seed is still reported denied by its underlying
+     * token getter against the real chain state on the fork.
      */
     function test_UnderlyingDenyListSeededBlacklist() public {
-        string memory path = _configPath("blacklist-seeds.json");
-        if (!vm.exists(path)) {
-            emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
-            return;
-        }
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         uint256 checked;
 
         for (uint256 ti = 0; ; ti++) {
@@ -284,10 +278,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     function _knownBlacklistedAddress(address token) internal view returns (address) {
-        string memory path = _configPath("blacklist-seeds.json");
-        if (!vm.exists(path)) return address(0);
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         for (uint256 ti = 0; ; ti++) {
             string memory base = string.concat(".tokens[", vm.toString(ti), "]");
             if (!vm.keyExistsJson(json, base)) break;
