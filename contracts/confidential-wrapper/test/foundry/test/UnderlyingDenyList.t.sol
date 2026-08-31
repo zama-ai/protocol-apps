@@ -7,13 +7,16 @@ import {externalEuint64} from "encrypted-types/EncryptedTypes.sol";
 
 /**
  * @notice Exercises configured underlying deny-list selectors against the real
- * mainnet token code on the fork. This intentionally does not mock the underlying
+ * token code on the fork. This intentionally does not mock the underlying
  * token: the selector must staticcall the live underlying implementation and
  * return a normal boolean response before the wrapper is allowed to wrap.
  */
 contract UnderlyingDenyListTest is BaseForkTest {
     function setUp() public override {
         super.setUp();
+        // Every test below floors on exercising at least one deny-list-bearing underlying, so a
+        // network whose config lists none has nothing to run here.
+        if (!_hasDenyListConfig()) vm.skip(true);
         // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
         // FHE ops; relax the sequential depth cap.
         disableHCUDepthLimit();
@@ -47,7 +50,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice Uses real blacklist membership from mainnet state and checks
+     * @notice Uses real blacklist membership from live chain state and checks
      * that the wrapper's direct wrap path rejects a known blacklisted depositor.
      */
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrap() public {
@@ -74,7 +77,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice A known blacklisted mainnet address is reported by {isBlockedOnUnderlying} and by the
+     * @notice A known blacklisted address is reported by {isBlockedOnUnderlying} and by the
      * combined {isBlocked}, while {isBlockedOnWrapper} stays false. This is the case the combined
      * view exists for: an address no wrapper owner ever touched, that the underlying still denies.
      */
@@ -171,7 +174,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
      * @notice Freshly blacklists a brand-new user through the underlying token's own admin setter
      * (pranked as the token's configured authority), then proves every wrapper entry point rejects that
      * user. This exercises deny-list enforcement even for underlyings that have no pre-existing
-     * blacklisted address in mainnet state (e.g. TGBP), which the known-blacklist tests skip.
+     * blacklisted address in live chain state (e.g. TGBP), which the known-blacklist tests skip.
      */
     function test_UnderlyingDenyListBlocksFreshlyBlacklistedUser() public {
         uint256 exercised;
@@ -247,10 +250,10 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
     /**
      * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
-     * denied by the underlying token getter against the real mainnet state on the fork.
+     * denied by the underlying token getter against the real chain state on the fork.
      */
     function test_UnderlyingDenyListSeededBlacklist() public {
-        string memory path = "config/blacklist-seeds.json";
+        string memory path = _configPath("blacklist-seeds.json");
         if (!vm.exists(path)) {
             emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
             return;
@@ -281,7 +284,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     function _knownBlacklistedAddress(address token) internal view returns (address) {
-        string memory path = "config/blacklist-seeds.json";
+        string memory path = _configPath("blacklist-seeds.json");
         if (!vm.exists(path)) return address(0);
 
         string memory json = vm.readFile(path);

@@ -12,22 +12,34 @@ import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrapp
 
 /**
  * @title BaseForkTest
- * @notice Shared harness for mainnet-fork tests over the live Confidential Wrappers.
+ * @notice Shared harness for fork tests over the live Confidential Wrappers.
  *
- * @dev The suite runs against a live mainnet fork (`forge test --fork-url`),
- * reading real mainnet code and storage from the archive node. The deployed
- * wrappers point their FHE config at the real Zama mainnet coprocessor, whose
- * compute happens off-chain, so a bare fork cannot produce usable
- * ciphertext/decryptions.
+ * @dev The suite runs against a live fork of the selected network
+ * (`forge test --fork-url`), reading real code and storage from the archive
+ * node. The deployed wrappers point their FHE config at the real Zama
+ * coprocessor, whose compute happens off-chain, so a bare fork cannot produce
+ * usable ciphertext/decryptions.
  *
  * To make FHE satisfiable natively in Solidity, this harness inherits
  * {FhevmTest}: its `setUp()` deploys the fhEVM host contracts in-process at
  * their canonical local addresses and records executor logs into an in-memory
  * plaintext DB. {setUp} then repoints each wrapper's FHE config at that local
  * host and zeroes the cached total-supply handle (see {_repointFhevmConfig}).
+ *
+ * The `NETWORK` environment variable, exported by
+ * `make fork-test NETWORK=<network>`, names the config/fork.json entry this run
+ * reads its registry from and the config/<network>/ directory holding the rest
+ * of that chain's config.
  */
 abstract contract BaseForkTest is FhevmTest {
-    address internal constant REGISTRY = 0xeb5015fF021DB115aCe010f23F55C2591059bBA0;
+    /// @dev Network selected when NETWORK is unset, i.e. a plain `make fork-test`.
+    string internal constant DEFAULT_NETWORK = "ethereum";
+
+    /// @notice Per-network fork config: registry address, RPC env variable name and fork block.
+    string internal constant FORK_CONFIG_PATH = "config/fork.json";
+
+    /// @notice Network key selecting this run's config/fork.json entry and config/<network>/ directory.
+    string internal network;
 
     ConfidentialTokenWrappersRegistry internal registry;
 
@@ -49,7 +61,7 @@ abstract contract BaseForkTest is FhevmTest {
         0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00;
 
     /// @dev forge-fhevm's in-process host addresses (dependencies/forge-fhevm-.../FHEVMHostAddresses.sol),
-    /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's mainnet coprocessor
+    /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's live coprocessor
     /// addresses, so encrypted ops are repointed here at runtime (see {_repointFhevmConfig}).
     address internal constant LOCAL_FHEVM_ACL = 0x50157CFfD6bBFA2DECe204a89ec419c23ef5755D;
     address internal constant LOCAL_FHEVM_COPROCESSOR = 0xe3a9105a3a932253A70F126eb1E3b589C643dD24;
@@ -108,8 +120,8 @@ abstract contract BaseForkTest is FhevmTest {
     uint64 internal reinitializerVersion;
 
     /// @notice Address-keyed underlying deny-list interface config (getter selectors), read by
-    /// these tests. Known-denied test vectors live separately in config/blacklist-seeds.json.
-    string internal constant DENY_LIST_INTERFACES_PATH = "config/blacklist-interfaces.json";
+    /// these tests. Known-denied test vectors live separately in blacklist-seeds.json.
+    string internal constant DENY_LIST_INTERFACES_FILE = "blacklist-interfaces.json";
 
     /// @dev Valid (non-revoked) confidential wrapper proxies enumerated from the registry.
     address[] internal wrappers;
@@ -119,7 +131,11 @@ abstract contract BaseForkTest is FhevmTest {
         // and starts recording executor logs into the plaintext DB.
         super.setUp();
 
-        registry = ConfidentialTokenWrappersRegistry(REGISTRY);
+        network = vm.envOr("NETWORK", DEFAULT_NETWORK);
+        // Reverts naming the missing JSON path when NETWORK has no config/fork.json entry.
+        registry = ConfidentialTokenWrappersRegistry(
+            vm.parseJsonAddress(vm.readFile(FORK_CONFIG_PATH), string.concat(".", network, ".registry"))
+        );
 
         ConfidentialTokenWrappersRegistry.TokenWrapperPair[] memory pairs = registry.getTokenConfidentialTokenPairs();
 
@@ -133,14 +149,14 @@ abstract contract BaseForkTest is FhevmTest {
     }
 
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
-    /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
+    /// onto it, so the whole suite exercises the candidate impl against live on-chain state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
     /// @dev Every proxy is repointed at the fresh implementation whatever its live version, so the suite
-    /// always drives HEAD's bytecode rather than mainnet's. Only the initializer call differs: a proxy
+    /// always drives HEAD's bytecode rather than the chain's. Only the initializer call differs: a proxy
     /// behind HEAD runs `reinitializeV4` as part of the swap, while one already at HEAD's version has no
     /// migration left to replay and is upgraded with empty calldata. A proxy ahead of HEAD's reinitializer version
     /// is a stale checkout or a missed reinitializer bump, and fails rather than silently pointing the
-    /// suite at older bytecode than mainnet runs.
+    /// suite at older bytecode than the chain runs.
     function _upgradeAllWrappersToLatest() internal {
         newImplementation = new ConfidentialWrapper();
         reinitializerVersion = _initializedVersion(_deployFreshProxy());
@@ -194,9 +210,9 @@ abstract contract BaseForkTest is FhevmTest {
     }
 
     /// @notice Repoints `w`'s FHE config at the in-process forge-fhevm host and zeroes its cached
-    /// total-supply handle, so encrypted ops resolve locally instead of at Zama's mainnet coprocessor.
+    /// total-supply handle, so encrypted ops resolve locally instead of at Zama's live coprocessor.
     /// @dev Runs before {_snapshotPreUpgrade} so the zeroed handle is captured pre-upgrade and
-    /// {UpgradeTest} still sees it unchanged after the swap. A mainnet handle has no entry in the local
+    /// {UpgradeTest} still sees it unchanged after the swap. A live handle has no entry in the local
     /// plaintext DB, so zeroing lets the first local mint/burn rebuild total supply against the in-process
     /// executor.
     function _repointFhevmConfig(address w) internal {
@@ -300,13 +316,26 @@ abstract contract BaseForkTest is FhevmTest {
         return bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 2);
     }
 
-    /// @notice Returns the explicit blacklist interface for `token`, read from the shared
+    /// @notice Path to one of this network's config files, e.g. `config/ethereum/batchers.json`.
+    function _configPath(string memory file) internal view returns (string memory) {
+        return string.concat("config/", network, "/", file);
+    }
+
+    /// @dev True when this network's config lists at least one deny-list-bearing underlying.
+    /// Networks with none omit the file entirely, and the deny-list suite skips itself.
+    function _hasDenyListConfig() internal view returns (bool) {
+        string memory path = _configPath(DENY_LIST_INTERFACES_FILE);
+        return vm.exists(path) && vm.keyExistsJson(vm.readFile(path), ".tokens[0]");
+    }
+
+    /// @notice Returns the explicit blacklist interface for `token`, read from this network's
     /// config file (not hardcoded). `supported == false` for tokens with no entry.
     function _underlyingDenyListInterface(
         address token
     ) internal view returns (UnderlyingDenyListInterface memory iface) {
-        if (!vm.exists(DENY_LIST_INTERFACES_PATH)) return iface;
-        string memory json = vm.readFile(DENY_LIST_INTERFACES_PATH);
+        string memory path = _configPath(DENY_LIST_INTERFACES_FILE);
+        if (!vm.exists(path)) return iface;
+        string memory json = vm.readFile(path);
         // Foundry JSON cheatcodes are index-addressed here; config tokens are a dense array, so
         // the first missing `.tokens[i]` marks the end.
         for (uint256 i = 0; ; i++) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check that config/batchers.json still matches the live deployment manifest in
+# Check that config/<network>/batchers.json still matches the live deployment manifest in
 # zama-ai/confidential-defi. The batcher fork suite drives the deployed bytecode at those
 # addresses, so a redeploy there silently turns this suite into a test of dead contracts.
 #
@@ -7,13 +7,20 @@
 # (or a `gh auth login` session) grants access. Without credentials the check skips rather than
 # fails, so a missing token never breaks the fork-test job.
 #
-# Run from the foundry package root (test/foundry), where make and CI invoke it.
+# Run from the foundry package root (test/foundry), where make and CI invoke it. NETWORK selects
+# the local manifest and defaults to ethereum.
 set -euo pipefail
 
+NETWORK="${NETWORK:-ethereum}"
 UPSTREAM_REPO="zama-ai/confidential-defi"
 UPSTREAM_PATH="contracts/deployments/mainnet.json"
-LOCAL_MANIFEST="config/batchers.json"
+LOCAL_MANIFEST="config/${NETWORK}/batchers.json"
 KEYS=(depositBatcher redeemBatcher cUsdc cShare morphoVault)
+
+if [ ! -f "${LOCAL_MANIFEST}" ]; then
+  echo "SKIP: no ${LOCAL_MANIFEST}; ${NETWORK} has no deployed batchers." >&2
+  exit 0
+fi
 
 for cmd in gh jq; do
   if ! command -v "${cmd}" >/dev/null 2>&1; then
