@@ -68,16 +68,16 @@ export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config
 
-On Ethereum, USDC, USDT, XAUT, and TGBP carry on-chain deny lists. Two small committed files per
-network drive the deny-list tests:
+One committed file per network, `config/<network>/blacklist-interfaces.json`, drives the deny-list tests. 
 
-- `config/<network>/blacklist-interfaces.json` — the bool-returning `getter` selector per token
-  (USDC `isBlacklisted(address)`, USDT `isBlackListed(address)`, XAUT `isBlocked(address)`,
-  TGBP `isBanned(address)`). Read by `test/BaseForkTest.t.sol`.
-- `config/<network>/blacklist-seeds.json` — a handful of known-denied addresses per token, used as
-  test vectors. The suite reads each seed's deny-list slot from the live fork and asserts the token
-  reports it denied. These are real addresses that must still be denied at the forked block. Adding a token is a
-  one-entry edit to each file.
+Each token entry carries:
+
+- `getter` — the bool-returning selector the wrapper staticcalls (USDC `isBlacklisted(address)`,
+  USDT `isBlackListed(address)`, etc.).
+- `setter` / `authority` — used to freshly deny an address by pranking the token's own admin.
+- `blacklisted` — a handful of real already-denied addresses used as test vectors. The suite reads
+  each one's deny-list slot from the live fork and asserts the token still reports it denied, so
+  they must remain denied at the forked block.
 
 ## Deployed-batcher suite
 
@@ -116,15 +116,14 @@ the deployed layout before changing any `vm.store` slot.
 | `script/utils/fork-test.sh` | Runs `forge test` against a fork of `NETWORK`: loads its RPC variable from `.env` when unset, resolves the block from `FORK_BLOCK` or `config/fork.json` |
 | `script/utils/check-batcher-manifest.sh` | Fails when `config/<network>/batchers.json` drifts from the upstream deployment manifest |
 | `config/fork.json` | Per-network registry address and optional fork block pin (`null` = chain tip) |
-| `config/<network>/blacklist-interfaces.json` | Per-token deny-list getter selectors |
-| `config/<network>/blacklist-seeds.json` | Per-token known-denied test-vector addresses |
+| `config/<network>/blacklist-interfaces.json` | Per-token deny-list selectors and known-denied test-vector addresses |
 | `config/<network>/batchers.json` | Deployed batcher, wrapper and vault addresses |
 
 ## Troubleshooting
 
 - `missing underlying token code`: the archive node did not return code for that address at the
   forked block; check the RPC and the pinned `FORK_BLOCK`.
-- `seeded address not denied by real token state`: a `config/<network>/blacklist-seeds.json` address
+- `seeded address not denied by real token state`: a `blacklisted` address in the deny-list config
   is no longer denied at the forked block; refresh the seed. Runs default to the chain tip, so this
   tracks live chain state.
 - `MISMATCH <key>` from `check-batcher-manifest.sh`: the batchers were redeployed upstream; copy the

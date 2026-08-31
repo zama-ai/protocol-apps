@@ -119,8 +119,8 @@ abstract contract BaseForkTest is FhevmTest {
     /// {_upgradeAllWrappersToLatest}: the version a fresh `initialize` lands on is that constant.
     uint64 internal reinitializerVersion;
 
-    /// @notice Address-keyed underlying deny-list interface config (getter selectors), read by
-    /// these tests. Known-denied test vectors live separately in blacklist-seeds.json.
+    /// @notice Address-keyed underlying deny-list config: the getter/setter/authority selectors per
+    /// token, plus the known-denied addresses {UnderlyingDenyListTest} uses as test vectors.
     string internal constant DENY_LIST_INTERFACES_FILE = "blacklist-interfaces.json";
 
     /// @dev Valid (non-revoked) confidential wrapper proxies enumerated from the registry.
