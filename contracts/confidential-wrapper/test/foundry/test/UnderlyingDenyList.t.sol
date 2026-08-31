@@ -17,9 +17,6 @@ contract UnderlyingDenyListTest is BaseForkTest {
         // Every test below floors on exercising at least one deny-list-bearing underlying, so a
         // network whose config lists none has nothing to run here.
         if (!_hasDenyListConfig()) vm.skip(true);
-        // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
-        // FHE ops; relax the sequential depth cap.
-        disableHCUDepthLimit();
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
