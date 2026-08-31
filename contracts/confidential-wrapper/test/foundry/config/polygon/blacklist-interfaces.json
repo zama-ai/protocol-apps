@@ -1,0 +1,17 @@
+{
+  "_doc": "Underlying-token deny lists for the network named by the parent directory, read by test/BaseForkTest.t.sol (_underlyingDenyListInterface) and test/UnderlyingDenyList.t.sol. Per token: `getter` is the bool-returning view selector the wrapper staticcalls, and is the only field the wrapper itself needs; `setter`/`authority` let the tests freshly deny an address by pranking the token's own admin; `blacklisted` is a handful of real already-denied addresses used as test vectors, which the suite reads off the live fork and asserts are still denied (it checks at most 5). Leave `blacklisted` empty for a token with no known-denied address — the freshly-blacklisted test still covers it. Adding a token is one entry. A network with no deny-list-bearing underlying omits this file and the suite skips itself.",
+  "tokens": [
+    {
+      "token": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+      "name": "USDC",
+      "getter": "isBlacklisted(address)",
+      "setter": "blacklist(address)",
+      "authority": "blacklister()",
+      "blacklisted": [
+        "0x002471b8a185f9980708d0eaec5b289714f56f8d",
+        "0x0078ef2d7baf87bf6c4ca49b19efd1e05f57ac30",
+        "0x00be5e0c85be35948d97ad37f62d108243f89ae0"
+      ]
+    }
+  ]
+}
