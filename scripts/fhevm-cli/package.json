@@ -11,9 +11,11 @@
     "prettier:check": "prettier --check \"**/*.{js,json,md,sol,ts,yml}\"",
     "prettier:write": "prettier --write \"**/*.{js,json,md,sol,ts,yml}\""
   },
+  "dependencies": {
+    "@fhevm/solidity": "^0.11.1"
+  },
   "devDependencies": {
     "@fhevm/hardhat-plugin": "^0.4.2",
-    "@fhevm/solidity": "^0.11.1",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@trivago/prettier-plugin-sort-imports": "^4.0.0",
     "prettier-plugin-solidity": "^2.1.0",

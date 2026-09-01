@@ -21,6 +21,10 @@
     "coverage": "hardhat coverage",
     "coverage:check": "istanbul check-coverage ./coverage.json"
   },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0"
+  },
   "devDependencies": {
     "@eslint/compat": "^1.2.8",
     "@eslint/js": "^9.9.0",
@@ -28,8 +32,6 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.3",
     "@nomicfoundation/hardhat-verify": "^2.1.1",
-    "@openzeppelin/contracts": "^5.4.0",
-    "@openzeppelin/contracts-upgradeable": "^5.4.0",
     "@openzeppelin/hardhat-upgrades": "^3.9.1",
     "@trivago/prettier-plugin-sort-imports": "^4.0.0",
     "@typechain/ethers-v6": "^0.5.1",
