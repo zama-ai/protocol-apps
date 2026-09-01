@@ -44,19 +44,6 @@ overrides:
 importers:
 
   .:
-    dependencies:
-      '@layerzerolabs/lz-evm-protocol-v2':
-        specifier: ^3.0.86
-        version: 3.0.156(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10))(solidity-bytes-utils@0.8.4)
-      '@layerzerolabs/oapp-evm':
-        specifier: ^0.4.0
-        version: 0.4.1(lazds5lqrvvt2mjpofimnva56e)
-      '@layerzerolabs/oft-evm':
-        specifier: ^4.0.0
-        version: 4.0.1(ltgvvwme5vaco7zxcnlycmizwe)
-      '@openzeppelin/contracts':
-        specifier: ^5.0.2
-        version: 5.4.0
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.31.1
@@ -100,6 +87,9 @@ importers:
       '@layerzerolabs/lz-evm-messagelib-v2':
         specifier: ^3.0.86
         version: 3.0.156(@axelar-network/axelar-gmp-sdk-solidity@5.10.0)(@chainlink/contracts-ccip@0.7.6(bufferutil@4.1.0)(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(utf-8-validate@5.0.10))(@eth-optimism/contracts@0.6.0(bufferutil@4.1.0)(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(utf-8-validate@5.0.10))(@layerzerolabs/lz-evm-protocol-v2@3.0.156(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10))(solidity-bytes-utils@0.8.4))(@layerzerolabs/lz-evm-v1-0.7@3.0.156(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)))(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10))(solidity-bytes-utils@0.8.4)
+      '@layerzerolabs/lz-evm-protocol-v2':
+        specifier: ^3.0.86
+        version: 3.0.156(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10))(solidity-bytes-utils@0.8.4)
       '@layerzerolabs/lz-evm-v1-0.7':
         specifier: ^3.0.86
         version: 3.0.156(@openzeppelin/contracts-upgradeable@5.4.0(@openzeppelin/contracts@5.4.0))(@openzeppelin/contracts@5.4.0)(hardhat-deploy@0.12.4(bufferutil@4.1.0)(utf-8-validate@5.0.10))
@@ -112,6 +102,12 @@ importers:
       '@layerzerolabs/metadata-tools':
         specifier: ^3.0.0
         version: 3.0.3(@layerzerolabs/devtools-evm-hardhat@4.0.4(zqfeyg2t7kfokzsabdrwqamzni))(@layerzerolabs/ua-devtools@5.0.2(uaefxbrvpvjyaptg7hudmw4zzy))
+      '@layerzerolabs/oapp-evm':
+        specifier: ^0.4.0
+        version: 0.4.1(lazds5lqrvvt2mjpofimnva56e)
+      '@layerzerolabs/oft-evm':
+        specifier: ^4.0.0
+        version: 4.0.1(ltgvvwme5vaco7zxcnlycmizwe)
       '@layerzerolabs/oft-v2-solana-sdk':
         specifier: ^3.0.136
         version: 3.0.156(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(got@12.6.1)(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -184,6 +180,9 @@ importers:
       '@nomiclabs/hardhat-waffle':
         specifier: ^2.0.6
         version: 2.0.6(@nomiclabs/hardhat-ethers@2.2.3(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hardhat@2.28.3(bufferutil@4.1.0)(ts-node@10.9.2(@swc/core@1.15.10(@swc/helpers@0.5.18))(@types/node@18.18.14)(typescript@5.9.3))(typescript@5.9.3)(utf-8-validate@5.0.10)))(@types/sinon-chai@3.2.12)(ethereum-waffle@4.0.10(@ensdomains/ens@0.4.5)(@ensdomains/resolver@0.2.4)(@ethersproject/abi@5.8.0)(@ethersproject/providers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(typescript@5.9.3))(ethers@5.8.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))(hardhat@2.28.3(bufferutil@4.1.0)(ts-node@10.9.2(@swc/core@1.15.10(@swc/helpers@0.5.18))(@types/node@18.18.14)(typescript@5.9.3))(typescript@5.9.3)(utf-8-validate@5.0.10))
+      '@openzeppelin/contracts':
+        specifier: ^5.0.2
+        version: 5.4.0
       '@openzeppelin/contracts-upgradeable':
         specifier: ^5.0.2
         version: 5.4.0(@openzeppelin/contracts@5.4.0)

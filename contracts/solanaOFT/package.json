@@ -23,12 +23,7 @@
     "ethers": "^5.7.2",
     "hardhat-deploy": "^0.12.1"
   },
-  "dependencies": {
-    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.86",
-    "@layerzerolabs/oapp-evm": "^0.4.0",
-    "@layerzerolabs/oft-evm": "^4.0.0",
-    "@openzeppelin/contracts": "^5.0.2"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@ethersproject/abi": "^5.7.0",
@@ -43,6 +38,10 @@
     "@layerzerolabs/eslint-config-next": "~2.3.39",
     "@layerzerolabs/io-devtools": "~0.3.0",
     "@layerzerolabs/lz-definitions": "^3.0.86",
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.86",
+    "@layerzerolabs/oapp-evm": "^0.4.0",
+    "@layerzerolabs/oft-evm": "^4.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
     "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.86",
     "@layerzerolabs/lz-evm-v1-0.7": "^3.0.86",
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",
