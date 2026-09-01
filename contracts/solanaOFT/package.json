@@ -23,6 +23,12 @@
     "ethers": "^5.7.2",
     "hardhat-deploy": "^0.12.1"
   },
+  "dependencies": {
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.86",
+    "@layerzerolabs/oapp-evm": "^0.4.0",
+    "@layerzerolabs/oft-evm": "^4.0.0",
+    "@openzeppelin/contracts": "^5.0.2"
+  },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@ethersproject/abi": "^5.7.0",
@@ -38,13 +44,10 @@
     "@layerzerolabs/io-devtools": "~0.3.0",
     "@layerzerolabs/lz-definitions": "^3.0.86",
     "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.86",
-    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.86",
     "@layerzerolabs/lz-evm-v1-0.7": "^3.0.86",
     "@layerzerolabs/lz-solana-sdk-v2": "^3.0.136",
     "@layerzerolabs/lz-v2-utilities": "^3.0.86",
     "@layerzerolabs/metadata-tools": "^3.0.0",
-    "@layerzerolabs/oapp-evm": "^0.4.0",
-    "@layerzerolabs/oft-evm": "^4.0.0",
     "@layerzerolabs/oft-v2-solana-sdk": "^3.0.136",
     "@layerzerolabs/prettier-config-next": "^2.3.39",
     "@layerzerolabs/protocol-devtools": "^3.0.0",
@@ -69,7 +72,6 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-waffle": "^2.0.6",
-    "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@rushstack/eslint-patch": "^1.7.0",
     "@safe-global/safe-core-sdk-types": "^2.3.0",
