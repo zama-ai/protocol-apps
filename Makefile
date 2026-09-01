@@ -11,19 +11,22 @@ LICENSE_SKIP_PACKAGES := contracts/feesBurner contracts/pauserSetWrapper
 LICENSE_PACKAGES := $(filter-out $(LICENSE_SKIP_PACKAGES),$(patsubst %/package.json,%,$(wildcard contracts/*/package.json))) scripts/fhevm-cli scripts/governance-proposal-builder
 DEPLOY_PACKAGES := $(filter-out $(LICENSE_SKIP_PACKAGES),$(patsubst %/package.json,%,$(wildcard contracts/*/package.json))) scripts/fhevm-cli
 
-# The following packages are excluded from the check:
-# - @safe-global/safe-contracts@1.4.1-2: licensed under `LGPL-3.0`, cleared because we
-#   neither fork nor modify it and only call it externally (AdminModule.sol casts an address, no
-#   contract here inherits from it)
-# - @layerzerolabs/lz-evm-protocol-v2@{3.0.141,3.0.142,3.0.156}: licensed under `LZBL-1.2`, PENDING
-# - @layerzerolabs/lz-evm-messagelib-v2@3.0.142: licensed under `LZBL-1.2`, PENDING
-# - @layerzerolabs/lz-v2-utilities@3.0.168: licensed under `BUSL-1.1`, PENDING
-# - @chainlink/contracts-ccip@0.7.6: licensed under `BUSL-1.1`, PENDING; peer of
-#   lz-evm-messagelib-v2, not used in our Solidity (CCIP DVN paths only)
+# Excluded from --onlyAllow (exact name@version; bumps re-trigger review):
 #
-# Keep on one line: license-checker splits --excludePackages on ';' without trimming and matches
-# `name@version` exactly, so a stray space voids the entry. Versions are exact so bumps re-trigger review.
-EXCLUDE_PACKAGES := @safe-global/safe-contracts@1.4.1-2;@layerzerolabs/lz-evm-protocol-v2@3.0.141;@layerzerolabs/lz-evm-protocol-v2@3.0.142;@layerzerolabs/lz-evm-protocol-v2@3.0.156;@layerzerolabs/lz-evm-messagelib-v2@3.0.142;@layerzerolabs/lz-v2-utilities@3.0.168;@chainlink/contracts-ccip@0.7.6
+# In deployed bytecode (LZBL-1.2, PENDING):
+# - lz-evm-protocol-v2@{3.0.141,3.0.142,3.0.156}
+# - lz-evm-messagelib-v2@{3.0.141,3.0.142,3.0.156}  (ExecutorOptions/DVNOptions via OptionsBuilder)
+#
+# Cleared external use:
+# - @safe-global/safe-contracts@1.4.1-2 (LGPL-3.0)
+#
+# Peer-install noise only — in node_modules via pnpm autoInstallPeers, not in our Solidity imports:
+# - lz-evm-v1-0.7@{3.0.141,3.0.142,3.0.156} (BUSL-1.1; legacy V1 peer of messagelib-v2)
+# - @chainlink/contracts-ccip@0.7.6 (BUSL-1.1; CCIP DVN peer of messagelib-v2)
+# - @layerzerolabs/lz-v2-utilities@3.0.168 (BUSL-1.1; governance-proposal-builder script only)
+#
+# Keep on one line: license-checker splits --excludePackages on ';' without trimming.
+EXCLUDE_PACKAGES := @safe-global/safe-contracts@1.4.1-2;@layerzerolabs/lz-evm-protocol-v2@3.0.141;@layerzerolabs/lz-evm-protocol-v2@3.0.142;@layerzerolabs/lz-evm-protocol-v2@3.0.156;@layerzerolabs/lz-evm-messagelib-v2@3.0.141;@layerzerolabs/lz-evm-messagelib-v2@3.0.142;@layerzerolabs/lz-evm-messagelib-v2@3.0.156;@layerzerolabs/lz-evm-v1-0.7@3.0.141;@layerzerolabs/lz-evm-v1-0.7@3.0.142;@layerzerolabs/lz-evm-v1-0.7@3.0.156;@layerzerolabs/lz-v2-utilities@3.0.168;@chainlink/contracts-ccip@0.7.6
 
 ALLOWED_LICENSES := 0BSD;Apache-2.0;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause-Clear;CC-BY-3.0;CC0-1.0;ISC;MIT;MPL-2.0;Python-2.0;WTFPL;PSF
 
@@ -45,9 +48,11 @@ check-licenses:
 		echo "Checking licenses in $$pkg..."; \
 		( \
 			cd $$pkg && \
-			([ -n "$$(ls -A node_modules 2>/dev/null)" ] || ([ -f pnpm-lock.yaml ] \
-				&& pnpm install --frozen-lockfile --ignore-scripts --config.node-linker=hoisted \
-				|| npm install --ignore-scripts --no-audit --no-fund) >/dev/null) && \
+			if [ -f pnpm-lock.yaml ]; then \
+				pnpm install --frozen-lockfile --ignore-scripts --config.node-linker=hoisted --prod >/dev/null; \
+			else \
+				npm install --ignore-scripts --no-audit --no-fund --omit=dev >/dev/null; \
+			fi && \
 			if echo " $(DEPLOY_PACKAGES) " | grep -q " $$pkg " && \
 			   [ "$$(node -p "Object.keys(require('./package.json').dependencies||{}).length")" = "0" ]; then \
 				echo "  ships Solidity but declares no production dependencies; move them out of devDependencies"; \
