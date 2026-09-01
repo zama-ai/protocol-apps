@@ -184,7 +184,7 @@ contract UpgradeTest is BaseForkTest {
         assertGt(uint256(version), 1, "initialize did not advance past version 1");
 
         // reinitializeV4 path: the live proxies already carry the version it targets, so each is
-        // rewound one below to drive HEAD's reinitializer rather than mainnet's past run of it.
+        // rewound one below to drive HEAD's reinitializer rather than the chain's past run of it.
         address[] memory empty = new address[](0);
         for (uint256 i = 0; i < wrappers.length; i++) {
             address proxy = wrappers[i];

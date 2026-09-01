@@ -28,10 +28,10 @@ concurrency:
 
 jobs:
   tests:
-    name: contracts-confidential-wrapper-foundry-tests/tests (bpr)
+    name: contracts-confidential-wrapper-foundry-tests/tests (bpr, ${{ matrix.network }})
     # The live archive-node run needs the RPC secret, which GitHub provides on push to
-    # main, manual dispatch, and PRs from branches within this repo. Gate the whole job 
-    # so fork PRs skip it cleanly (a maintainer pushes the branch to this repo to run it, 
+    # main, manual dispatch, and PRs from branches within this repo. Gate the whole job
+    # so fork PRs skip it cleanly (a maintainer pushes the branch to this repo to run it,
     # matching security-analysis-gate.yml).
     if: >-
       github.event_name != 'pull_request' ||
@@ -39,6 +39,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read' # Required to checkout repository code
+    strategy:
+      # One chain failing says nothing about the others, so let every leg report.
+      fail-fast: false
+      matrix:
+        # Each network needs a config/fork.json entry and its RPC secret below. Steps with no
+        # config for a network skip themselves, so no per-network `if:` is needed here.
+        network: [ethereum, polygon]
+    env:
+      NETWORK: ${{ matrix.network }}
+      ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
+      POLYGON_MAINNET_FORK_RPC_URL: ${{ secrets.POLYGON_MAINNET_FORK_RPC_URL }}
     steps:
       # TODO: remove once GitHub runner images ship the CVE-2026-31431 kernel fix
       - name: Workaround CVE-2026-31431 (copy.fail)
@@ -70,8 +81,9 @@ jobs:
         working-directory: contracts/confidential-wrapper/test/foundry
         run: make build
 
-      # The batcher suite drives the deployed bytecode at the addresses in config/batchers.json, so
-      # a redeploy upstream would leave it testing dead contracts. Skips itself without a token.
+      # The batcher suite drives the deployed bytecode at the addresses in
+      # config/<network>/batchers.json, so a redeploy upstream would leave it testing dead
+      # contracts. Skips itself without a token, or on a network with no batchers.
       - name: Check batcher deployment manifest is current
         working-directory: contracts/confidential-wrapper/test/foundry
         env:
@@ -80,12 +92,8 @@ jobs:
 
       - name: Run live fork tests against archive node
         working-directory: contracts/confidential-wrapper/test/foundry
-        env:
-          ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
         run: make fork-test
 
       - name: Run live fork tests against the deployed batchers
         working-directory: contracts/confidential-wrapper/test/foundry
-        env:
-          ETHEREUM_MAINNET_FORK_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
         run: make fork-test-batcher

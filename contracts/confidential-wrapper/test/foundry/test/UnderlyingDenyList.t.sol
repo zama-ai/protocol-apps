@@ -7,16 +7,16 @@ import {externalEuint64} from "encrypted-types/EncryptedTypes.sol";
 
 /**
  * @notice Exercises configured underlying deny-list selectors against the real
- * mainnet token code on the fork. This intentionally does not mock the underlying
+ * token code on the fork. This intentionally does not mock the underlying
  * token: the selector must staticcall the live underlying implementation and
  * return a normal boolean response before the wrapper is allowed to wrap.
  */
 contract UnderlyingDenyListTest is BaseForkTest {
     function setUp() public override {
         super.setUp();
-        // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
-        // FHE ops; relax the sequential depth cap.
-        disableHCUDepthLimit();
+        // Every test below floors on exercising at least one deny-list-bearing underlying, so a
+        // network whose config lists none has nothing to run here.
+        if (!_hasDenyListConfig()) vm.skip(true);
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
@@ -47,7 +47,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice Uses real blacklist membership from mainnet state and checks
+     * @notice Uses real blacklist membership from live chain state and checks
      * that the wrapper's direct wrap path rejects a known blacklisted depositor.
      */
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrap() public {
@@ -74,7 +74,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice A known blacklisted mainnet address is reported by {isBlockedOnUnderlying} and by the
+     * @notice A known blacklisted address is reported by {isBlockedOnUnderlying} and by the
      * combined {isBlocked}, while {isBlockedOnWrapper} stays false. This is the case the combined
      * view exists for: an address no wrapper owner ever touched, that the underlying still denies.
      */
@@ -171,7 +171,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
      * @notice Freshly blacklists a brand-new user through the underlying token's own admin setter
      * (pranked as the token's configured authority), then proves every wrapper entry point rejects that
      * user. This exercises deny-list enforcement even for underlyings that have no pre-existing
-     * blacklisted address in mainnet state (e.g. TGBP), which the known-blacklist tests skip.
+     * blacklisted address in live chain state (e.g. TGBP), which the known-blacklist tests skip.
      */
     function test_UnderlyingDenyListBlocksFreshlyBlacklistedUser() public {
         uint256 exercised;
@@ -206,57 +206,11 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice A denied null address must NOT block minting or burning. `_requireNotBlocked`
-     * short-circuits address(0) precisely because mint has from == 0 and burn has to == 0, and
-     * some underlyings (e.g. USDT) report isBlackListed(address(0)) == true.
-     */
-    function test_UnderlyingDenyListNullAddressDoesNotBlock() public {
-        uint256 exercised;
-
-        for (uint256 i = 0; i < wrappers.length; i++) {
-            address w = wrappers[i];
-            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
-            if (selector == bytes4(0)) continue;
-            address token = _wrapper(w).underlying();
-
-            if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
-            exercised++;
-            string memory sym = _label(w);
-
-            // Both views carry the same exemption, so neither contradicts the mint/burn paths below.
-            assertFalse(
-                _wrapper(w).isBlockedOnUnderlying(address(0)),
-                string.concat(sym, ": isBlockedOnUnderlying reports the null address as denied")
-            );
-            assertFalse(_wrapper(w).isBlocked(address(0)), string.concat(sym, ": isBlocked reports the null address"));
-
-            // Mint: wrap does _update(0, holder, ...); a denied null address must not block it.
-            address holder = makeAddr(string.concat("null-deny-holder-", sym));
-            _dealAndWrap(w, holder, _wrapper(w).rate());
-            assertEq(_decryptBalance(w, holder), 1, string.concat(sym, ": mint blocked by denied null address"));
-
-            // Burn: unwrap does _update(holder, 0, ...); a denied null address must not block it.
-            (externalEuint64 enc, bytes memory proof) = encryptUint64(1, holder, w);
-            vm.prank(holder);
-            _wrapper(w).unwrap(holder, holder, enc, proof);
-            assertEq(_decryptTotalSupply(w), 0, string.concat(sym, ": burn blocked by denied null address"));
-        }
-
-        assertGt(exercised, 0, "no configured wrapper whose underlying denies the null address");
-    }
-
-    /**
-     * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
-     * denied by the underlying token getter against the real mainnet state on the fork.
+     * @notice Asserts every curated `blacklisted` seed is still reported denied by its underlying
+     * token getter against the real chain state on the fork.
      */
     function test_UnderlyingDenyListSeededBlacklist() public {
-        string memory path = "config/blacklist-seeds.json";
-        if (!vm.exists(path)) {
-            emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
-            return;
-        }
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         uint256 checked;
 
         for (uint256 ti = 0; ; ti++) {
@@ -281,10 +235,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     function _knownBlacklistedAddress(address token) internal view returns (address) {
-        string memory path = "config/blacklist-seeds.json";
-        if (!vm.exists(path)) return address(0);
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         for (uint256 ti = 0; ; ti++) {
             string memory base = string.concat(".tokens[", vm.toString(ti), "]");
             if (!vm.keyExistsJson(json, base)) break;

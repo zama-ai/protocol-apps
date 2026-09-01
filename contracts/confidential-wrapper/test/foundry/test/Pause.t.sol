@@ -10,7 +10,7 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {IERC1363} from "@openzeppelin/contracts/interfaces/IERC1363.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @notice Pause behavior across every registered wrapper, running against live mainnet state.
+/// @notice Pause behavior across every registered wrapper, running against live chain state.
 /// @dev The live proxies carry no pauser of their own and the upgrade in {BaseForkTest} seeds
 /// `address(0)`, so these tests also cover arming it on real V3 state without disturbing the
 /// deny-list config it shares a slot with.

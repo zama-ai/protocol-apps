@@ -35,7 +35,7 @@ contract BatcherDenyListTest is BatcherForkBase {
     /**
      * @notice The other deny-list source, driven through the same join path.
      * @dev Skips itself when cUSDC has no underlying check configured, or when USDC's deny-list
-     * interface is absent from `config/blacklist-interfaces.json`, mirroring the guards the wrapper
+     * interface is absent from `config/<network>/blacklist-interfaces.json`, mirroring the guards the wrapper
      * suite's underlying tests use.
      */
     function test_UnderlyingDeniedUserCannotJoin() public {

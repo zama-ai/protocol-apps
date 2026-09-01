@@ -1,6 +1,11 @@
 {
-  "_doc": "Optional fork block for `make fork-test`, read by script/utils/resolve-fork.sh. Null (the default) forks latest - 50; set a positive integer to pin a run. FORK_BLOCK overrides this file.",
-  "ethereumMainnet": {
+  "_doc": "Per-network fork config, read by script/utils/fork-test.sh (block) and test/BaseForkTest.t.sol (registry). Select one with `make fork-test NETWORK=<key>`; the key also names the config/<key>/ directory holding that network's deny-list and batcher files, and the foundry.toml [rpc_endpoints] alias resolving to its RPC URL. `block` null (the default) forks latest - 50; a positive integer pins a run, and FORK_BLOCK overrides it.",
+  "ethereum": {
+    "registry": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
+    "block": null
+  },
+  "polygon": {
+    "registry": "0xc8908569868758dAF814B5a8b96bBc44D1653d54",
     "block": null
   }
 }

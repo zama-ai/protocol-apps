@@ -29,6 +29,12 @@ match_path = "test/batcher/*"
 no_match_path = "test/batcher/BatcherForkBase.t.sol"
 isolate = true
 
+# Network aliases usable as `--fork-url <network>`, each resolving to that network's RPC variable.
+# The names match the keys in config/fork.json, and `${...}` is interpolated by Foundry at load.
+[rpc_endpoints]
+ethereum = "${ETHEREUM_MAINNET_FORK_RPC_URL}"
+polygon = "${POLYGON_MAINNET_FORK_RPC_URL}"
+
 [fmt]
 line_length = 120
 

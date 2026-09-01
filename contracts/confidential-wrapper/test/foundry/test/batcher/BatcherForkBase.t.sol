@@ -11,14 +11,17 @@ import {IVaultBatcher} from "./IVaultBatcher.sol";
  * @notice Harness for driving the live Confidential DeFi Gateway batchers against the candidate
  * wrapper implementation {BaseForkTest} upgrades every registry proxy onto.
  *
- * @dev The batchers are read from mainnet, not deployed here. Like the wrappers they store their FHE
- * config in the `CoprocessorConfig` ERC-7201 slot (`ZamaEthereumConfig`'s constructor calls
+ * @dev The batchers are read from the chain, not deployed here. Like the wrappers they store their
+ * FHE config in the `CoprocessorConfig` ERC-7201 slot (`ZamaEthereumConfig`'s constructor calls
  * `FHE.setCoprocessor`), so {_prepareBatcher} can repoint them at the in-process fhEVM host the same
  * way {BaseForkTest} repoints the proxies.
+ *
+ * Only a network with deployed batchers carries a `config/<network>/batchers.json`; the rest skip
+ * this suite.
  */
 abstract contract BatcherForkBase is BaseForkTest {
     /// @notice Deployed batcher/wrapper/vault addresses, mirrored from zama-ai/confidential-defi.
-    string internal constant BATCHERS_PATH = "config/batchers.json";
+    string internal constant BATCHERS_FILE = "batchers.json";
 
     /// @dev Canonical mainnet fhEVM addresses (ZamaConfig Ethereum config) the deployed batchers
     /// must point at.
@@ -37,11 +40,17 @@ abstract contract BatcherForkBase is BaseForkTest {
     address internal morphoVault;
 
     function setUp() public virtual override {
+        // No manifest, no batchers to drive. Checked before `super.setUp()` so the skip costs nothing.
+        if (!vm.exists(string.concat("config/", vm.envOr("NETWORK", DEFAULT_NETWORK), "/", BATCHERS_FILE))) {
+            vm.skip(true);
+            return;
+        }
+
         super.setUp();
         // Batch flows chain far more FHE ops than the direct wrapper flows.
         disableHCUDepthLimit();
 
-        string memory json = vm.readFile(BATCHERS_PATH);
+        string memory json = vm.readFile(_configPath(BATCHERS_FILE));
         depositBatcher = IVaultBatcher(vm.parseJsonAddress(json, ".depositBatcher"));
         redeemBatcher = IVaultBatcher(vm.parseJsonAddress(json, ".redeemBatcher"));
         cUsdc = vm.parseJsonAddress(json, ".cUsdc");
