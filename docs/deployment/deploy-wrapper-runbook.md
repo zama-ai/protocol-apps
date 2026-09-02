@@ -85,10 +85,10 @@ Populate `.env` with all required values. For a batch of `N` wrappers (replace `
 # Auth
 MNEMONIC=                          # or PRIVATE_KEY=
 # Set the RPC URL for your target network:
-# MAINNET_RPC_URL=      # --network mainnet
-# SEPOLIA_RPC_URL=      # --network testnet
+# ETHEREUM_RPC_URL=     # --network ethereum
+# SEPOLIA_RPC_URL=      # --network sepolia
 # POLYGON_RPC_URL=      # --network polygon
-# AMOY_RPC_URL=         # --network polygon-amoy
+# AMOY_RPC_URL=         # --network amoy
 ETHERSCAN_API_KEY=
 
 NUM_CONFIDENTIAL_WRAPPERS=N
@@ -147,7 +147,7 @@ npx hardhat task:deployConfidentialWrapper \
   --underlying-deny-list-selector 0x59bf1abe \
   --initial-observers '[]' \
   --pauser 0x0000000000000000000000000000000000000000 \
-  --network mainnet
+  --network ethereum
 ```
 
 On success, each wrapper prints:

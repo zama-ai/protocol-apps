@@ -5,35 +5,13 @@ import { getRequiredEnvVar } from './utils/loadVariables';
 
 export const CONTRACT_NAME = 'ConfidentialWrapper';
 
-type HreWithDeployHook = HardhatRuntimeEnvironment & {
-  zamaWrapperDeploy?: {
-    getDeployerSigner?: (hre: HardhatRuntimeEnvironment) => Promise<Signer>;
-    resolveDeployerAddress?: (hre: HardhatRuntimeEnvironment) => Promise<string>;
-  };
-};
-
-// Select the deploy signer. Default: local PRIVATE_KEY/MNEMONIC via namedAccounts.
+// The deploy signer: local PRIVATE_KEY/MNEMONIC via namedAccounts (`deployer` = accounts[0]).
 export async function getDeployerSigner(hre: HardhatRuntimeEnvironment): Promise<Signer> {
-  const override = (hre as HreWithDeployHook).zamaWrapperDeploy?.getDeployerSigner;
-  if (override) {
-    return override(hre);
-  }
-  const { deployer } = await hre.getNamedAccounts();
-  return hre.ethers.getSigner(deployer);
-}
-
-// Resolve the deployer address
-export async function resolveDeployerAddress(hre: HardhatRuntimeEnvironment): Promise<string> {
-  const override = (hre as HreWithDeployHook).zamaWrapperDeploy?.resolveDeployerAddress;
-  if (override) {
-    return override(hre);
-  }
-  // The exact account getDeployerSigner signs with (named `deployer` = accounts[0]).
   const { deployer } = await hre.getNamedAccounts();
   if (!deployer) {
     throw new Error('No signer configured: set PRIVATE_KEY or MNEMONIC');
   }
-  return deployer;
+  return hre.ethers.getSigner(deployer);
 }
 
 // Artifact names are keyed by token symbol (e.g. `cUSDT`), not the human name, which can contain

@@ -96,7 +96,7 @@ const config: HardhatUserConfig = {
     },
     // FHEVM config for chainId 80002 comes from the locally vendored
     // contracts/fhevm/ZamaConfig.sol (aligned with @fhevm/solidity 0.13.2).
-    'polygon-amoy': {
+    amoy: {
       url: process.env.AMOY_RPC_URL || '',
       accounts,
       chainId: 80002,

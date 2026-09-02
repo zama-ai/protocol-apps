@@ -18,7 +18,7 @@ Wraps standard ERC20 tokens into confidential ERC7984 tokens using FHE. Deployed
 | `ETHEREUM_RPC_URL` | RPC URL for the `ethereum` network (mainnet) |
 | `POLYGON_RPC_URL` | RPC URL for the `polygon` network (Polygon mainnet) |
 | `SEPOLIA_RPC_URL` | RPC URL for the `sepolia` network (Sepolia testnet) |
-| `AMOY_RPC_URL` | RPC URL for the `polygon-amoy` network (Polygon testnet) |
+| `AMOY_RPC_URL` | RPC URL for the `amoy` network (Polygon Amoy testnet) |
 | `ETHERSCAN_API_KEY` | Etherscan API key (required for Etherscan verification; Blockscout/Sourcify need none) |
 
 ### Task inputs (batch deployment)
