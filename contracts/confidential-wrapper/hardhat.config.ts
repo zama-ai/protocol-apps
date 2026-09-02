@@ -44,7 +44,7 @@ const accounts: HttpNetworkAccountsUserConfig | undefined = MNEMONIC
 
 if (accounts == null) {
   console.warn(
-    'Could not find MNEMONIC or PRIVATE_KEY environment variables. It will not be possible to execute transactions in your example.',
+    'No signer configured. Read-only tasks still work; to broadcast transactions, set MNEMONIC or PRIVATE_KEY.',
   );
 }
 
@@ -77,8 +77,8 @@ const config: HardhatUserConfig = {
   },
   networks: {
     // ChainID must be specified in order to be able to verify contracts using the fhevm hardhat plugin
-    mainnet: {
-      url: process.env.MAINNET_RPC_URL || '',
+    ethereum: {
+      url: process.env.ETHEREUM_RPC_URL || '',
       accounts,
       chainId: 1,
     },
@@ -89,15 +89,14 @@ const config: HardhatUserConfig = {
       accounts,
       chainId: 137,
     },
-    // ChainID must be specified in order to be able to verify contracts using the fhevm hardhat plugin
-    testnet: {
+    sepolia: {
       url: process.env.SEPOLIA_RPC_URL || '',
       accounts,
       chainId: 11155111,
     },
     // FHEVM config for chainId 80002 comes from the locally vendored
     // contracts/fhevm/ZamaConfig.sol (aligned with @fhevm/solidity 0.13.2).
-    'polygon-amoy': {
+    amoy: {
       url: process.env.AMOY_RPC_URL || '',
       accounts,
       chainId: 80002,
@@ -127,6 +126,12 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY!,
+  },
+  sourcify: {
+    enabled: true,
+  },
+  blockscout: {
+    enabled: true,
   },
   exposed: {
     imports: true,
