@@ -1,26 +1,40 @@
-import { getRequiredEnvVar } from './utils/loadVariables';
-import { ZeroAddress } from 'ethers';
+import { Signer, ZeroAddress } from 'ethers';
 import { task, types } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { getRequiredEnvVar } from './utils/loadVariables';
 
 export const CONTRACT_NAME = 'ConfidentialWrapper';
 
-// Get the deployment name for a confidential wrapper
-export function getConfidentialWrapperName(tokenName: string): string {
-  return `ConfidentialWrapper_${tokenName}`;
+// The deploy signer: local PRIVATE_KEY/MNEMONIC via namedAccounts (`deployer` = accounts[0]).
+export async function getDeployerSigner(hre: HardhatRuntimeEnvironment): Promise<Signer> {
+  const { deployer } = await hre.getNamedAccounts();
+  if (!deployer) {
+    throw new Error('No signer configured: set PRIVATE_KEY or MNEMONIC');
+  }
+  return hre.ethers.getSigner(deployer);
 }
 
-// Get the implementation deployment name for a confidential wrapper
-export function getConfidentialWrapperImplName(tokenName: string): string {
-  return `ConfidentialWrapper_${tokenName}_Impl`;
+// Artifact names are keyed by token symbol (e.g. `cUSDT`), not the human name, which can contain
+// spaces/parens that make bad filenames (`ConfidentialWrapper_Confidential Token Test_Proxy.json`).
+export function getConfidentialWrapperName(tokenSymbol: string): string {
+  return `ConfidentialWrapper_${tokenSymbol}`;
 }
 
-// Get the proxy deployment name for a confidential wrapper
-export function getConfidentialWrapperProxyName(tokenName: string): string {
-  return `ConfidentialWrapper_${tokenName}_Proxy`;
+export function getConfidentialWrapperImplName(tokenSymbol: string): string {
+  return `ConfidentialWrapper_${tokenSymbol}_Impl`;
 }
 
-type ConfidentialWrapperInitConfig = {
+// `name` is optional because one version usually ships a single shared implementation; it exists for
+// the cases where a version needs more than one implementation live at once (e.g. treasury variants).
+export function getConfidentialWrapperUpgradeImplName(versionTag: string, name?: string): string {
+  return name ? `ConfidentialWrapper_${name}_${versionTag}_Impl` : `ConfidentialWrapper_${versionTag}_Impl`;
+}
+
+export function getConfidentialWrapperProxyName(tokenSymbol: string): string {
+  return `ConfidentialWrapper_${tokenSymbol}_Proxy`;
+}
+
+export type ConfidentialWrapperInitConfig = {
   name: string;
   symbol: string;
   contractUri: string;
@@ -36,11 +50,11 @@ function getRequiredJsonEnvVar<T>(name: string): T {
   return JSON.parse(getRequiredEnvVar(name)) as T;
 }
 
-// Deploy a confidential wrapper contract as a function
 async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConfig, hre: HardhatRuntimeEnvironment) {
-  const { ethers, upgrades, deployments, getNamedAccounts } = hre;
+  const { ethers, upgrades, deployments } = hre;
   const { save, getArtifact } = deployments;
-  const { deployer } = await getNamedAccounts();
+  const signer = await getDeployerSigner(hre);
+  const deployer = await signer.getAddress();
   const {
     name,
     symbol,
@@ -53,8 +67,8 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
     pauser,
   } = initConfig;
 
-  // Deploy the proxy contract
-  const confidentialWrapperFactory = await ethers.getContractFactory(CONTRACT_NAME);
+  // Connecting the factory to `signer` routes both the impl and proxy deploy through it.
+  const confidentialWrapperFactory = await ethers.getContractFactory(CONTRACT_NAME, signer);
   const proxy = await upgrades.deployProxy(
     confidentialWrapperFactory,
     [name, symbol, contractUri, underlying, owner, blockedUsers, underlyingDenyListSelector, initialObservers, pauser],
@@ -80,11 +94,12 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
     ].join('\n'),
   );
 
-  // Save the deployment artifacts
   const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
   const artifact = await getArtifact(CONTRACT_NAME);
-  await save(getConfidentialWrapperProxyName(name), { address: proxyAddress, abi: artifact.abi });
-  await save(getConfidentialWrapperImplName(name), { address: implementationAddress, abi: artifact.abi });
+  await save(getConfidentialWrapperProxyName(symbol), { address: proxyAddress, abi: artifact.abi });
+  await save(getConfidentialWrapperImplName(symbol), { address: implementationAddress, abi: artifact.abi });
+
+  return proxyAddress;
 }
 
 // Deploy a confidential wrapper contract
@@ -97,8 +112,9 @@ async function deployConfidentialWrapper(initConfig: ConfidentialWrapperInitConf
 // --owner "0x1234567890123456789012345678901234567890" \
 // --blocked-users '["0x1111111111111111111111111111111111111111"]' \
 // --underlying-deny-list-selector "0xfe575a87" \
+// --initial-observers '[]' \
 // --pauser "0x2222222222222222222222222222222222222222" \
-// --network testnet
+// --network sepolia
 task('task:deployConfidentialWrapper')
   .addParam('name', 'The name of the confidential wrapper contract to deploy', undefined, types.string)
   .addParam('symbol', 'The symbol of the confidential wrapper contract to deploy', undefined, types.string)
@@ -143,7 +159,8 @@ task('task:deployConfidentialWrapper')
     },
     hre,
   ) {
-    await deployConfidentialWrapper(
+    // Return the proxy address so callers can surface it without reconstructing the artifact name.
+    return deployConfidentialWrapper(
       {
         name,
         symbol,
@@ -161,15 +178,13 @@ task('task:deployConfidentialWrapper')
 
 // Deploy all confidential wrapper contracts
 // Example usage:
-// npx hardhat task:deployAllConfidentialWrappers --network testnet
+// npx hardhat task:deployAllConfidentialWrappers --network sepolia
 task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
   console.log('Deploying confidential wrapper contracts...');
 
-  // Get the number of confidential wrappers from environment variable
   const numWrappers = parseInt(getRequiredEnvVar('NUM_CONFIDENTIAL_WRAPPERS'));
 
   for (let i = 0; i < numWrappers; i++) {
-    // Get the name from environment variable
     const name = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_NAME_${i}`);
     const symbol = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_SYMBOL_${i}`);
     const contractUri = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_CONTRACT_URI_${i}`);
@@ -177,6 +192,9 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
     const owner = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_OWNER_ADDRESS_${i}`);
     const blockedUsers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_BLOCKED_USERS_${i}`);
     const underlyingDenyListSelector = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_UNDERLYING_DENY_LIST_SELECTOR_${i}`);
+    // Every field is required in the batch path: a forgotten or typo'd var must abort the run
+    // rather than silently deploy with no observers / no pauser. Use `'[]'` / the zero address to
+    // opt out explicitly.
     const initialObservers = getRequiredJsonEnvVar<string[]>(`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_${i}`);
     const pauser = getRequiredEnvVar(`CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_${i}`);
 
@@ -196,16 +214,30 @@ task('task:deployAllConfidentialWrappers').setAction(async function (_, hre) {
   console.log('✅ All confidential wrapper contracts deployed\n');
 });
 
+function resolveOptionalTaskInput(cliValue: unknown, envName: string): string | undefined {
+  if (typeof cliValue === 'string' && cliValue.trim() !== '') return cliValue.trim();
+  const fromEnv = process.env[envName]?.trim();
+  return fromEnv || undefined;
+}
+
+function assertArtifactSegment(value: string, field: string): string {
+  if (!/^[A-Za-z0-9._-]+$/.test(value)) {
+    throw new Error(`${field} must be a filesystem-safe identifier (e.g. cUSDT or v4), not "${value}"`);
+  }
+  return value;
+}
+
 // Deploy a bare ConfidentialWrapper implementation (no proxy).
-// Used when preparing an upgrade proposal: deploy the new implementation, then call
-// `upgradeToAndCall(implAddress, reinitializeVX_calldata)` on the existing proxy.
-// Example usage:
-// npx hardhat task:deployConfidentialWrapperImpl --network testnet
-async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
-  const { getNamedAccounts, ethers, deployments, network } = hre;
+async function deployConfidentialWrapperImpl(
+  versionTag: string,
+  name: string | undefined,
+  hre: HardhatRuntimeEnvironment,
+) {
+  const { ethers, deployments, network } = hre;
   const { save, getArtifact } = deployments;
-  const { deployer } = await getNamedAccounts();
-  const deployerSigner = await ethers.getSigner(deployer);
+  const deployerSigner = await getDeployerSigner(hre);
+  const deployer = await deployerSigner.getAddress();
+  const artifactName = getConfidentialWrapperUpgradeImplName(versionTag, name);
 
   const factory = await ethers.getContractFactory(CONTRACT_NAME, deployerSigner);
   const implementation = await factory.deploy();
@@ -217,6 +249,7 @@ async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
     [
       `✅ Deployed ${CONTRACT_NAME} implementation:`,
       `  - Implementation address: ${implementationAddress}`,
+      `  - Artifact: ${artifactName}`,
       `  - Deployed by deployer account: ${deployer}`,
       `  - Network: ${network.name}`,
       '',
@@ -224,20 +257,33 @@ async function deployConfidentialWrapperImpl(hre: HardhatRuntimeEnvironment) {
   );
 
   const artifact = await getArtifact(CONTRACT_NAME);
-  await save(`${CONTRACT_NAME}_Impl`, { address: implementationAddress, abi: artifact.abi });
+  await save(artifactName, { address: implementationAddress, abi: artifact.abi });
 
   return implementationAddress;
 }
 
-task('task:deployConfidentialWrapperImpl').setAction(async function (_, hre) {
-  console.log(`Deploying ${CONTRACT_NAME} implementation...\n`);
-  await deployConfidentialWrapperImpl(hre);
-});
-
-task('task:verifyConfidentialWrapperImpl')
-  .addParam('implAddress', 'The address of the implementation contract to verify', '', types.string)
-  .setAction(async function ({ implAddress }, hre) {
-    const { run } = hre;
-    console.log(`Verifying ${CONTRACT_NAME} implementation at ${implAddress}...\n`);
-    await run('verify:verify', { address: implAddress, constructorArguments: [] });
+task('task:deployConfidentialWrapperImpl')
+  .addOptionalParam(
+    'name',
+    'Wrapper identifier included in the saved implementation artifact (e.g. "cUSDT"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_NAME',
+    undefined,
+    types.string,
+  )
+  .addOptionalParam(
+    'versionTag',
+    'Version tag appended to the saved implementation artifact (e.g. "v4"). Defaults to CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG',
+    undefined,
+    types.string,
+  )
+  .setAction(async function ({ name, versionTag }, hre) {
+    const resolvedVersionTag = resolveOptionalTaskInput(versionTag, 'CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG');
+    if (!resolvedVersionTag) {
+      throw new Error('Provide --version-tag or set CONFIDENTIAL_WRAPPER_UPGRADE_VERSION_TAG');
+    }
+    const resolvedName = resolveOptionalTaskInput(name, 'CONFIDENTIAL_WRAPPER_UPGRADE_NAME');
+    const safeVersionTag = assertArtifactSegment(resolvedVersionTag, 'versionTag');
+    const safeName = resolvedName ? assertArtifactSegment(resolvedName, 'name') : undefined;
+    const tag = safeName ? `${safeName} ${safeVersionTag}` : safeVersionTag;
+    console.log(`Deploying ${CONTRACT_NAME} implementation (${tag})...\n`);
+    await deployConfidentialWrapperImpl(safeVersionTag, safeName, hre);
   });
