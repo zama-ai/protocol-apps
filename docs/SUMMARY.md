@@ -15,6 +15,7 @@
 * [Contract addresses](./addresses/README.md)
   * Mainnet
     * [Ethereum](./addresses/mainnet/ethereum.md)
+    * [Polygon](./addresses/mainnet/polygon.md)
     * [Zama Gateway](./addresses/mainnet/gateway.md)
     * [BSC](./addresses/mainnet/bsc.md)
     * [HyperEVM](./addresses/mainnet/hyper_evm.md)
@@ -23,3 +24,4 @@
     * [Sepolia](./addresses/testnet/sepolia.md)
     * [Hoodi](./addresses/testnet/hoodi.md)
     * [Zama Gateway](./addresses/testnet/gateway.md)
+    * [Polygon Amoy](./addresses/testnet/amoy.md)

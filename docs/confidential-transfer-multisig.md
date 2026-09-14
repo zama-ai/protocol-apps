@@ -80,7 +80,7 @@ Currently there are two ways to do a confidential transfer. Better and more prac
 
 The proposer (can be any of the `<OWNER_ADDRESS_i>`) encrypts the amount `<AMOUNT>` to transfer. The encryption is tied to:
 - **User address**: The proposer's EOA (must be a multisig owner)
-- **Contract address**: The `FHEVMMultiSigHelper` contract, which has already been deployed: at address [`0xd430F46fE522a32b12ce92C719f437fFce35e127`](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127) on **Ethereum mainnet** and at address [`0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61`](https://sepolia.etherscan.io/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61) on **Ethereum Sepolia testnet**.
+- **Contract address**: The `FHEVMMultiSigHelper` contract, which has already been deployed: at address [`0xd430F46fE522a32b12ce92C719f437fFce35e127`](https://eth.blockscout.com/address/0xd430F46fE522a32b12ce92C719f437fFce35e127) on **Ethereum mainnet** and at address [`0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61`](https://eth-sepolia.blockscout.com/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61) on **Ethereum Sepolia testnet**.
 
 ```bash
 npx hardhat task:encryptInput \
@@ -91,8 +91,8 @@ npx hardhat task:encryptInput \
   --network mainnet
 ```
 **Note:** Make sure that the `<AMOUNT>` value is less than or equal to the current balance of the multisig (otherwise the confidential transfer transaction would succeed but the sent amount will be `0`), and for `<FHEVM_MULTISIG_HELPER_ADDRESS>` value you should use: 
-- Ethereum mainnet: [0xd430F46fE522a32b12ce92C719f437fFce35e127](https://etherscan.io/address/0xd430F46fE522a32b12ce92C719f437fFce35e127)
-- Ethereum Sepolia testnet: [0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61](https://sepolia.etherscan.io/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61)
+- Ethereum mainnet: [0xd430F46fE522a32b12ce92C719f437fFce35e127](https://eth.blockscout.com/address/0xd430F46fE522a32b12ce92C719f437fFce35e127)
+- Ethereum Sepolia testnet: [0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61](https://eth-sepolia.blockscout.com/address/0xc51693587A5ec99FF131Ccd8aa6Fb424B17f5F61)
 
 {% hint style="warning" %}
 **Input amount decimal precision** 
