@@ -78,6 +78,8 @@ Each token entry carries:
 - `getter` — the bool-returning selector the wrapper staticcalls (USDC `isBlacklisted(address)`,
   USDT `getBlackListStatus(address)`, etc.).
 - `setter` / `authority` — used to freshly deny an address by pranking the token's own admin.
+- `authorityReturn` / `setterArgument` — the ABI shapes the harness uses to decode the authority
+  getter and encode the setter call.
 - `blacklisted` — a handful of real already-denied addresses used as test vectors. The suite reads
   each one's deny-list slot from the live fork and asserts the token still reports it denied, so
   they must remain denied at the forked block.

@@ -194,9 +194,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
             assertFalse(_queryUnderlyingDenyList(token, getter, victim), string.concat(sym, ": victim pre-denied"));
 
             // Prank the token's own admin and add `victim` to the real underlying deny-list.
-            address authority = _underlyingDenyListAuthority(token, iface.authority);
+            address authority = _underlyingDenyListAuthority(token, iface);
             vm.prank(authority);
-            (bool ok, ) = token.call(abi.encodeWithSelector(iface.setter, victim));
+            (bool ok, ) = token.call(_underlyingDenyListSetterCall(iface, victim));
             assertTrue(ok, string.concat(sym, ": underlying blacklist setter reverted"));
             assertTrue(
                 _queryUnderlyingDenyList(token, getter, victim),
@@ -310,14 +310,6 @@ contract UnderlyingDenyListTest is BaseForkTest {
         (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(selector, account));
         require(success && data.length == 32, "underlying deny-list getter unreadable on fork");
         return abi.decode(data, (bool));
-    }
-
-    /// @notice Reads the address allowed to mutate `token`'s deny-list via its configured authority
-    /// getter (e.g. `owner()`, `blacklister()`). Reverts when the getter is unreadable on the fork.
-    function _underlyingDenyListAuthority(address token, bytes4 authoritySelector) internal view returns (address) {
-        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(authoritySelector));
-        require(success && data.length == 32, "underlying deny-list authority unreadable on fork");
-        return abi.decode(data, (address));
     }
 
     /// @notice Asserts every wrapper entry point rejects `denied` with UnderlyingDenyListedAddress:

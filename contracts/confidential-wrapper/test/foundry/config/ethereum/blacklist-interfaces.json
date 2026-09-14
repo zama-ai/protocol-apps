@@ -1,5 +1,5 @@
 {
-  "_doc": "Underlying-token deny lists for the network named by the parent directory, read by test/BaseForkTest.t.sol (_underlyingDenyListInterface) and test/UnderlyingDenyList.t.sol. Per token: `getter` is the bool-returning view selector the wrapper staticcalls, and is the only field the wrapper itself needs; `setter`/`authority` let the tests freshly deny an address by pranking the token's own admin; `blacklisted` is a handful of real already-denied addresses used as test vectors, which the suite reads off the live fork and asserts are still denied (it checks at most 5). Leave `blacklisted` empty for a token with no known-denied address — the freshly-blacklisted test still covers it. Adding a token is one entry. A network with no deny-list-bearing underlying omits this file and the suite skips itself.",
+  "_doc": "Underlying-token deny lists for the network named by the parent directory, read by test/BaseForkTest.t.sol (_underlyingDenyListInterface) and test/UnderlyingDenyList.t.sol. Per token: `getter`, `setter`, and `authority` are canonical Solidity selector strings; `getter` is the bool-returning view selector the wrapper staticcalls, and is the only field the wrapper itself needs. `setter`/`authority` let the tests freshly deny an address by pranking the token's own admin; `authorityReturn` and `setterArgument` explicitly describe the ABI shapes used by the harness. `blacklisted` is a handful of real already-denied addresses used as test vectors, which the suite reads off the live fork and asserts are still denied (it checks at most 5). Leave `blacklisted` empty for a token with no known-denied address — the freshly-blacklisted test still covers it. Adding a token is one entry. A network with no deny-list-bearing underlying omits this file and the suite skips itself.",
   "tokens": [
     {
       "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
@@ -7,6 +7,8 @@
       "getter": "isBlacklisted(address)",
       "setter": "blacklist(address)",
       "authority": "blacklister()",
+      "authorityReturn": "address",
+      "setterArgument": "address",
       "blacklisted": [
         "0x002471b8a185f9980708d0eaec5b289714f56f8d",
         "0x0078ef2d7baf87bf6c4ca49b19efd1e05f57ac30",
@@ -19,6 +21,8 @@
       "getter": "getBlackListStatus(address)",
       "setter": "addBlackList(address)",
       "authority": "owner()",
+      "authorityReturn": "address",
+      "setterArgument": "address",
       "blacklisted": [
         "0x0009413d525a716c2cc9ddd63626e80f9f9c038d",
         "0x002471b8a185f9980708d0eaec5b289714f56f8d",
@@ -31,6 +35,8 @@
       "getter": "isBlocked(address)",
       "setter": "addToBlockedList(address)",
       "authority": "owner()",
+      "authorityReturn": "address",
+      "setterArgument": "address",
       "blacklisted": [
         "0x34abe30b9bcb461d051ed1bcd8b5b12320cd0e3b",
         "0x53b9b72dc6f96eb4b54143b211b22e2548e4cf5c",
@@ -43,6 +49,18 @@
       "getter": "isBanned(address)",
       "setter": "ban(address)",
       "authority": "owner()",
+      "authorityReturn": "address",
+      "setterArgument": "address",
+      "blacklisted": []
+    },
+    {
+      "token": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
+      "name": "AUSD",
+      "getter": "isAccountFrozen(address)",
+      "setter": "batchFreeze(address[])",
+      "authority": "getFreezerRoleMembers()",
+      "authorityReturn": "address[]",
+      "setterArgument": "address[]",
       "blacklisted": []
     }
   ]

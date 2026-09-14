@@ -70,14 +70,21 @@ abstract contract BaseForkTest is FhevmTest {
     address internal constant LOCAL_FHEVM_COPROCESSOR = 0xe3a9105a3a932253A70F126eb1E3b589C643dD24;
     address internal constant LOCAL_FHEVM_KMS_VERIFIER = 0x901F8942346f7AB3a01F6D7613119Bca447Bb030;
 
+    enum DenyListAbiShape {
+        Address,
+        AddressArray
+    }
+
     /// @notice Blacklist interface for an underlying token.
-    /// @dev Each token declares its own selectors explicitly in the shared config. `setter(address)`
-    /// mutates the deny-list and `authority()` returns the address allowed to call it, used to freshly
-    /// blacklist a user by pranking the token's own admin.
+    /// @dev Each token declares canonical Solidity signatures in the shared config. Selectors are derived
+    /// from those signatures where needed. ABI shape fields stay explicit because Solidity has no
+    /// reflection over signature strings and return types are not part of selector signatures.
     struct UnderlyingDenyListInterface {
-        bytes4 getter;
-        bytes4 setter;
-        bytes4 authority;
+        string getterSignature;
+        string setterSignature;
+        string authoritySignature;
+        DenyListAbiShape authorityReturn;
+        DenyListAbiShape setterArgument;
         bool supported;
     }
 
@@ -345,7 +352,7 @@ abstract contract BaseForkTest is FhevmTest {
                 )
             );
             require(
-                iface.getter == selector,
+                _selector(iface.getterSignature) == selector,
                 string.concat(_label(w), ": config getter does not match the on-chain deny-list selector")
             );
         }
@@ -366,9 +373,15 @@ abstract contract BaseForkTest is FhevmTest {
             if (!vm.keyExistsJson(json, base)) break;
             if (vm.parseJsonAddress(json, string.concat(base, ".token")) != token) continue;
 
-            iface.getter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".getter")))));
-            iface.setter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".setter")))));
-            iface.authority = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".authority")))));
+            iface.getterSignature = vm.parseJsonString(json, string.concat(base, ".getter"));
+            iface.setterSignature = vm.parseJsonString(json, string.concat(base, ".setter"));
+            iface.authoritySignature = vm.parseJsonString(json, string.concat(base, ".authority"));
+            iface.authorityReturn = _parseDenyListAbiShape(
+                vm.parseJsonString(json, string.concat(base, ".authorityReturn"))
+            );
+            iface.setterArgument = _parseDenyListAbiShape(
+                vm.parseJsonString(json, string.concat(base, ".setterArgument"))
+            );
             iface.supported = true;
             return iface;
         }
@@ -376,7 +389,56 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Canonical underlying deny-list getter selector, or `bytes4(0)` if none.
     function _canonicalDenyListSelector(address token) internal view returns (bytes4) {
-        return _underlyingDenyListInterface(token).getter;
+        UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(token);
+        if (!iface.supported) return bytes4(0);
+        return _selector(iface.getterSignature);
+    }
+
+    /// @notice Reads the address allowed to mutate `token`'s deny-list through the configured authority
+    /// getter. Some tokens return a single admin, while others return a role-member array.
+    function _underlyingDenyListAuthority(
+        address token,
+        UnderlyingDenyListInterface memory iface
+    ) internal view returns (address) {
+        (bool success, bytes memory data) = token.staticcall(
+            abi.encodeWithSelector(_selector(iface.authoritySignature))
+        );
+        require(success, "underlying deny-list authority unreadable on fork");
+
+        if (iface.authorityReturn == DenyListAbiShape.Address) {
+            require(data.length == 32, "underlying deny-list authority malformed");
+            return abi.decode(data, (address));
+        }
+
+        address[] memory authorities = abi.decode(data, (address[]));
+        require(authorities.length > 0, "underlying deny-list authority empty");
+        return authorities[0];
+    }
+
+    /// @notice Encodes the configured deny-list setter call for a single freshly-denied account.
+    function _underlyingDenyListSetterCall(
+        UnderlyingDenyListInterface memory iface,
+        address account
+    ) internal pure returns (bytes memory) {
+        bytes4 setter = _selector(iface.setterSignature);
+        if (iface.setterArgument == DenyListAbiShape.Address) {
+            return abi.encodeWithSelector(setter, account);
+        }
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+        return abi.encodeWithSelector(setter, accounts);
+    }
+
+    function _selector(string memory signature) internal pure returns (bytes4) {
+        return bytes4(keccak256(bytes(signature)));
+    }
+
+    function _parseDenyListAbiShape(string memory shape) internal pure returns (DenyListAbiShape abiShape) {
+        bytes32 shapeHash = keccak256(bytes(shape));
+        if (shapeHash == keccak256("address")) return DenyListAbiShape.Address;
+        if (shapeHash == keccak256("address[]")) return DenyListAbiShape.AddressArray;
+        revert("unsupported deny-list ABI shape");
     }
 
     /// @notice Writes `balance` as `user`'s `token` balance, straight into the token's storage.
