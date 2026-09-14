@@ -321,11 +321,31 @@ abstract contract BaseForkTest is FhevmTest {
         return string.concat("config/", network, "/", file);
     }
 
-    /// @dev True when this network's config lists at least one deny-list-bearing underlying.
-    /// Networks with none omit the file entirely, and the deny-list suite skips itself.
-    function _hasDenyListConfig() internal view returns (bool) {
-        string memory path = _configPath(DENY_LIST_INTERFACES_FILE);
-        return vm.exists(path) && vm.keyExistsJson(vm.readFile(path), ".tokens[0]");
+    /// @dev True when at least one enumerated wrapper carries an underlying deny-list selector.
+    ///      For every such wrapper, requires a config entry whose getter matches the on-chain
+    ///      selector, so a wrapper deployed without an entry fails by name instead of passing
+    ///      untested. Callers skip when this returns false.
+    function _requireDenyListConfigForSelectors() internal view returns (bool anyConfigured) {
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address w = wrappers[i];
+            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
+            if (selector == bytes4(0)) continue;
+            anyConfigured = true;
+
+            UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(_wrapper(w).underlying());
+            require(
+                iface.supported,
+                string.concat(
+                    _label(w),
+                    ": selector set on-chain but no entry in ",
+                    _configPath(DENY_LIST_INTERFACES_FILE)
+                )
+            );
+            require(
+                iface.getter == selector,
+                string.concat(_label(w), ": config getter does not match the on-chain deny-list selector")
+            );
+        }
     }
 
     /// @notice Returns the explicit blacklist interface for `token`, read from this network's

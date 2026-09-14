@@ -15,8 +15,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
     function setUp() public override {
         super.setUp();
         // Every test below floors on exercising at least one deny-list-bearing underlying, so a
-        // network whose config lists none has nothing to run here.
-        if (!_hasDenyListConfig()) vm.skip(true);
+        // network whose wrappers carry no selector has nothing to run here. Every wrapper that does
+        // carry one must have a config entry, which the helper requires by name.
+        if (!_requireDenyListConfigForSelectors()) vm.skip(true);
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
