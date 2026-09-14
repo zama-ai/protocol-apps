@@ -129,6 +129,11 @@ the deployed layout before changing any `vm.store` slot.
 - `seeded address not denied by real token state`: a `blacklisted` address in the deny-list config
   is no longer denied at the forked block; refresh the seed. Runs default to the chain tip, so this
   tracks live chain state.
+- `stdStorage find(StdStorage): Failed to write value.`: something funded a test account with
+  forge's `deal`, which writes the amount into the whole balance slot and requires `balanceOf` to
+  return it verbatim. An underlying that packs the balance beside other fields fails that check
+  (AUSD keeps flags in the low byte and returns `slot >> 8`). Fund through
+  `BaseForkTest._fundUnderlying` instead, which probes for the field's offsets first.
 - `MISMATCH <key>` from `check-batcher-manifest.sh`: the batchers were redeployed upstream; copy the
   new addresses into `config/<network>/batchers.json` and re-run `make fork-test-batcher`.
 - `batcher: unexpected ACL` / `unexpected batcher layout`: the deployed batcher no longer matches

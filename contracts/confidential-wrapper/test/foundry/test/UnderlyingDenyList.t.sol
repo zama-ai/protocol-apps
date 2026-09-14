@@ -116,7 +116,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
             address depositor = makeAddr(string.concat("clean-depositor-", sym));
             uint256 amount = _wrapper(w).rate();
-            deal(token, depositor, amount);
+            _fundUnderlying(token, depositor, amount);
             vm.startPrank(depositor);
             _approve(_underlying(w), w, amount);
             vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.UnderlyingDenyListedAddress.selector, denied));
@@ -338,7 +338,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
         // Wrap crediting the denied recipient, funded and pranked from a clean depositor.
         address depositor = makeAddr(string.concat("fresh-block-depositor-", sym));
-        deal(address(_underlying(w)), depositor, amount);
+        _fundUnderlying(address(_underlying(w)), depositor, amount);
         vm.startPrank(depositor);
         _approve(_underlying(w), w, amount);
         vm.expectRevert(expectedRevert);

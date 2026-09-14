@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {FhevmTest} from "forge-fhevm/FhevmTest.sol";
+import {StdStorage, stdStorage} from "forge-std/StdStorage.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -32,6 +33,8 @@ import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrapp
  * of that chain's config.
  */
 abstract contract BaseForkTest is FhevmTest {
+    using stdStorage for StdStorage;
+
     /// @dev Network selected when NETWORK is unset, i.e. a plain `make fork-test`.
     string internal constant DEFAULT_NETWORK = "ethereum";
 
@@ -376,10 +379,30 @@ abstract contract BaseForkTest is FhevmTest {
         return _underlyingDenyListInterface(token).getter;
     }
 
+    /// @notice Writes `balance` as `user`'s `token` balance, straight into the token's storage.
+    /// @dev Stands in for {StdCheats-deal}, which writes the raw amount into the whole balance slot
+    /// and then requires `balanceOf` to read it back verbatim. That holds for a plain
+    /// `mapping(address => uint256)` and fails on an underlying that packs the balance beside other
+    /// fields in one word: AUSD keeps flags in the low byte and returns `slot >> 8`, so every `deal`
+    /// against it reverts with "Failed to write value". `enable_packed_slots` makes stdStorage probe
+    /// for the field's offsets first, then write within them and leave the neighbouring bits alone.
+    /// A token whose balance owns the whole word resolves to zero offsets, i.e. exactly what `deal`
+    /// does today.
+    function _setUnderlyingBalance(address token, address user, uint256 balance) internal {
+        stdstore.enable_packed_slots().target(token).sig(IERC20.balanceOf.selector).with_key(user).checked_write(
+            balance
+        );
+    }
+
+    /// @notice Credits `user` with `amount` more of `token`, on top of whatever they already hold.
+    function _fundUnderlying(address token, address user, uint256 amount) internal {
+        _setUnderlyingBalance(token, user, IERC20(token).balanceOf(user) + amount);
+    }
+
     /// @notice Funds `user` with the wrapper's underlying and wraps `amount` into confidential tokens.
     function _dealAndWrap(address w, address user, uint256 amount) internal {
         IERC20 underlying = _underlying(w);
-        deal(address(underlying), user, underlying.balanceOf(user) + amount);
+        _fundUnderlying(address(underlying), user, amount);
 
         vm.startPrank(user);
         _approve(underlying, w, type(uint256).max);

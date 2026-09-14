@@ -267,7 +267,7 @@ contract WrapperFlowsTest is BaseForkTest {
         uint256 rate = wrapper.rate();
         uint256 underlyingAmount = uint256(CONFIDENTIAL_AMOUNT) * rate;
 
-        deal(underlying, sender, _underlying(w).balanceOf(sender) + underlyingAmount);
+        _fundUnderlying(underlying, sender, underlyingAmount);
 
         vm.prank(sender);
         IERC1363(underlying).transferAndCall(w, underlyingAmount, abi.encodePacked(recipient));

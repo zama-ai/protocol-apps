@@ -200,7 +200,7 @@ contract PauseTest is BaseForkTest {
     /// @dev Both mint-side entry points reach the gate through `_mint`
     function _expectWrapPathsHalted(address w, string memory sym, address alice, uint256 underlyingAmount) internal {
         IERC20 underlying = _underlying(w);
-        deal(address(underlying), alice, underlying.balanceOf(alice) + underlyingAmount);
+        _fundUnderlying(address(underlying), alice, underlyingAmount);
         uint256 aliceBalanceBefore = underlying.balanceOf(alice);
 
         vm.prank(alice);
