@@ -24,6 +24,10 @@ LATEST_BLOCK_OFFSET=50
 # that is already set, so CI always wins.
 if [ -f "${ENV_FILE}" ]; then
   while IFS='=' read -r key value; do
+    # `read` keeps everything after the first `=`, so strip what an editor or a note may have left
+    # on the line; either would otherwise end up inside the URL and fail as a confusing RPC error.
+    value="${value%%#*}"                       # an inline comment (RPC URLs carry no fragment)
+    value="${value%"${value##*[![:space:]]}"}" # trailing whitespace
     [ -n "${!key:-}" ] || export "${key}=${value}"
   done < <(grep -E '^[A-Z0-9_]+_FORK_RPC_URL=' "${ENV_FILE}" | tr -d "\"'")
 fi
