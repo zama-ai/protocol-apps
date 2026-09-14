@@ -54,7 +54,8 @@ directory holding that chain's deny-list and batcher files.
 To add a network:
 
 1. Add its entry to `config/fork.json` and its alias to `foundry.toml`'s `[rpc_endpoints]`.
-2. Add a `config/<network>/` directory for the deny-list tokens and batchers it has, if any.
+2. Add a `config/<network>/` directory with an entry for every underlying whose wrapper sets a
+   deny-list selector, plus the batchers it has.
 3. Add it to the matrix in `.github/workflows/contracts-confidential-wrapper-foundry-tests.yml`,
    with its RPC variable in the job `env` and the matching repository secret.
 
@@ -68,7 +69,9 @@ export `FORK_BLOCK`, to pin a run while reproducing a failure.
 
 ## Deny-list config
 
-One committed file per network, `config/<network>/blacklist-interfaces.json`, drives the deny-list tests. 
+One committed file per network, `config/<network>/blacklist-interfaces.json`, drives the deny-list tests.
+Every underlying whose wrapper sets a deny-list selector must have an entry here: the suite reads the
+selector off each registered wrapper and fails by name when the matching entry is missing.
 
 Each token entry carries:
 
