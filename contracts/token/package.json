@@ -29,6 +29,12 @@
     "ethers": "^5.7.2",
     "hardhat-deploy": "^0.12.1"
   },
+  "dependencies": {
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.75",
+    "@layerzerolabs/oapp-evm": "^0.3.2",
+    "@layerzerolabs/oft-evm": "^3.2.0",
+    "@openzeppelin/contracts": "^5.0.2"
+  },
   "devDependencies": {
     "@babel/core": "^7.23.9",
     "@layerzerolabs/devtools-evm-hardhat": "^4.0.0",
@@ -36,20 +42,16 @@
     "@layerzerolabs/io-devtools": "~0.3.0",
     "@layerzerolabs/lz-definitions": "^3.0.147",
     "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.75",
-    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.75",
     "@layerzerolabs/lz-evm-sdk-v2": "^3.0.147",
     "@layerzerolabs/lz-evm-v1-0.7": "^3.0.75",
     "@layerzerolabs/lz-v2-utilities": "^3.0.142",
     "@layerzerolabs/metadata-tools": "^3.0.2",
-    "@layerzerolabs/oapp-evm": "^0.3.2",
-    "@layerzerolabs/oft-evm": "^3.2.0",
     "@layerzerolabs/prettier-config-next": "^2.3.39",
     "@layerzerolabs/solhint-config": "^3.0.12",
     "@layerzerolabs/toolbox-hardhat": "~0.6.12",
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@rushstack/eslint-patch": "^1.7.0",
     "@types/chai": "^4.3.11",

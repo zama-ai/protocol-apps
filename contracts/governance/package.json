@@ -30,20 +30,18 @@
     "@layerzerolabs/io-devtools": "~0.3.0",
     "@layerzerolabs/lz-definitions": "^3.0.147",
     "@layerzerolabs/lz-evm-messagelib-v2": "^3.0.75",
-    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.75",
     "@layerzerolabs/lz-evm-sdk-v2": "^3.0.147",
     "@layerzerolabs/lz-evm-v1-0.7": "^3.0.75",
     "@layerzerolabs/lz-v2-utilities": "^3.0.75",
     "@layerzerolabs/metadata-tools": "^3.0.0",
-    "@layerzerolabs/oapp-evm": "^0.3.2",
     "@layerzerolabs/prettier-config-next": "^2.3.39",
     "@layerzerolabs/solhint-config": "^3.0.12",
     "@layerzerolabs/toolbox-hardhat": "~0.6.12",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@openzeppelin/contracts": "^5.0.2",
     "@openzeppelin/contracts-upgradeable": "^5.0.2",
     "@rushstack/eslint-patch": "^1.7.0",
+    "@safe-global/safe-contracts": "1.4.1-2",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
     "@types/node": "~18.18.14",
@@ -107,6 +105,8 @@
     }
   },
   "dependencies": {
-    "@safe-global/safe-contracts": "1.4.1-2"
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.75",
+    "@layerzerolabs/oapp-evm": "^0.3.2",
+    "@openzeppelin/contracts": "^5.0.2"
   }
 }
