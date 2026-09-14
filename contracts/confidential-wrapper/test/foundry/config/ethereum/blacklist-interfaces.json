@@ -16,7 +16,7 @@
     {
       "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
       "name": "USDT",
-      "getter": "isBlackListed(address)",
+      "getter": "getBlackListStatus(address)",
       "setter": "addBlackList(address)",
       "authority": "owner()",
       "blacklisted": [

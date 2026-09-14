@@ -76,7 +76,7 @@ selector off each registered wrapper and fails by name when the matching entry i
 Each token entry carries:
 
 - `getter` — the bool-returning selector the wrapper staticcalls (USDC `isBlacklisted(address)`,
-  USDT `isBlackListed(address)`, etc.).
+  USDT `getBlackListStatus(address)`, etc.).
 - `setter` / `authority` — used to freshly deny an address by pranking the token's own admin.
 - `blacklisted` — a handful of real already-denied addresses used as test vectors. The suite reads
   each one's deny-list slot from the live fork and asserts the token still reports it denied, so
