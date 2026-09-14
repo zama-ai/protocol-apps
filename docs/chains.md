@@ -6,8 +6,8 @@ This page lists the chains involved in the Zama protocol, their block explorers,
 
 ### Block explorers
 
-* Ethereum: [https://etherscan.io/](https://etherscan.io/)
-* Polygon: [https://polygonscan.com/](https://polygonscan.com/)
+* Ethereum: [https://eth.blockscout.com/](https://eth.blockscout.com/)
+* Polygon: [https://polygon.blockscout.com/](https://polygon.blockscout.com/)
 * Gateway: [https://explorer.mainnet.zama.org/](https://explorer.mainnet.zama.org/)
 * BSC: [https://bscscan.com/](https://bscscan.com/)
 * HyperEVM: [https://hyperevmscan.io/](https://hyperevmscan.io/)
@@ -50,7 +50,7 @@ Those are LayerZero specific and should not be confused with Chain IDs (see sect
 
 ### Block explorers
 
-* Ethereum Sepolia: [https://sepolia.etherscan.io](https://sepolia.etherscan.io)
+* Ethereum Sepolia: [https://eth-sepolia.blockscout.com](https://eth-sepolia.blockscout.com)
 * Gateway Testnet: [https://explorer.testnet.zama.org/](https://explorer.testnet.zama.org/)
 * Polygon Amoy: [https://amoy.polygonscan.com/](https://amoy.polygonscan.com/)
 

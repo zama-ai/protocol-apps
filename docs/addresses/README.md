@@ -5,6 +5,7 @@ This directory contains all deployed contract addresses for the Zama protocol, o
 ## Mainnet
 
 - [Ethereum Mainnet](mainnet/ethereum.md)
+- [Polygon Mainnet](mainnet/polygon.md)
 - [Zama Gateway Mainnet](mainnet/gateway.md)
 - [Binance Smart Chain Mainnet](mainnet/bsc.md)
 - [HyperEVM Mainnet](mainnet/hyper_evm.md)

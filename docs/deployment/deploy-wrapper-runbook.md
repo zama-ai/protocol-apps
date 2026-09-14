@@ -200,7 +200,7 @@ See the [Creating Ethereum Proposals](../governance/creating-proposals-ethereum.
 Open a PR on `zama-ai/protocol-apps` with an entry for each new wrapper in the appropriate file in `protocol-apps/docs/addresses/{network}/{chain}` under "Confidential Wrappers":
 
 ```markdown
-| Confidential TOKEN | `cTOKEN` | [`0x...`](https://etherscan.io/address/0x...) | [`0x...`](https://etherscan.io/token/0x...) |
+| Confidential TOKEN | `cTOKEN` | [`0x...`](https://eth.blockscout.com/address/0x...) | [`0x...`](https://eth.blockscout.com/token/0x...) |
 ```
 
 ---
