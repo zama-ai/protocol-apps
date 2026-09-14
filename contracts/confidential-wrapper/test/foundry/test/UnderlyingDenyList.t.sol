@@ -18,6 +18,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
         // network whose wrappers carry no selector has nothing to run here. Every wrapper that does
         // carry one must have a config entry, which the helper requires by name.
         if (!_requireDenyListConfigForSelectors()) vm.skip(true);
+        // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
+        // FHE ops; relax the sequential depth cap.
+        disableHCUDepthLimit();
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
@@ -204,6 +207,49 @@ contract UnderlyingDenyListTest is BaseForkTest {
         }
 
         assertGt(exercised, 0, "no wrapper underlying exposes a configured blacklist setter + authority");
+    }
+
+    /**
+     * @notice A denied null address must NOT block minting or burning. `_requireNotBlocked`
+     * short-circuits address(0) precisely because mint has from == 0 and burn has to == 0, and
+     * some underlyings (e.g. mainnet USDT) report isBlackListed(address(0)) == true.
+     * @dev Skips rather than fails on a network where no underlying denies the null address
+     * (e.g. Polygon): there is nothing real to drive the short-circuit against there, and the
+     * wrapper-side guard itself is covered against a mock in the hardhat suite.
+     */
+    function test_UnderlyingDenyListNullAddressDoesNotBlock() public {
+        uint256 exercised;
+
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address w = wrappers[i];
+            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
+            if (selector == bytes4(0)) continue;
+            address token = _wrapper(w).underlying();
+
+            if (!_queryUnderlyingDenyList(token, selector, address(0))) continue; // underlying allows the null address
+            exercised++;
+            string memory sym = _label(w);
+
+            // Both views carry the same exemption, so neither contradicts the mint/burn paths below.
+            assertFalse(
+                _wrapper(w).isBlockedOnUnderlying(address(0)),
+                string.concat(sym, ": isBlockedOnUnderlying reports the null address as denied")
+            );
+            assertFalse(_wrapper(w).isBlocked(address(0)), string.concat(sym, ": isBlocked reports the null address"));
+
+            // Mint: wrap does _update(0, holder, ...); a denied null address must not block it.
+            address holder = makeAddr(string.concat("null-deny-holder-", sym));
+            _dealAndWrap(w, holder, _wrapper(w).rate());
+            assertEq(_decryptBalance(w, holder), 1, string.concat(sym, ": mint blocked by denied null address"));
+
+            // Burn: unwrap does _update(holder, 0, ...); a denied null address must not block it.
+            (externalEuint64 enc, bytes memory proof) = encryptUint64(1, holder, w);
+            vm.prank(holder);
+            _wrapper(w).unwrap(holder, holder, enc, proof);
+            assertEq(_decryptTotalSupply(w), 0, string.concat(sym, ": burn blocked by denied null address"));
+        }
+
+        if (exercised == 0) vm.skip(true);
     }
 
     /**
