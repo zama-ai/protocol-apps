@@ -547,8 +547,6 @@ The unwrap mechanism stores requests in a mapping keyed by ciphertext and the cu
 
 The maximum number of decimals `_maxDecimals()` for the confidential token is currently set to **6 decimals** only. This is due to FHE limitations as confidential balances must be represented by the euint64 encrypted datatype.
 
-It is possible that future implementations of the wrapper set a higher `_maxDecimals()` value to better suit the needs of the underlying token. For example, cWBTC might require 8 decimals since using only 6 would make the smallest unit impractically expensive.
-
 At deployment, the confidential wrapper sets its number of decimals as:
 
 * the number of decimals of the underlying token if it is less than `_maxDecimals()`
@@ -571,6 +569,8 @@ wrapper.decimals();
 ### Maximum total supply
 
 The maximum total supply for the confidential token is currently set to `type(uint64).max` (`2^64 - 1`) due to FHE limitations.
+
+Avoid wrapping tokens with a very large total supply. Because the limit applies to the confidential token's smallest units, a wrapper with the default 6 decimals can represent at most approximately 18.4 trillion whole tokens. For example, this is only about 3% of SHIB's approximately 590 trillion-token supply, so the wrapper cannot accommodate the entire supply.
 
 ### Non-standard token types
 
