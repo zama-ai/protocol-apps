@@ -109,8 +109,10 @@ CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}=         # address allowed to call pause
 > ⚠️ **`CONFIDENTIAL_WRAPPER_INITIAL_OBSERVERS_{i}` is required.** It must be set explicitly — use `'[]'` when there are no observers. Observers can decrypt every confidential amount the wrapper processes (balances, total supply, and individual transfer/wrap/unwrap amounts), so seed them deliberately. Because `initialize` cannot be re-run at the same version, observers omitted at deployment can only be added afterwards through separate `addObserver` governance calls.
 
 > ⚠️ **`CONFIDENTIAL_WRAPPER_PAUSER_ADDRESS_{i}` is required too.** `initialize` arms the pauser
-> directly, so a deployment no longer needs a follow-up `setPauser` transaction. Set the zero address
-> to deploy with pausing disabled. The pauser can halt wrapping, unwrapping, unwrap finalization and
+> directly, so a deployment no longer needs a follow-up `setPauser` transaction. On a chain where the
+> `ConfidentialWrapperPauser` is deployed (see the [pauser runbook](deploy-wrapper-pauser-runbook.md)),
+> pass its address so the new wrapper is born armed; the zero address deploys with pausing disabled and
+> the wrapper then has to be armed later through a governance `setPauser` proposal. The pauser can halt wrapping, unwrapping, unwrap finalization and
 > confidential transfers, and only the owner can `unpause`, so pick it deliberately. The owner can
 > rotate it later with `setPauser`.
 
@@ -304,5 +306,5 @@ After completing a deployment or upgrade, confirm each of the following:
 - [ ] `underlying()` returns the correct underlying address
 - [ ] `owner()` returns the Protocol DAO address
 - [ ] `observers()` returns the intended observer list
-- [ ] `pauser()` returns the intended pauser (or the zero address when pausing is disabled)
+- [ ] `pauser()` returns the intended pauser: the chain's `ConfidentialWrapperPauser` where one is deployed (or the zero address when pausing is disabled)
 - [ ] `isConfidentialTokenValid(proxyAddress)` returns `true` on the registry (post-registration)

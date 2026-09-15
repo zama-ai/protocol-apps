@@ -454,6 +454,8 @@ Observers can be configured up front rather than added afterwards. The `initiali
 
 The pauser can also be set up front instead of through a separate `setPauser` transaction: `initialize` and `reinitializeV4` both take a trailing `pauser_` argument, emit `PauserUpdated`, and leave the wrapper unpaused. Passing `address(0)` deploys (or upgrades) with pausing disabled.
 
+On each chain the intended pauser is the chain's `ConfidentialWrapperPauser`, a roster contract owned by governance that forwards `pause()` to one or many wrappers; see [Pausing](pausing.md) and the [pauser runbook](deployment/deploy-wrapper-pauser-runbook.md).
+
 ### Query ongoing unwrap request details
 
 ```solidity

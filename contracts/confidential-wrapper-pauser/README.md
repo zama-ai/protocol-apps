@@ -1,0 +1,78 @@
+# ConfidentialWrapperPauser
+
+Roster and circuit breaker for the confidential wrappers of one chain, as specified in P-RFC-006 "Confidential
+Wrapper Pausing". One deployment per chain; governance points every wrapper's `setPauser` at it; any single roster
+member can then pause one wrapper or all of them. Unpausing is not offered here: it stays `onlyOwner` on each
+wrapper, so pausing is fast (one signer) and restoring is a governance action.
+
+## Design
+
+| Concern        | Implementation                                                                                                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner          | The chain's governance (Protocol DAO on Ethereum and Sepolia, the local Safe on Polygon and Amoy), under OpenZeppelin `Ownable2Step`: ownership moves only through `transferOwnership` followed by the new owner's `acceptOwnership`; `renounceOwnership` is disabled (`RenounceOwnershipDisabled`), as on the wrappers. |
+| Roster         | An OpenZeppelin `EnumerableSet` of addresses, edited by the owner with `addPauser` / `removePauser` (no-ops, without event, on an existing / missing member), read with `isPauser` and `pausers()`. Changes emit `PauserAdded` / `PauserRemoved`; off-roster callers of `pause` get `SenderNotPauser`. |
+| Pause one      | `pause(address)` — `SenderNotPauser` off-roster; `WrapperAlreadyPaused` event (no revert) when the wrapper already reports `paused()`; otherwise `PauseFailed(wrapper, errorData)` with the wrapper's own revert data (`SenderNotPauser(pauser)` when governance has not armed it with this contract yet). |
+| Pause many     | `pause(address[])` — best effort, as the RFC specifies: every entry gets exactly one of `WrapperPaused`, `WrapperAlreadyPaused` or `WrapperPauseFailed(wrapper, errorData)`, and a wrapper that rejects the call never stops the rest. |
+| Targets        | Trusted. There is no allowlist and no low-level probing: a target is called as a `ConfidentialWrapper` (`paused()`, then `pause()`), so an address that is not a wrapper aborts the call, or costs the gas its fallback burns. Picking valid targets is the roster member's responsibility; the runbook says how. |
+| Unpause        | Not here. `unpause()` is `onlyOwner` on every wrapper.                                                                                                                                          |
+| Upgradeability | None (rule from `docs/governance.md`: pauser contracts are not upgradeable). Recovery is a redeploy plus a re-batched `setPauser` proposal.                                                     |
+
+The ABI is the one specified in P-RFC-006, plus the `WrapperAlreadyPaused` event, on top of the standard `Ownable2Step` surface. The wrapper side is reached through `IPausableWrapper` (`pause()`, `paused()`); a unit test checks those selectors, and the mock's whole surface, against the `ConfidentialWrapper` entry of `contracts/selectors.txt`, and the fork suite exercises the live wrappers.
+
+## Prerequisites
+
+```bash
+cp .env.example .env
+```
+
+Fill `PRIVATE_KEY` (or `MNEMONIC`), the RPC URL of the target network and `ETHERSCAN_API_KEY`. For a deployment, also
+set `PAUSER_OWNER_ADDRESS` (the chain's governance, checked against `config/networks.json`) and
+`PAUSER_INITIAL_PAUSERS` (JSON array, the agreed day-one roster; the zero address and duplicates are refused).
+
+## Testing
+
+```bash
+make test          # hardhat unit tests against the mocks
+npm run coverage   # solidity-coverage + thresholds in .istanbul.yml
+npm run lint       # solhint + prettier
+```
+
+### Live fork rehearsal
+
+`test/foundry` rehearses the whole migration against the live wrappers of a chain (deploy, `setPauser` on every
+registered wrapper as governance, batch pause by one roster member, unpause by governance) without any FHE dependency.
+
+```bash
+cd test/foundry
+make setup                              # forge soldeer install
+make fork-test NETWORK=sepolia          # also: ethereum, polygon, amoy
+```
+
+The RPC URL is read from the env var named in `config/fork.json` (for example `SEPOLIA_RPC_URL`), first from the
+environment and then from `../../.env`. `FORK_BLOCK=<n>` pins the fork block.
+
+## Deployment (P-RFC-006 migration step 1)
+
+```bash
+npx hardhat deploy --network <ethereum|sepolia|polygon|amoy>
+npx hardhat task:verifyConfidentialWrapperPauser --address <deployed-address> --network <network>
+```
+
+The deploy is permissionless. It refuses an owner that is not the network's governance in `config/networks.json`
+unless `PAUSER_ALLOW_OWNER_MISMATCH=true`.
+
+## Arming the wrappers (migration step 2) and asserting the result
+
+```bash
+# One setPauser(pauser) action per valid wrapper in the chain's registry, ready for the Aragon app / Safe builder
+npx hardhat task:setPauserProposal --pauser <pauser-address> --network <network> --out out/<network>-setPauser.json
+
+# After the proposal executed: every wrapper reports pauser() == <pauser-address>, roster and owner as expected
+npx hardhat task:checkPausers --pauser <pauser-address> --expected-pausers 0xA,0xB --network <network>
+```
+
+`task:checkPausers` exits non-zero on any mismatch, so it doubles as the scheduled roster-drift check across chains.
+Both tasks enumerate the chain's `ConfidentialTokenWrappersRegistry` from `config/networks.json`; they accept
+`--registry` to override it and `--include` for wrappers that are not (yet) registered.
+
+See `docs/deployment/deploy-wrapper-pauser-runbook.md` for the full per-chain procedure.

@@ -1,0 +1,3 @@
+@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.4.0/
+confidential-wrapper-pauser/=../../contracts/
+forge-std/=dependencies/forge-std-1.14.0/src/
