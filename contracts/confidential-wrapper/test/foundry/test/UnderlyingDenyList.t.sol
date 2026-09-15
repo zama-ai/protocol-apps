@@ -18,15 +18,13 @@ contract UnderlyingDenyListTest is BaseForkTest {
         // network whose wrappers carry no selector has nothing to run here. Every wrapper that does
         // carry one must have a config entry, which the helper requires by name.
         if (!_requireDenyListConfigForSelectors()) vm.skip(true);
-        // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
-        // FHE ops; relax the sequential depth cap.
-        disableHCUDepthLimit();
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
         uint256 configured;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             string memory sym = _label(w);
             bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
@@ -131,6 +129,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
@@ -153,6 +152,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
@@ -181,6 +181,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             bytes4 getter = _wrapper(w).getUnderlyingDenyListSelector();
             if (getter == bytes4(0)) continue;
@@ -221,6 +222,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
             if (selector == bytes4(0)) continue;

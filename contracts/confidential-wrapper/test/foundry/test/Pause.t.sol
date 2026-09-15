@@ -18,12 +18,6 @@ contract PauseTest is BaseForkTest {
     /// @dev Confidential token amount wrapped per case.
     uint64 internal constant CONFIDENTIAL_AMOUNT = 1_000_000;
 
-    function setUp() public override {
-        super.setUp();
-        // Wrapping and transferring in one case chains several FHE ops; relax only the depth cap.
-        disableHCUDepthLimit();
-    }
-
     /// @notice Live proxies come out of the upgrade unpaused, with the zero pauser the
     /// `reinitializeV4` calldata seeded, so nobody can pause yet.
     function test_PauserUnsetAfterUpgrade_AllWrappers() public {
@@ -155,6 +149,7 @@ contract PauseTest is BaseForkTest {
     /// @notice A pause closes every value-moving entry point on the live wrapper, and unpausing reopens them.
     function test_PauseHaltsValueFlows_AllWrappers() public {
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             _runPauseCycle(wrappers[i]);
         }
     }

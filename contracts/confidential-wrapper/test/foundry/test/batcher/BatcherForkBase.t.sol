@@ -47,8 +47,6 @@ abstract contract BatcherForkBase is BaseForkTest {
         }
 
         super.setUp();
-        // Batch flows chain far more FHE ops than the direct wrapper flows.
-        disableHCUDepthLimit();
 
         string memory json = vm.readFile(_configPath(BATCHERS_FILE));
         depositBatcher = IVaultBatcher(vm.parseJsonAddress(json, ".depositBatcher"));

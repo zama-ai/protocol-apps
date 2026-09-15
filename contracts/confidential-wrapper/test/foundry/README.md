@@ -96,8 +96,8 @@ Run it with:
 make fork-test-batcher 
 ```
 
-It uses the `batcher` Foundry profile, which enables
-`isolate = true` and keeps the regular `make fork-test` target scoped to the wrapper suite.
+It uses the `batcher` Foundry profile, which keeps the regular `make fork-test` target scoped to the
+wrapper suite. Both profiles run with `isolate = true`; see [HCU budgets](#hcu-budgets).
 
 Addresses live in `config/<network>/batchers.json`.
 
@@ -174,6 +174,19 @@ happens off-chain), so a bare fork can't produce usable ciphertext/decryptions. 
 - `finalizeUnwrap` verifies a scalar `abi.encode(uint64)` payload, so tests use
   `buildDecryptionProof(handle, abi.encode(cleartext))` rather than the generic
   `publicDecrypt(handles)` proof (which signs `abi.encode(uint256[])`).
+
+### HCU budgets
+
+The fhEVM host meters HCU per transaction, per block and per handle-chain depth. 
+A `test_*_AllWrappers` loops through every wrapper, so the suite gives each
+wrapper its own transaction and block instead of raising the caps:
+
+- `isolate = true` (both profiles): one transaction per top-level call
+- `BaseForkTest._nextHCUBlock()`, at the top of each `_AllWrappers` loop that completes FHE ops:
+  advances `block.number`, resetting the per-block meter.
+- HCU Depth needs nothing: chains compound within one wrapper's balance and supply lineage, never across
+  wrappers, and the deepest call in either suite is a `wrap` at ~531k of 5M. `disableHCUDepthLimit()`
+  can remove this cap.
 
 ### Coverage guards
 

@@ -480,6 +480,11 @@ abstract contract BaseForkTest is FhevmTest {
         require(success && (returndata.length == 0 || abi.decode(returndata, (bool))), "approve failed");
     }
 
+    /// @notice Advances to a fresh block so the next wrapper's FHE ops meter against a clean HCU budget.
+    function _nextHcuBlock() internal {
+        vm.roll(block.number + 1);
+    }
+
     /// @notice Decrypts the confidential balance of `account` on wrapper `w`.
     function _decryptBalance(address w, address account) internal returns (uint64) {
         euint64 bal = _wrapper(w).confidentialBalanceOf(account);
