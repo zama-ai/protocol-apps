@@ -1,0 +1,27 @@
+{
+  "_doc": "Per-network inputs for the deploy script and the tasks. `registry` is the ConfidentialTokenWrappersRegistry the setPauser batch and the pauser assertion enumerate; `governance` is the address expected to own the chain's ConfidentialWrapperPauser (the wrappers' owner). Sources: docs/addresses/**, zama-ai/protocol-registry, PR #256 fork.json for Polygon.",
+  "ethereum": {
+    "chainId": 1,
+    "registry": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
+    "governance": "0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3",
+    "governanceLabel": "Protocol DAO"
+  },
+  "sepolia": {
+    "chainId": 11155111,
+    "registry": "0x2f0750Bbb0A246059d80e94c454586a7F27a128e",
+    "governance": "0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52",
+    "governanceLabel": "Protocol DAO (Sepolia)"
+  },
+  "polygon": {
+    "chainId": 137,
+    "registry": "0xc8908569868758dAF814B5a8b96bBc44D1653d54",
+    "governance": "0xeF0645fE2f53aE04d750d5C578BbDAd6cE5Afe55",
+    "governanceLabel": "Polygon governance Safe"
+  },
+  "amoy": {
+    "chainId": 80002,
+    "registry": "0xF486c3D4F4562760A43883e72E8D6f6Cf2EFdA94",
+    "governance": "0xF0b1FE5DecfFe400fb141BBEAF9B181bCF76E3Cb",
+    "governanceLabel": "Amoy Safe"
+  }
+}
