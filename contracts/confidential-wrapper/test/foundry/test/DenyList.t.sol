@@ -83,7 +83,7 @@ contract DenyListTest is BaseForkTest {
             _wrapper(w).blockUser(depositor);
 
             IERC20 underlying = _underlying(w);
-            deal(address(underlying), depositor, amount);
+            _fundUnderlying(address(underlying), depositor, amount);
 
             vm.startPrank(depositor);
             _approve(underlying, w, amount);
