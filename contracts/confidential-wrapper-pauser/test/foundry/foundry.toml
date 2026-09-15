@@ -1,0 +1,48 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+script = "script"
+libs = ["dependencies"]
+solc_version = "0.8.27"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 800
+
+# The remapping resolves the pauser sources two directories up, so the compiler must be allowed to read them.
+allow_paths = ["../../contracts"]
+
+# Tests read config/fork.json from disk.
+fs_permissions = [{ access = "read", path = "./" }]
+
+# test/unit holds the local fuzz and invariant suites (no fork, no RPC). They run under the `unit` profile below;
+# the default profile is the live fork rehearsal and excludes them so `make fork-test` keeps covering exactly
+# test/PauserFork.t.sol.
+no_match_path = "test/unit/*"
+
+# Local property tests over the package mocks: `make unit-test` (FOUNDRY_PROFILE=unit forge test).
+[profile.unit]
+match_path = "test/unit/*"
+# Profiles inherit the default settings, so the exclusion above must be replaced: here it is the fork rehearsal
+# (needs an RPC) that stays out.
+no_match_path = "test/PauserFork.t.sol"
+
+[profile.unit.fuzz]
+runs = 512
+
+[profile.unit.invariant]
+runs = 128
+depth = 100
+# Every handler call is wrapped in try/catch and records what it saw, so an unexpected revert is a test bug.
+fail_on_revert = true
+
+[fmt]
+line_length = 120
+
+[dependencies]
+forge-std = "1.14.0"
+"@openzeppelin-contracts" = "5.4.0"
+
+[soldeer]
+remappings_version = false
+recursive_deps = true
