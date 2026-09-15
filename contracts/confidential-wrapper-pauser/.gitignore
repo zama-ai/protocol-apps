@@ -1,0 +1,21 @@
+node_modules
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/types
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+# Foundry fork-test build output
+/test/foundry/out
+/test/foundry/cache
+/test/foundry/dependencies
+
+# Foundry build output of the package-level foundry.toml (selectors)
+/out
