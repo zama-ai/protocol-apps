@@ -123,4 +123,7 @@ jobs:
           # a public endpoint until a dedicated secret exists.
           ETHEREUM_RPC_URL: ${{ secrets.ETHEREUM_MAINNET_FORK_RPC_URL }}
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_FORK_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com' }}
-        run: make fork-test NETWORK=${{ matrix.network }}
+          # Passed through env rather than inlined in `run` so the matrix value is never
+          # expanded into the shell script (zizmor template-injection).
+          NETWORK: ${{ matrix.network }}
+        run: make fork-test NETWORK="$NETWORK"
