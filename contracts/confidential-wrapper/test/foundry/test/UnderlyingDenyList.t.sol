@@ -7,22 +7,24 @@ import {externalEuint64} from "encrypted-types/EncryptedTypes.sol";
 
 /**
  * @notice Exercises configured underlying deny-list selectors against the real
- * mainnet token code on the fork. This intentionally does not mock the underlying
+ * token code on the fork. This intentionally does not mock the underlying
  * token: the selector must staticcall the live underlying implementation and
  * return a normal boolean response before the wrapper is allowed to wrap.
  */
 contract UnderlyingDenyListTest is BaseForkTest {
     function setUp() public override {
         super.setUp();
-        // The null-address test completes a wrap+unwrap (mint then burn), which chains a few
-        // FHE ops; relax the sequential depth cap.
-        disableHCUDepthLimit();
+        // Every test below floors on exercising at least one deny-list-bearing underlying, so a
+        // network whose wrappers carry no selector has nothing to run here. Every wrapper that does
+        // carry one must have a config entry, which the helper requires by name.
+        if (!_requireDenyListConfigForSelectors()) vm.skip(true);
     }
 
     function test_ConfiguredUnderlyingDenyListSelectors_AllWrappers() public {
         uint256 configured;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             string memory sym = _label(w);
             bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
@@ -47,7 +49,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice Uses real blacklist membership from mainnet state and checks
+     * @notice Uses real blacklist membership from live chain state and checks
      * that the wrapper's direct wrap path rejects a known blacklisted depositor.
      */
     function test_UnderlyingDenyListBlocksKnownBlacklistedWrap() public {
@@ -74,7 +76,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     /**
-     * @notice A known blacklisted mainnet address is reported by {isBlockedOnUnderlying} and by the
+     * @notice A known blacklisted address is reported by {isBlockedOnUnderlying} and by the
      * combined {isBlocked}, while {isBlockedOnWrapper} stays false. This is the case the combined
      * view exists for: an address no wrapper owner ever touched, that the underlying still denies.
      */
@@ -112,7 +114,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
             address depositor = makeAddr(string.concat("clean-depositor-", sym));
             uint256 amount = _wrapper(w).rate();
-            deal(token, depositor, amount);
+            _fundUnderlying(token, depositor, amount);
             vm.startPrank(depositor);
             _approve(_underlying(w), w, amount);
             vm.expectRevert(abi.encodeWithSelector(ConfidentialWrapper.UnderlyingDenyListedAddress.selector, denied));
@@ -127,6 +129,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
@@ -149,6 +152,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             (address w, , , address denied) = _configuredDenyListCase(wrappers[i]);
             if (w == address(0)) continue;
             exercised++;
@@ -171,12 +175,13 @@ contract UnderlyingDenyListTest is BaseForkTest {
      * @notice Freshly blacklists a brand-new user through the underlying token's own admin setter
      * (pranked as the token's configured authority), then proves every wrapper entry point rejects that
      * user. This exercises deny-list enforcement even for underlyings that have no pre-existing
-     * blacklisted address in mainnet state (e.g. TGBP), which the known-blacklist tests skip.
+     * blacklisted address in live chain state (e.g. TGBP), which the known-blacklist tests skip.
      */
     function test_UnderlyingDenyListBlocksFreshlyBlacklistedUser() public {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             bytes4 getter = _wrapper(w).getUnderlyingDenyListSelector();
             if (getter == bytes4(0)) continue;
@@ -190,9 +195,9 @@ contract UnderlyingDenyListTest is BaseForkTest {
             assertFalse(_queryUnderlyingDenyList(token, getter, victim), string.concat(sym, ": victim pre-denied"));
 
             // Prank the token's own admin and add `victim` to the real underlying deny-list.
-            address authority = _underlyingDenyListAuthority(token, iface.authority);
+            address authority = _underlyingDenyListAuthority(token, iface);
             vm.prank(authority);
-            (bool ok, ) = token.call(abi.encodeWithSelector(iface.setter, victim));
+            (bool ok, ) = token.call(_underlyingDenyListSetterCall(iface, victim));
             assertTrue(ok, string.concat(sym, ": underlying blacklist setter reverted"));
             assertTrue(
                 _queryUnderlyingDenyList(token, getter, victim),
@@ -208,12 +213,16 @@ contract UnderlyingDenyListTest is BaseForkTest {
     /**
      * @notice A denied null address must NOT block minting or burning. `_requireNotBlocked`
      * short-circuits address(0) precisely because mint has from == 0 and burn has to == 0, and
-     * some underlyings (e.g. USDT) report isBlackListed(address(0)) == true.
+     * some underlyings (e.g. mainnet USDT) report isBlackListed(address(0)) == true.
+     * @dev Skips rather than fails on a network where no underlying denies the null address
+     * (e.g. Polygon): there is nothing real to drive the short-circuit against there, and the
+     * wrapper-side guard itself is covered against a mock in the hardhat suite.
      */
     function test_UnderlyingDenyListNullAddressDoesNotBlock() public {
         uint256 exercised;
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             address w = wrappers[i];
             bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
             if (selector == bytes4(0)) continue;
@@ -242,21 +251,15 @@ contract UnderlyingDenyListTest is BaseForkTest {
             assertEq(_decryptTotalSupply(w), 0, string.concat(sym, ": burn blocked by denied null address"));
         }
 
-        assertGt(exercised, 0, "no configured wrapper whose underlying denies the null address");
+        if (exercised == 0) vm.skip(true);
     }
 
     /**
-     * @notice If the curated blacklist seed list is present, asserts each seeded address is reported
-     * denied by the underlying token getter against the real mainnet state on the fork.
+     * @notice Asserts every curated `blacklisted` seed is still reported denied by its underlying
+     * token getter against the real chain state on the fork.
      */
     function test_UnderlyingDenyListSeededBlacklist() public {
-        string memory path = "config/blacklist-seeds.json";
-        if (!vm.exists(path)) {
-            emit log("blacklist-seeds.json absent; skipping known-blacklisted deny-list assertion");
-            return;
-        }
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         uint256 checked;
 
         for (uint256 ti = 0; ; ti++) {
@@ -281,10 +284,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
     }
 
     function _knownBlacklistedAddress(address token) internal view returns (address) {
-        string memory path = "config/blacklist-seeds.json";
-        if (!vm.exists(path)) return address(0);
-
-        string memory json = vm.readFile(path);
+        string memory json = vm.readFile(_configPath(DENY_LIST_INTERFACES_FILE));
         for (uint256 ti = 0; ; ti++) {
             string memory base = string.concat(".tokens[", vm.toString(ti), "]");
             if (!vm.keyExistsJson(json, base)) break;
@@ -314,14 +314,6 @@ contract UnderlyingDenyListTest is BaseForkTest {
         return abi.decode(data, (bool));
     }
 
-    /// @notice Reads the address allowed to mutate `token`'s deny-list via its configured authority
-    /// getter (e.g. `owner()`, `blacklister()`). Reverts when the getter is unreadable on the fork.
-    function _underlyingDenyListAuthority(address token, bytes4 authoritySelector) internal view returns (address) {
-        (bool success, bytes memory data) = token.staticcall(abi.encodeWithSelector(authoritySelector));
-        require(success && data.length == 32, "underlying deny-list authority unreadable on fork");
-        return abi.decode(data, (address));
-    }
-
     /// @notice Asserts every wrapper entry point rejects `denied` with UnderlyingDenyListedAddress:
     /// direct wrap by the denied depositor, wrap crediting the denied recipient, confidential transfer
     /// to the denied recipient, and unwrap to the denied recipient.
@@ -340,7 +332,7 @@ contract UnderlyingDenyListTest is BaseForkTest {
 
         // Wrap crediting the denied recipient, funded and pranked from a clean depositor.
         address depositor = makeAddr(string.concat("fresh-block-depositor-", sym));
-        deal(address(_underlying(w)), depositor, amount);
+        _fundUnderlying(address(_underlying(w)), depositor, amount);
         vm.startPrank(depositor);
         _approve(_underlying(w), w, amount);
         vm.expectRevert(expectedRevert);

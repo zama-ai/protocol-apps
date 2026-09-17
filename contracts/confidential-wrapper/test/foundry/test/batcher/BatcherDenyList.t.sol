@@ -35,7 +35,7 @@ contract BatcherDenyListTest is BatcherForkBase {
     /**
      * @notice The other deny-list source, driven through the same join path.
      * @dev Skips itself when cUSDC has no underlying check configured, or when USDC's deny-list
-     * interface is absent from `config/blacklist-interfaces.json`, mirroring the guards the wrapper
+     * interface is absent from `config/<network>/blacklist-interfaces.json`, mirroring the guards the wrapper
      * suite's underlying tests use.
      */
     function test_UnderlyingDeniedUserCannotJoin() public {
@@ -52,10 +52,9 @@ contract BatcherDenyListTest is BatcherForkBase {
         (externalEuint64 enc, bytes memory proof) = encryptUint64(DEPOSIT_AMOUNT, user, cUsdc);
 
         // Deny `user` on the real underlying, pranked as the token's own deny-list authority.
-        (bool ok, bytes memory data) = token.staticcall(abi.encodeWithSelector(iface.authority));
-        require(ok && data.length == 32, "underlying deny-list authority unreadable on fork");
-        vm.prank(abi.decode(data, (address)));
-        (ok, ) = token.call(abi.encodeWithSelector(iface.setter, user));
+        address authority = _underlyingDenyListAuthority(token, iface);
+        vm.prank(authority);
+        (bool ok, ) = token.call(_underlyingDenyListSetterCall(iface, user));
         assertTrue(ok, "underlying blacklist setter reverted");
 
         assertFalse(_wrapper(cUsdc).isBlockedOnWrapper(user), "underlying denial leaked onto the local list");

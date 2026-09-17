@@ -17,16 +17,11 @@ contract WrapperFlowsTest is BaseForkTest {
     /// @dev Confidential token amount wrapped per case
     uint64 internal constant CONFIDENTIAL_AMOUNT = 1_000_000;
 
-    function setUp() public override {
-        super.setUp();
-        // The full cycle chains several FHE ops; relax only the sequential depth cap.
-        disableHCUDepthLimit();
-    }
-
     function test_FullCycle_AllWrappers() public {
         assertGt(wrappers.length, 0, "no valid wrappers enumerated from registry");
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             _runFullCycle(wrappers[i]);
         }
     }
@@ -35,6 +30,7 @@ contract WrapperFlowsTest is BaseForkTest {
         assertGt(wrappers.length, 0, "no valid wrappers enumerated from registry");
 
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             _runOperatorPaths(wrappers[i]);
         }
     }
@@ -267,7 +263,7 @@ contract WrapperFlowsTest is BaseForkTest {
         uint256 rate = wrapper.rate();
         uint256 underlyingAmount = uint256(CONFIDENTIAL_AMOUNT) * rate;
 
-        deal(underlying, sender, _underlying(w).balanceOf(sender) + underlyingAmount);
+        _fundUnderlying(underlying, sender, underlyingAmount);
 
         vm.prank(sender);
         IERC1363(underlying).transferAndCall(w, underlyingAmount, abi.encodePacked(recipient));

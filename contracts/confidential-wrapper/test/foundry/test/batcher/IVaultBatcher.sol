@@ -50,8 +50,11 @@ interface IVaultBatcher {
 
     function dispatchBatch() external;
 
-    function dispatchBatchCallback(uint256 batchId, uint64 unwrapAmountCleartext, bytes calldata decryptionProof)
-        external;
+    function dispatchBatchCallback(
+        uint256 batchId,
+        uint64 unwrapAmountCleartext,
+        bytes calldata decryptionProof
+    ) external;
 
     function claim(uint256 batchId, address account) external returns (euint64);
 

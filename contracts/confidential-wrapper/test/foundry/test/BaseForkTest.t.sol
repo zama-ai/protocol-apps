@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {FhevmTest} from "forge-fhevm/FhevmTest.sol";
+import {StdStorage, stdStorage} from "forge-std/StdStorage.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -12,22 +13,36 @@ import {ConfidentialTokenWrappersRegistry} from "registry/ConfidentialTokenWrapp
 
 /**
  * @title BaseForkTest
- * @notice Shared harness for mainnet-fork tests over the live Confidential Wrappers.
+ * @notice Shared harness for fork tests over the live Confidential Wrappers.
  *
- * @dev The suite runs against a live mainnet fork (`forge test --fork-url`),
- * reading real mainnet code and storage from the archive node. The deployed
- * wrappers point their FHE config at the real Zama mainnet coprocessor, whose
- * compute happens off-chain, so a bare fork cannot produce usable
- * ciphertext/decryptions.
+ * @dev The suite runs against a live fork of the selected network
+ * (`forge test --fork-url`), reading real code and storage from the archive
+ * node. The deployed wrappers point their FHE config at the real Zama
+ * coprocessor, whose compute happens off-chain, so a bare fork cannot produce
+ * usable ciphertext/decryptions.
  *
  * To make FHE satisfiable natively in Solidity, this harness inherits
  * {FhevmTest}: its `setUp()` deploys the fhEVM host contracts in-process at
  * their canonical local addresses and records executor logs into an in-memory
  * plaintext DB. {setUp} then repoints each wrapper's FHE config at that local
  * host and zeroes the cached total-supply handle (see {_repointFhevmConfig}).
+ *
+ * The `NETWORK` environment variable, exported by
+ * `make fork-test NETWORK=<network>`, names the config/fork.json entry this run
+ * reads its registry from and the config/<network>/ directory holding the rest
+ * of that chain's config.
  */
 abstract contract BaseForkTest is FhevmTest {
-    address internal constant REGISTRY = 0xeb5015fF021DB115aCe010f23F55C2591059bBA0;
+    using stdStorage for StdStorage;
+
+    /// @dev Network selected when NETWORK is unset, i.e. a plain `make fork-test`.
+    string internal constant DEFAULT_NETWORK = "ethereum";
+
+    /// @notice Per-network fork config: registry address, RPC env variable name and fork block.
+    string internal constant FORK_CONFIG_PATH = "config/fork.json";
+
+    /// @notice Network key selecting this run's config/fork.json entry and config/<network>/ directory.
+    string internal network;
 
     ConfidentialTokenWrappersRegistry internal registry;
 
@@ -49,20 +64,27 @@ abstract contract BaseForkTest is FhevmTest {
         0xfbb2c4771bcc77528b8fd58eedad6a4f84fdaf9eea4a56a2752391a0c87eee00;
 
     /// @dev forge-fhevm's in-process host addresses (dependencies/forge-fhevm-.../FHEVMHostAddresses.sol),
-    /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's mainnet coprocessor
+    /// deployed by {FhevmTest.setUp}. The live wrappers instead store Zama's live coprocessor
     /// addresses, so encrypted ops are repointed here at runtime (see {_repointFhevmConfig}).
     address internal constant LOCAL_FHEVM_ACL = 0x50157CFfD6bBFA2DECe204a89ec419c23ef5755D;
     address internal constant LOCAL_FHEVM_COPROCESSOR = 0xe3a9105a3a932253A70F126eb1E3b589C643dD24;
     address internal constant LOCAL_FHEVM_KMS_VERIFIER = 0x901F8942346f7AB3a01F6D7613119Bca447Bb030;
 
+    enum DenyListAbiShape {
+        Address,
+        AddressArray
+    }
+
     /// @notice Blacklist interface for an underlying token.
-    /// @dev Each token declares its own selectors explicitly in the shared config. `setter(address)`
-    /// mutates the deny-list and `authority()` returns the address allowed to call it, used to freshly
-    /// blacklist a user by pranking the token's own admin.
+    /// @dev Each token declares canonical Solidity signatures in the shared config. Selectors are derived
+    /// from those signatures where needed. ABI shape fields stay explicit because Solidity has no
+    /// reflection over signature strings and return types are not part of selector signatures.
     struct UnderlyingDenyListInterface {
-        bytes4 getter;
-        bytes4 setter;
-        bytes4 authority;
+        string getterSignature;
+        string setterSignature;
+        string authoritySignature;
+        DenyListAbiShape authorityReturn;
+        DenyListAbiShape setterArgument;
         bool supported;
     }
 
@@ -107,9 +129,9 @@ abstract contract BaseForkTest is FhevmTest {
     /// {_upgradeAllWrappersToLatest}: the version a fresh `initialize` lands on is that constant.
     uint64 internal reinitializerVersion;
 
-    /// @notice Address-keyed underlying deny-list interface config (getter selectors), read by
-    /// these tests. Known-denied test vectors live separately in config/blacklist-seeds.json.
-    string internal constant DENY_LIST_INTERFACES_PATH = "config/blacklist-interfaces.json";
+    /// @notice Address-keyed underlying deny-list config: the getter/setter/authority selectors per
+    /// token, plus the known-denied addresses {UnderlyingDenyListTest} uses as test vectors.
+    string internal constant DENY_LIST_INTERFACES_FILE = "blacklist-interfaces.json";
 
     /// @dev Valid (non-revoked) confidential wrapper proxies enumerated from the registry.
     address[] internal wrappers;
@@ -119,7 +141,11 @@ abstract contract BaseForkTest is FhevmTest {
         // and starts recording executor logs into the plaintext DB.
         super.setUp();
 
-        registry = ConfidentialTokenWrappersRegistry(REGISTRY);
+        network = vm.envOr("NETWORK", DEFAULT_NETWORK);
+        // Reverts naming the missing JSON path when NETWORK has no config/fork.json entry.
+        registry = ConfidentialTokenWrappersRegistry(
+            vm.parseJsonAddress(vm.readFile(FORK_CONFIG_PATH), string.concat(".", network, ".registry"))
+        );
 
         ConfidentialTokenWrappersRegistry.TokenWrapperPair[] memory pairs = registry.getTokenConfidentialTokenPairs();
 
@@ -133,14 +159,14 @@ abstract contract BaseForkTest is FhevmTest {
     }
 
     /// @notice Deploys one fresh implementation from repo HEAD and upgrades every enumerated proxy
-    /// onto it, so the whole suite exercises the candidate impl against live mainnet state. Each
+    /// onto it, so the whole suite exercises the candidate impl against live on-chain state. Each
     /// proxy's pre-upgrade state is snapshotted first for {UpgradeTest}.
     /// @dev Every proxy is repointed at the fresh implementation whatever its live version, so the suite
-    /// always drives HEAD's bytecode rather than mainnet's. Only the initializer call differs: a proxy
+    /// always drives HEAD's bytecode rather than the chain's. Only the initializer call differs: a proxy
     /// behind HEAD runs `reinitializeV4` as part of the swap, while one already at HEAD's version has no
     /// migration left to replay and is upgraded with empty calldata. A proxy ahead of HEAD's reinitializer version
     /// is a stale checkout or a missed reinitializer bump, and fails rather than silently pointing the
-    /// suite at older bytecode than mainnet runs.
+    /// suite at older bytecode than the chain runs.
     function _upgradeAllWrappersToLatest() internal {
         newImplementation = new ConfidentialWrapper();
         reinitializerVersion = _initializedVersion(_deployFreshProxy());
@@ -194,9 +220,9 @@ abstract contract BaseForkTest is FhevmTest {
     }
 
     /// @notice Repoints `w`'s FHE config at the in-process forge-fhevm host and zeroes its cached
-    /// total-supply handle, so encrypted ops resolve locally instead of at Zama's mainnet coprocessor.
+    /// total-supply handle, so encrypted ops resolve locally instead of at Zama's live coprocessor.
     /// @dev Runs before {_snapshotPreUpgrade} so the zeroed handle is captured pre-upgrade and
-    /// {UpgradeTest} still sees it unchanged after the swap. A mainnet handle has no entry in the local
+    /// {UpgradeTest} still sees it unchanged after the swap. A live handle has no entry in the local
     /// plaintext DB, so zeroing lets the first local mint/burn rebuild total supply against the in-process
     /// executor.
     function _repointFhevmConfig(address w) internal {
@@ -300,13 +326,46 @@ abstract contract BaseForkTest is FhevmTest {
         return bytes32(uint256(CONFIDENTIAL_WRAPPER_V3_STORAGE_BASE) + 2);
     }
 
-    /// @notice Returns the explicit blacklist interface for `token`, read from the shared
+    /// @notice Path to one of this network's config files, e.g. `config/ethereum/batchers.json`.
+    function _configPath(string memory file) internal view returns (string memory) {
+        return string.concat("config/", network, "/", file);
+    }
+
+    /// @dev True when at least one enumerated wrapper carries an underlying deny-list selector.
+    ///      For every such wrapper, requires a config entry whose getter matches the on-chain
+    ///      selector, so a wrapper deployed without an entry fails by name instead of passing
+    ///      untested. Callers skip when this returns false.
+    function _requireDenyListConfigForSelectors() internal view returns (bool anyConfigured) {
+        for (uint256 i = 0; i < wrappers.length; i++) {
+            address w = wrappers[i];
+            bytes4 selector = _wrapper(w).getUnderlyingDenyListSelector();
+            if (selector == bytes4(0)) continue;
+            anyConfigured = true;
+
+            UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(_wrapper(w).underlying());
+            require(
+                iface.supported,
+                string.concat(
+                    _label(w),
+                    ": selector set on-chain but no entry in ",
+                    _configPath(DENY_LIST_INTERFACES_FILE)
+                )
+            );
+            require(
+                _selector(iface.getterSignature) == selector,
+                string.concat(_label(w), ": config getter does not match the on-chain deny-list selector")
+            );
+        }
+    }
+
+    /// @notice Returns the explicit blacklist interface for `token`, read from this network's
     /// config file (not hardcoded). `supported == false` for tokens with no entry.
     function _underlyingDenyListInterface(
         address token
     ) internal view returns (UnderlyingDenyListInterface memory iface) {
-        if (!vm.exists(DENY_LIST_INTERFACES_PATH)) return iface;
-        string memory json = vm.readFile(DENY_LIST_INTERFACES_PATH);
+        string memory path = _configPath(DENY_LIST_INTERFACES_FILE);
+        if (!vm.exists(path)) return iface;
+        string memory json = vm.readFile(path);
         // Foundry JSON cheatcodes are index-addressed here; config tokens are a dense array, so
         // the first missing `.tokens[i]` marks the end.
         for (uint256 i = 0; ; i++) {
@@ -314,9 +373,15 @@ abstract contract BaseForkTest is FhevmTest {
             if (!vm.keyExistsJson(json, base)) break;
             if (vm.parseJsonAddress(json, string.concat(base, ".token")) != token) continue;
 
-            iface.getter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".getter")))));
-            iface.setter = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".setter")))));
-            iface.authority = bytes4(keccak256(bytes(vm.parseJsonString(json, string.concat(base, ".authority")))));
+            iface.getterSignature = vm.parseJsonString(json, string.concat(base, ".getter"));
+            iface.setterSignature = vm.parseJsonString(json, string.concat(base, ".setter"));
+            iface.authoritySignature = vm.parseJsonString(json, string.concat(base, ".authority"));
+            iface.authorityReturn = _parseDenyListAbiShape(
+                vm.parseJsonString(json, string.concat(base, ".authorityReturn"))
+            );
+            iface.setterArgument = _parseDenyListAbiShape(
+                vm.parseJsonString(json, string.concat(base, ".setterArgument"))
+            );
             iface.supported = true;
             return iface;
         }
@@ -324,13 +389,82 @@ abstract contract BaseForkTest is FhevmTest {
 
     /// @notice Canonical underlying deny-list getter selector, or `bytes4(0)` if none.
     function _canonicalDenyListSelector(address token) internal view returns (bytes4) {
-        return _underlyingDenyListInterface(token).getter;
+        UnderlyingDenyListInterface memory iface = _underlyingDenyListInterface(token);
+        if (!iface.supported) return bytes4(0);
+        return _selector(iface.getterSignature);
+    }
+
+    /// @notice Reads the address allowed to mutate `token`'s deny-list through the configured authority
+    /// getter. Some tokens return a single admin, while others return a role-member array.
+    function _underlyingDenyListAuthority(
+        address token,
+        UnderlyingDenyListInterface memory iface
+    ) internal view returns (address) {
+        (bool success, bytes memory data) = token.staticcall(
+            abi.encodeWithSelector(_selector(iface.authoritySignature))
+        );
+        require(success, "underlying deny-list authority unreadable on fork");
+
+        if (iface.authorityReturn == DenyListAbiShape.Address) {
+            require(data.length == 32, "underlying deny-list authority malformed");
+            return abi.decode(data, (address));
+        }
+
+        address[] memory authorities = abi.decode(data, (address[]));
+        require(authorities.length > 0, "underlying deny-list authority empty");
+        return authorities[0];
+    }
+
+    /// @notice Encodes the configured deny-list setter call for a single freshly-denied account.
+    function _underlyingDenyListSetterCall(
+        UnderlyingDenyListInterface memory iface,
+        address account
+    ) internal pure returns (bytes memory) {
+        bytes4 setter = _selector(iface.setterSignature);
+        if (iface.setterArgument == DenyListAbiShape.Address) {
+            return abi.encodeWithSelector(setter, account);
+        }
+
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+        return abi.encodeWithSelector(setter, accounts);
+    }
+
+    function _selector(string memory signature) internal pure returns (bytes4) {
+        return bytes4(keccak256(bytes(signature)));
+    }
+
+    function _parseDenyListAbiShape(string memory shape) internal pure returns (DenyListAbiShape abiShape) {
+        bytes32 shapeHash = keccak256(bytes(shape));
+        if (shapeHash == keccak256("address")) return DenyListAbiShape.Address;
+        if (shapeHash == keccak256("address[]")) return DenyListAbiShape.AddressArray;
+        revert("unsupported deny-list ABI shape");
+    }
+
+    /// @notice Writes `balance` as `user`'s `token` balance, straight into the token's storage.
+    /// @dev Stands in for {StdCheats-deal}, which writes the raw amount into the whole balance slot
+    /// and then requires `balanceOf` to read it back verbatim. That holds for a plain
+    /// `mapping(address => uint256)` and fails on an underlying that packs the balance beside other
+    /// fields in one word: AUSD keeps flags in the low byte and returns `slot >> 8`, so every `deal`
+    /// against it reverts with "Failed to write value". `enable_packed_slots` makes stdStorage probe
+    /// for the field's offsets first, then write within them and leave the neighbouring bits alone.
+    /// A token whose balance owns the whole word resolves to zero offsets, i.e. exactly what `deal`
+    /// does today.
+    function _setUnderlyingBalance(address token, address user, uint256 balance) internal {
+        stdstore.enable_packed_slots().target(token).sig(IERC20.balanceOf.selector).with_key(user).checked_write(
+            balance
+        );
+    }
+
+    /// @notice Credits `user` with `amount` more of `token`, on top of whatever they already hold.
+    function _fundUnderlying(address token, address user, uint256 amount) internal {
+        _setUnderlyingBalance(token, user, IERC20(token).balanceOf(user) + amount);
     }
 
     /// @notice Funds `user` with the wrapper's underlying and wraps `amount` into confidential tokens.
     function _dealAndWrap(address w, address user, uint256 amount) internal {
         IERC20 underlying = _underlying(w);
-        deal(address(underlying), user, underlying.balanceOf(user) + amount);
+        _fundUnderlying(address(underlying), user, amount);
 
         vm.startPrank(user);
         _approve(underlying, w, type(uint256).max);
@@ -344,6 +478,11 @@ abstract contract BaseForkTest is FhevmTest {
             abi.encodeCall(IERC20.approve, (spender, amount))
         );
         require(success && (returndata.length == 0 || abi.decode(returndata, (bool))), "approve failed");
+    }
+
+    /// @notice Advances to a fresh block so the next wrapper's FHE ops meter against a clean HCU budget.
+    function _nextHcuBlock() internal {
+        vm.roll(block.number + 1);
     }
 
     /// @notice Decrypts the confidential balance of `account` on wrapper `w`.

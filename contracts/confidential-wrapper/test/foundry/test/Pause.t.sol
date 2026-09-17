@@ -10,19 +10,13 @@ import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165C
 import {IERC1363} from "@openzeppelin/contracts/interfaces/IERC1363.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/// @notice Pause behavior across every registered wrapper, running against live mainnet state.
+/// @notice Pause behavior across every registered wrapper, running against live chain state.
 /// @dev The live proxies carry no pauser of their own and the upgrade in {BaseForkTest} seeds
 /// `address(0)`, so these tests also cover arming it on real V3 state without disturbing the
 /// deny-list config it shares a slot with.
 contract PauseTest is BaseForkTest {
     /// @dev Confidential token amount wrapped per case.
     uint64 internal constant CONFIDENTIAL_AMOUNT = 1_000_000;
-
-    function setUp() public override {
-        super.setUp();
-        // Wrapping and transferring in one case chains several FHE ops; relax only the depth cap.
-        disableHCUDepthLimit();
-    }
 
     /// @notice Live proxies come out of the upgrade unpaused, with the zero pauser the
     /// `reinitializeV4` calldata seeded, so nobody can pause yet.
@@ -155,6 +149,7 @@ contract PauseTest is BaseForkTest {
     /// @notice A pause closes every value-moving entry point on the live wrapper, and unpausing reopens them.
     function test_PauseHaltsValueFlows_AllWrappers() public {
         for (uint256 i = 0; i < wrappers.length; i++) {
+            _nextHcuBlock();
             _runPauseCycle(wrappers[i]);
         }
     }
@@ -200,7 +195,7 @@ contract PauseTest is BaseForkTest {
     /// @dev Both mint-side entry points reach the gate through `_mint`
     function _expectWrapPathsHalted(address w, string memory sym, address alice, uint256 underlyingAmount) internal {
         IERC20 underlying = _underlying(w);
-        deal(address(underlying), alice, underlying.balanceOf(alice) + underlyingAmount);
+        _fundUnderlying(address(underlying), alice, underlyingAmount);
         uint256 aliceBalanceBefore = underlying.balanceOf(alice);
 
         vm.prank(alice);
