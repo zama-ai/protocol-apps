@@ -70,7 +70,9 @@ Generate the actions from the registry at proposal time; never hard-code the wra
 npx hardhat task:setPauserProposal --pauser <pauser> --network <network> --out out/<network>-setPauser.json
 ```
 
-The payload holds one `setPauser(<pauser>)` action per valid wrapper (`to`, `value`, `data`). Enter them:
+The task refuses to build anything unless `<pauser>` holds a `ConfidentialWrapperPauser` owned by the chain's
+governance (zero address, EOA, wrong contract, wrong owner), and warns on a pending ownership transfer or an empty
+roster. The payload holds one `setPauser(<pauser>)` action per valid wrapper (`to`, `value`, `data`). Enter them:
 
 - **Ethereum / Sepolia:** as actions of one Aragon proposal, see
   [Creating Ethereum proposals](../governance/creating-proposals-ethereum.md).
@@ -87,8 +89,9 @@ Reviewers verify: every `to` is a wrapper listed in the registry, every `data` e
 npx hardhat task:checkPausers --pauser <pauser> --expected-pausers <0xA,0xB,...> --network <network>
 ```
 
-Exit code 0 means every registered wrapper reports `pauser() == <pauser>`, the owner is governance and the roster
-matches. Run the same command on a schedule across chains as the roster-drift check.
+Exit code 0 means every registered wrapper reports `pauser() == <pauser>` and `owner() == governance`, the pauser's
+owner is governance and the roster matches. Run the same command on a schedule across chains as the drift check: a
+wrapper whose owner drifted could not be unpaused, re-armed or upgraded by governance.
 
 ## Step 4 — Rehearse on Sepolia (before Ethereum)
 

@@ -71,8 +71,12 @@ npx hardhat task:setPauserProposal --pauser <pauser-address> --network <network>
 npx hardhat task:checkPausers --pauser <pauser-address> --expected-pausers 0xA,0xB --network <network>
 ```
 
-`task:checkPausers` exits non-zero on any mismatch, so it doubles as the scheduled roster-drift check across chains.
-Both tasks enumerate the chain's `ConfidentialTokenWrappersRegistry` from `config/networks.json`; they accept
-`--registry` to override it and `--include` for wrappers that are not (yet) registered.
+Both tasks first check `--pauser` itself: it must hold a `ConfidentialWrapperPauser` owned by the chain's governance.
+`task:setPauserProposal` refuses the zero address, an EOA, a wrong contract or a pauser owned by someone else, since
+the resulting proposal would disarm or misarm every wrapper; `task:checkPausers` reports the same as failures.
+`task:checkPausers` also checks every wrapper's `owner()` against governance (a wrapper transferred away could not be
+unpaused or re-armed by it) and exits non-zero on any mismatch, so it doubles as the scheduled drift check across
+chains. Both tasks enumerate the chain's `ConfidentialTokenWrappersRegistry` from `config/networks.json`; they accept
+`--registry` and `--governance` to override it and `--include` for wrappers that are not (yet) registered.
 
 See `docs/deployment/deploy-wrapper-pauser-runbook.md` for the full per-chain procedure.

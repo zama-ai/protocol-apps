@@ -2,11 +2,20 @@ import { mkdirSync, writeFileSync } from "fs";
 import { task } from "hardhat/config";
 import { dirname } from "path";
 
-import { WRAPPER_ABI, getNetworkConfig, listValidWrappers, parseAddressList, resolveRegistry } from "./utils/networks";
+import {
+  WRAPPER_ABI,
+  getNetworkConfig,
+  listValidWrappers,
+  parseAddressList,
+  preflightPauser,
+  resolveGovernance,
+  resolveRegistry,
+} from "./utils/networks";
 
 interface SetPauserProposalArgs {
   pauser: string;
   registry?: string;
+  governance?: string;
   include?: string;
   exclude?: string;
   out?: string;
@@ -25,6 +34,10 @@ interface ProposalAction {
  * wrapper in the registry, derived at proposal time (never hard-coded). Wrappers already armed with `pauser` are
  * skipped, so the task is idempotent and can be re-run after new wrappers are registered.
  *
+ * Before building anything the task checks `--pauser` itself: it must hold a ConfidentialWrapperPauser owned by the
+ * chain's governance (from `config/networks.json`, or `--governance`). The zero address, an EOA, a wrong contract or
+ * a pauser owned by someone else are refused, since the proposal would otherwise disarm or misarm every wrapper.
+ *
  * The JSON output lists `{to, value, data}` actions ready to be entered in the Aragon app (Ethereum, Sepolia) or
  * a Safe transaction builder (Polygon, Amoy); the `cast` recipes reproduce each calldata for reviewers.
  *
@@ -34,6 +47,7 @@ interface ProposalAction {
 task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every registered wrapper of the chain")
   .addParam("pauser", "The chain's ConfidentialWrapperPauser address")
   .addOptionalParam("registry", "Registry to enumerate (defaults to config/networks.json)")
+  .addOptionalParam("governance", "Expected owner of the pauser and the wrappers (defaults to config/networks.json)")
   .addOptionalParam("include", "Comma-separated extra wrapper addresses to arm besides the registry")
   .addOptionalParam("exclude", "Comma-separated wrapper addresses to leave out")
   .addOptionalParam("out", "Write the JSON payload to this file instead of only printing it")
@@ -42,7 +56,14 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
     const pauserAddress = ethers.getAddress(args.pauser);
     const registry = resolveRegistry(hre, args.registry);
     const networkConfig = getNetworkConfig(network.name);
+    const governance = resolveGovernance(hre, args.governance);
     const excluded = new Set(parseAddressList(args.exclude, "--exclude").map((a) => a.toLowerCase()));
+
+    // --- Preflight: --pauser must be the chain's pauser, owned by governance, before any action is built ---
+    const preflight = await preflightPauser(hre, pauserAddress, governance);
+    if (preflight.problems.length > 0) {
+      throw new Error(`refusing to build the proposal: ${preflight.problems.join("; ")}`);
+    }
 
     const wrappers = await listValidWrappers(hre, registry);
     for (const extra of parseAddressList(args.include, "--include")) {
@@ -77,6 +98,8 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
       chainId: Number((await ethers.provider.getNetwork()).chainId),
       registry,
       pauser: pauserAddress,
+      pauserOwner: preflight.state.owner,
+      roster: preflight.state.roster,
       expectedProposer: networkConfig ? `${networkConfig.governanceLabel} ${networkConfig.governance}` : "unknown",
       wrapperOwners: [...owners],
       actions,
@@ -85,9 +108,13 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
     console.log(`Network:  ${network.name}`);
     console.log(`Registry: ${registry}`);
     console.log(`Pauser:   ${pauserAddress}`);
+    console.log(`Pauser owner: ${preflight.state.owner}${governance ? ` (${governance.label})` : ""}`);
+    console.log(`Roster (${preflight.state.roster.length}): ${preflight.state.roster.join(", ") || "-"}`);
+    for (const warning of preflight.warnings) console.warn(`⚠️  ${warning}`);
     console.log(`Wrapper owner(s): ${[...owners].join(", ")}`);
-    if (networkConfig && [...owners].some((o) => o.toLowerCase() !== networkConfig.governance.toLowerCase())) {
-      console.warn(`⚠️  some wrappers are not owned by ${networkConfig.governanceLabel}; check the proposer.`);
+    const expectedWrapperOwner = governance?.address ?? preflight.state.owner;
+    if ([...owners].some((o) => o.toLowerCase() !== expectedWrapperOwner.toLowerCase())) {
+      console.warn(`⚠️  some wrappers are not owned by ${expectedWrapperOwner}; their setPauser action will fail.`);
     }
     for (const line of skipped) console.log(`  skip ${line}`);
     console.log(`\n${actions.length} setPauser action(s):`);
@@ -106,4 +133,5 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
     } else {
       console.log(`\n${json}`);
     }
+    return payload;
   });

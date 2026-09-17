@@ -1,16 +1,18 @@
 import { task, types } from "hardhat/config";
 
-import { WRAPPER_ABI, getNetworkConfig, listValidWrappers, parseAddressList, resolveRegistry } from "./utils/networks";
-
-const PAUSER_ABI = [
-  "function owner() view returns (address)",
-  "function pendingOwner() view returns (address)",
-  "function pausers() view returns (address[])",
-];
+import {
+  WRAPPER_ABI,
+  listValidWrappers,
+  parseAddressList,
+  preflightPauser,
+  resolveGovernance,
+  resolveRegistry,
+} from "./utils/networks";
 
 interface CheckPausersArgs {
   pauser: string;
   registry?: string;
+  governance?: string;
   expectedPausers?: string;
   include?: string;
   strict: boolean;
@@ -18,8 +20,10 @@ interface CheckPausersArgs {
 
 /**
  * Post-execution assertion and drift check (P-RFC-006 success criteria 1 and 2): every valid wrapper of the
- * registry must report `pauser() == <chain ConfidentialWrapperPauser>`, the pauser's owner must be the chain's
- * governance, and, when given, `pausers()` must equal the agreed roster.
+ * registry must report `pauser() == <chain ConfidentialWrapperPauser>` and `owner() == governance` (a wrapper
+ * transferred away from governance could not be unpaused, re-armed or upgraded by it), the pauser's owner must be
+ * the chain's governance, and, when given, `pausers()` must equal the agreed roster. Governance comes from
+ * `config/networks.json` or `--governance`; without either, the pauser's own owner is the reference.
  *
  * Example usage:
  * npx hardhat task:checkPausers --pauser 0xPauser --network sepolia
@@ -28,6 +32,7 @@ interface CheckPausersArgs {
 task("task:checkPausers", "Asserts every registered wrapper is armed with the chain pauser and reports the roster")
   .addParam("pauser", "The chain's ConfidentialWrapperPauser address")
   .addOptionalParam("registry", "Registry to enumerate (defaults to config/networks.json)")
+  .addOptionalParam("governance", "Expected owner of the pauser and the wrappers (defaults to config/networks.json)")
   .addOptionalParam("expectedPausers", "Comma-separated roster the on-chain pausers() must equal")
   .addOptionalParam("include", "Comma-separated extra wrapper addresses to check besides the registry")
   .addOptionalParam("strict", "Exit with code 1 on any mismatch", true, types.boolean)
@@ -35,7 +40,7 @@ task("task:checkPausers", "Asserts every registered wrapper is armed with the ch
     const { ethers, network } = hre;
     const pauserAddress = ethers.getAddress(args.pauser);
     const registry = resolveRegistry(hre, args.registry);
-    const networkConfig = getNetworkConfig(network.name);
+    const governance = resolveGovernance(hre, args.governance);
     const failures: string[] = [];
 
     console.log(`Network:  ${network.name}`);
@@ -43,18 +48,12 @@ task("task:checkPausers", "Asserts every registered wrapper is armed with the ch
     console.log(`Pauser:   ${pauserAddress}`);
 
     // --- Pauser contract: owner and roster ---
-    const pauserContract = new ethers.Contract(pauserAddress, PAUSER_ABI, ethers.provider);
-    const owner: string = await pauserContract.owner();
-    const pendingOwner: string = await pauserContract.pendingOwner();
-    const roster: string[] = await pauserContract.pausers();
+    const { state, problems, warnings } = await preflightPauser(hre, pauserAddress, governance);
+    const { owner, roster } = state;
+    failures.push(...problems);
+    for (const warning of warnings) console.warn(`⚠️  ${warning}`);
 
-    console.log(`\nOwner: ${owner}`);
-    if (networkConfig && owner.toLowerCase() !== networkConfig.governance.toLowerCase()) {
-      failures.push(`owner ${owner} is not ${networkConfig.governanceLabel} ${networkConfig.governance}`);
-    }
-    if (pendingOwner !== ethers.ZeroAddress) {
-      console.warn(`⚠️  pending ownership transfer to ${pendingOwner} (Ownable2Step, not accepted yet)`);
-    }
+    console.log(`\nOwner: ${owner}${governance ? ` (expected ${governance.label} ${governance.address})` : ""}`);
 
     console.log(`Roster (${roster.length}):`);
     for (const member of roster) console.log(`  - ${member}`);
@@ -69,35 +68,48 @@ task("task:checkPausers", "Asserts every registered wrapper is armed with the ch
       }
     }
 
-    // --- Wrappers: pauser() must be the chain pauser ---
+    // --- Wrappers: pauser() must be the chain pauser, owner() must be governance ---
+    const expectedOwner = governance ?? { address: owner, label: "the pauser's owner" };
     const wrappers = await listValidWrappers(hre, registry);
     for (const extra of parseAddressList(args.include, "--include")) {
       wrappers.push({ token: ethers.ZeroAddress, wrapper: extra, symbol: "(--include)" });
     }
 
-    console.log(`\nWrappers (${wrappers.length}):`);
+    console.log(`\nWrappers (${wrappers.length}), expected owner ${expectedOwner.label} ${expectedOwner.address}:`);
     for (const entry of wrappers) {
       const wrapper = new ethers.Contract(entry.wrapper, WRAPPER_ABI, ethers.provider);
       let line = `  ${entry.symbol.padEnd(16)} ${entry.wrapper}`;
       try {
-        const [currentPauser, paused] = await Promise.all([wrapper.pauser(), wrapper.paused()]);
+        const [currentPauser, paused, wrapperOwner]: [string, boolean, string] = await Promise.all([
+          wrapper.pauser(),
+          wrapper.paused(),
+          wrapper.owner(),
+        ]);
         const armed = currentPauser.toLowerCase() === pauserAddress.toLowerCase();
-        line += ` pauser=${currentPauser} paused=${paused} ${armed ? "✅" : "❌"}`;
+        const owned = wrapperOwner.toLowerCase() === expectedOwner.address.toLowerCase();
+        line += ` pauser=${currentPauser} paused=${paused} owner=${wrapperOwner} ${armed && owned ? "✅" : "❌"}`;
         if (!armed) failures.push(`${entry.symbol} ${entry.wrapper}: pauser() is ${currentPauser}`);
+        if (!owned) {
+          failures.push(`${entry.symbol} ${entry.wrapper}: owner() is ${wrapperOwner}, not ${expectedOwner.address}`);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         line += ` ❌ read failed: ${msg}`;
-        failures.push(`${entry.symbol} ${entry.wrapper}: pauser()/paused() read failed`);
+        failures.push(`${entry.symbol} ${entry.wrapper}: pauser()/paused()/owner() read failed`);
       }
       console.log(line);
     }
 
     // --- Verdict ---
     if (failures.length === 0) {
-      console.log(`\n✅ ${wrappers.length} wrapper(s) armed with ${pauserAddress}; owner and roster as expected.`);
-      return;
+      console.log(
+        `\n✅ ${wrappers.length} wrapper(s) armed with ${pauserAddress} and owned by ${expectedOwner.address}; ` +
+          "pauser owner and roster as expected.",
+      );
+      return failures;
     }
     console.error(`\n❌ ${failures.length} problem(s):`);
     for (const failure of failures) console.error(`  - ${failure}`);
     if (args.strict) process.exitCode = 1;
+    return failures;
   });
