@@ -101,13 +101,16 @@ matches. Run the same command on a schedule across chains as the roster-drift ch
 - **Pause:** any roster member calls `pause(address)` or `pause(address[])` on the chain's pauser. `WrapperPaused`
   confirms each wrapper; `WrapperAlreadyPaused` means it was already halted (not a failure, the single form does not
   revert on it); `WrapperPauseFailed` (batch) or `PauseFailed` (single) means that wrapper is still running and needs
-  attention. Its `errorData` is the wrapper's own revert (`SenderNotPauser`: not armed with this pauser). The batch
-  never stops on a wrapper that rejects the call.
+  attention. Its `errorData` is the wrapper's own revert (`SenderNotPauser`: not armed with this pauser; anything
+  else: its `paused()` or `pause()` reverted, look at the wrapper). The batch never stops on a wrapper that rejects
+  the call or cannot be read.
 - **Pick the targets from the registry.** Build the batch from `task:checkPausers` output or the registry's
   `getTokenConfidentialTokenPairs()`, never from a token list: the pauser calls every entry as a wrapper. An address
-  that is not one (an underlying token pasted instead of its wrapper, a typo, an EOA) aborts the whole call, and a
-  contract with a permissive fallback (WETH-style `deposit()`) can burn most of the transaction's gas before the
-  call is reported as failed. Re-send a batch without the offending entry; nothing else is affected.
+  with no `paused()` (an underlying token pasted instead of its wrapper) is reported as failed with empty
+  `errorData`; one that answers `paused()` with nothing (a typo, an EOA, a contract with a silent fallback) aborts
+  the whole call; and a contract with a permissive fallback (WETH-style `deposit()`) can burn most of the
+  transaction's gas before it is reported as failed. Re-send a batch without the offending entry; nothing else is
+  affected.
 - **What a pause does not stop:** an unwrap burnt before the pause cannot settle (`finalizeUnwrap` reverts
   `EnforcedPause`) until governance unpauses; underlying tokens already inside the wrapper stay there.
 - **Unpause:** governance proposal with `unpause()` on each affected wrapper.

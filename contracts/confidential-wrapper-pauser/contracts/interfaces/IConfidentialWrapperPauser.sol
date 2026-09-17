@@ -62,15 +62,17 @@ interface IConfidentialWrapperPauser {
 
     /**
      * @notice Pauses one wrapper. Restricted to roster members.
-     * @dev Reverts with {PauseFailed} if the wrapper rejects the call; emits {WrapperAlreadyPaused} and returns if
-     * it is already paused.
+     * @dev Reverts with {PauseFailed} if the wrapper rejects the call or its `paused()` reverts; emits
+     * {WrapperAlreadyPaused} and returns if it is already paused. An address that answers `paused()` with nothing
+     * to decode (an EOA, a silent fallback) is not filtered out and aborts the call.
      */
     function pause(address wrapper) external;
 
     /**
      * @notice Pauses several wrappers, best effort. Restricted to roster members.
-     * @dev Every entry gets exactly one of {WrapperPaused}, {WrapperAlreadyPaused} or {WrapperPauseFailed}; a
-     * wrapper that rejects the call never stops the rest.
+     * @dev Every wrapper entry gets exactly one of {WrapperPaused}, {WrapperAlreadyPaused} or
+     * {WrapperPauseFailed}; a wrapper that rejects the call, or whose `paused()` reverts, never stops the rest.
+     * An address that answers `paused()` with nothing to decode (an EOA, a silent fallback) aborts the whole call.
      */
     function pause(address[] calldata wrappers) external;
 }

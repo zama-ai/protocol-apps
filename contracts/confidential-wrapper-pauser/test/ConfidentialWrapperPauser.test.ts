@@ -11,6 +11,7 @@ import type {
   ConfidentialWrapperPauser,
   PermissiveFallbackMock,
   ReentrantWrapperMock,
+  UnreadableWrapperMock,
 } from "../types";
 
 describe("ConfidentialWrapperPauser", function () {
@@ -56,6 +57,10 @@ describe("ConfidentialWrapperPauser", function () {
 
   async function deployPermissive(): Promise<PermissiveFallbackMock> {
     return (await ethers.deployContract("PermissiveFallbackMock")) as unknown as PermissiveFallbackMock;
+  }
+
+  async function deployUnreadable(): Promise<UnreadableWrapperMock> {
+    return (await ethers.deployContract("UnreadableWrapperMock")) as unknown as UnreadableWrapperMock;
   }
 
   // ReentrantWrapperMock.Callback
@@ -314,18 +319,45 @@ describe("ConfidentialWrapperPauser", function () {
         .withArgs(broken.target, "0x");
     });
 
-    it("aborts on a target without the pause API (accepted: picking wrappers is the roster's job)", async function () {
-      // There is no allowlist and no low-level probing: `paused()` is an ordinary call, so an address that answers
-      // nothing to it (a WETH-style fallback, an EOA, the zero address) reverts the pauser itself, in both forms,
-      // instead of being reported. P-RFC-006 puts target selection on the roster member; the runbook says so.
-      const notAWrapper = await deployPermissive();
-      for (const target of [notAWrapper.target, outsider.address, ethers.ZeroAddress]) {
+    it("reverts with PauseFailed carrying the wrapper's error when its paused() reverts", async function () {
+      // A wrapper behind a broken or mid-upgrade proxy: the pre-read fails, and that is the wrapper's failure, not a
+      // raw revert of the pauser.
+      const unreadable = await deployUnreadable();
+      await expect(pauser.connect(pauserA)["pause(address)"](unreadable.target))
+        .to.be.revertedWithCustomError(pauser, "PauseFailed")
+        .withArgs(unreadable.target, encodeError("PausedUnavailable()", []));
+    });
+
+    it("aborts on a target that answers paused() with nothing (accepted: picking wrappers is the roster's job)", async function () {
+      // There is no allowlist and no low-level probing: `paused()` is an ordinary call whose return value the
+      // pauser decodes itself, so an address that answers nothing to it (an EOA, the zero address, a contract with
+      // a silent fallback) reverts the pauser, in both forms, instead of being reported. P-RFC-006 puts target
+      // selection on the roster member; the runbook says so.
+      for (const target of [outsider.address, ethers.ZeroAddress]) {
         await expect(pauser.connect(pauserA)["pause(address)"](target)).to.be.revertedWithoutReason();
         await expect(
           pauser.connect(pauserA)["pause(address[])"]([wrapper1.target, target]),
         ).to.be.revertedWithoutReason();
       }
       expect(await wrapper1.paused()).to.be.false;
+    });
+
+    it("reports a WETH-style permissive fallback as a failed wrapper without stopping the batch", async function () {
+      // `paused()` is a staticcall, and a fallback that emits (WETH9's `deposit()`) cannot run in a static context:
+      // the pre-read fails with no data and the pauser reports it like any wrapper revert. The failing call keeps
+      // the gas it was handed (see the runbook), which is why such a target is still the roster's problem.
+      const notAWrapper = await deployPermissive();
+      await expect(pauser.connect(pauserA)["pause(address)"](notAWrapper.target))
+        .to.be.revertedWithCustomError(pauser, "PauseFailed")
+        .withArgs(notAWrapper.target, "0x");
+      const outcomes = await pauseOutcomes(
+        pauser.connect(pauserA)["pause(address[])"]([notAWrapper.target, wrapper1.target]),
+      );
+      expect(outcomes).to.deep.equal([
+        { name: "WrapperPauseFailed", wrapper: notAWrapper.target, errorData: "0x" },
+        { name: "WrapperPaused", wrapper: wrapper1.target },
+      ]);
+      expect(await wrapper1.paused()).to.be.true;
     });
 
     for (const [name, callback] of [
@@ -395,15 +427,25 @@ describe("ConfidentialWrapperPauser", function () {
     it("is best effort: every entry gets exactly one outcome, in order, and a failing one never stops the rest", async function () {
       await pauser.connect(pauserB)["pause(address)"](wrapper2.target);
       const broken = await deployBroken();
+      const unreadable = await deployUnreadable();
       const outcomes = await pauseOutcomes(
         pauser
           .connect(pauserA)
-          ["pause(address[])"]([wrapper1.target, wrapper2.target, broken.target, unarmed.target, wrapper1.target]),
+          ["pause(address[])"]([
+            wrapper1.target,
+            wrapper2.target,
+            broken.target,
+            unreadable.target,
+            unarmed.target,
+            wrapper1.target,
+          ]),
       );
       expect(outcomes).to.deep.equal([
         { name: "WrapperPaused", wrapper: wrapper1.target },
         { name: "WrapperAlreadyPaused", wrapper: wrapper2.target },
         { name: "WrapperPauseFailed", wrapper: broken.target, errorData: "0x" },
+        // paused() itself reverts (broken proxy): reported as that wrapper's failure, the batch goes on.
+        { name: "WrapperPauseFailed", wrapper: unreadable.target, errorData: encodeError("PausedUnavailable()", []) },
         {
           name: "WrapperPauseFailed",
           wrapper: unarmed.target,
