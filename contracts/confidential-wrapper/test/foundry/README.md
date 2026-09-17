@@ -182,11 +182,12 @@ A `test_*_AllWrappers` loops through every wrapper, so the suite gives each
 wrapper its own transaction and block instead of raising the caps:
 
 - `isolate = true` (both profiles): one transaction per top-level call
-- `BaseForkTest._nextHCUBlock()`, at the top of each `_AllWrappers` loop that completes FHE ops:
+- `BaseForkTest._nextHcuBlock()`, at the top of each `_AllWrappers` loop that completes FHE ops:
   advances `block.number`, resetting the per-block meter.
-- HCU Depth needs nothing: chains compound within one wrapper's balance and supply lineage, never across
-  wrappers, and the deepest call in either suite is a `wrap` at ~531k of 5M. `disableHCUDepthLimit()`
-  can remove this cap.
+- HCU depth needs nothing: depth propagates through per-handle transient storage, which resets at
+  every transaction boundary, so under `isolate = true` each call starts a fresh chain and the
+  deepest single call in either suite is a `wrap` at ~531k of 5M. Turning isolation off brings the
+  depth cap back; `disableHCUDepthLimit()` removes it.
 
 ### Coverage guards
 
