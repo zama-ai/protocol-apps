@@ -68,13 +68,6 @@ jobs:
           path: |
             contracts/confidential-token-wrappers-registry/node_modules
             contracts/confidential-wrapper/node_modules
-            contracts/feesBurner/node_modules
-            contracts/governance/node_modules
-            contracts/pauserSetWrapper/node_modules
-            contracts/safe/node_modules
-            contracts/solanaOFT/node_modules
-            contracts/staking/node_modules
-            contracts/token/node_modules
           key: contracts-node-modules-${{ hashFiles('contracts/*/package-lock.json', 'contracts/*/pnpm-lock.yaml') }}
 
       - name: Install safe-chain (Aikido malicious-package guard)
