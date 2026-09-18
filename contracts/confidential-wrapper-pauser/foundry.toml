@@ -1,0 +1,8 @@
+[profile.default]
+src = 'contracts'
+# Parent Foundry commands are used for selectors only; keep them from scanning the fork-test
+# project under test/foundry, which has its own foundry.toml.
+test = 'foundry-test'
+libs = ['node_modules']
+solc = '0.8.27'
+optimizer_runs = 800

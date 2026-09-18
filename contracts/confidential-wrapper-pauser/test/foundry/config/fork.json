@@ -1,0 +1,23 @@
+{
+  "_doc": "Per-network fork config, read by script/utils/fork-test.sh (rpc env var, block) and test/PauserFork.t.sol (registry). Select one with `make fork-test NETWORK=<key>`. `rpcEnv` names the environment variable holding the archive RPC URL (CI secret or contracts/confidential-wrapper-pauser/.env). `block` null (the default) forks latest - 50; a positive integer pins a run, and FORK_BLOCK overrides it. Registries mirror config/networks.json.",
+  "ethereum": {
+    "registry": "0xeb5015fF021DB115aCe010f23F55C2591059bBA0",
+    "rpcEnv": "ETHEREUM_RPC_URL",
+    "block": null
+  },
+  "sepolia": {
+    "registry": "0x2f0750Bbb0A246059d80e94c454586a7F27a128e",
+    "rpcEnv": "SEPOLIA_RPC_URL",
+    "block": null
+  },
+  "polygon": {
+    "registry": "0xc8908569868758dAF814B5a8b96bBc44D1653d54",
+    "rpcEnv": "POLYGON_RPC_URL",
+    "block": null
+  },
+  "amoy": {
+    "registry": "0xF486c3D4F4562760A43883e72E8D6f6Cf2EFdA94",
+    "rpcEnv": "AMOY_RPC_URL",
+    "block": null
+  }
+}
