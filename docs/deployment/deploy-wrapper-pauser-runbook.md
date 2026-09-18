@@ -104,7 +104,8 @@ wrapper whose owner drifted could not be unpaused, re-armed or upgraded by gover
 - **Pause:** any roster member calls `pause(address)` or `pause(address[])` on the chain's pauser. `WrapperPaused`
   confirms each wrapper; `WrapperAlreadyPaused` means it was already halted (not a failure, the single form does not
   revert on it); `WrapperPauseFailed` (batch) or `PauseFailed` (single) means that wrapper is still running and needs
-  attention. Its `errorData` is the wrapper's own revert (`SenderNotPauser`: not armed with this pauser; anything
+  attention. The three events carry `account`, the roster member whose call it was, so on-call knows who acted
+  without fetching the transaction. Its `errorData` is the wrapper's own revert (`SenderNotPauser`: not armed with this pauser; anything
   else: its `paused()` or `pause()` reverted, look at the wrapper). The batch never stops on a wrapper that rejects
   the call or cannot be read.
 - **Pick the targets from the registry.** Build the batch from `task:checkPausers` output or the registry's
@@ -128,4 +129,4 @@ wrapper whose owner drifted could not be unpaused, re-armed or upgraded by gover
 Alert on, per chain: `Paused` / `Unpaused` on any wrapper (P0), `PauserUpdated` with a value other than the chain's
 pauser, `PauserAdded` / `PauserRemoved` on the pauser that do not match an approved roster change,
 `OwnershipTransferStarted` / `OwnershipTransferred` on the pauser, and `WrapperPauseFailed` (page: a wrapper an
-operator tried to stop is still running).
+operator tried to stop is still running; `account` says which roster member).

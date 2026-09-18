@@ -73,15 +73,15 @@ contract ConfidentialWrapperPauser is IConfidentialWrapperPauser, Ownable2Step {
 
     /// @inheritdoc IConfidentialWrapperPauser
     function pause(address wrapper) external {
-        _checkPauser();
-        _pause(wrapper, true);
+        address account = _checkPauser();
+        _pause(wrapper, account, true);
     }
 
     /// @inheritdoc IConfidentialWrapperPauser
     function pause(address[] calldata wrappers) external {
-        _checkPauser();
+        address account = _checkPauser();
         for (uint256 i = 0; i < wrappers.length; ++i) {
-            _pause(wrappers[i], false);
+            _pause(wrappers[i], account, false);
         }
     }
 
@@ -102,39 +102,40 @@ contract ConfidentialWrapperPauser is IConfidentialWrapperPauser, Ownable2Step {
         if (_pausers.add(account)) emit PauserAdded(account);
     }
 
-    /// @dev Reverts with {SenderNotPauser} unless the caller is on the roster.
-    function _checkPauser() private view {
-        address sender = _msgSender();
+    /// @dev Reverts with {SenderNotPauser} unless the caller is on the roster; returns the caller for event attribution.
+    function _checkPauser() private view returns (address sender) {
+        sender = _msgSender();
         if (!_pausers.contains(sender)) revert SenderNotPauser(sender);
     }
 
     /**
      * @dev Pauses one wrapper and reports the outcome: `strict` (the single form) reverts with {PauseFailed} when
      * the wrapper rejects the call, the batch form emits {WrapperPauseFailed} and moves on. A `paused()` that
-     * reverts is reported the same way, so one broken wrapper never rolls back the rest of a batch.
+     * reverts is reported the same way, so one broken wrapper never rolls back the rest of a batch. Every outcome
+     * event names `account`, the roster member whose call it was.
      */
-    function _pause(address wrapper, bool strict) private {
+    function _pause(address wrapper, address account, bool strict) private {
         bool alreadyPaused;
         try IPausableWrapper(wrapper).paused() returns (bool isPaused) {
             alreadyPaused = isPaused;
         } catch (bytes memory reason) {
-            _reportFailure(wrapper, strict, reason);
+            _reportFailure(wrapper, account, strict, reason);
             return;
         }
         if (alreadyPaused) {
-            emit WrapperAlreadyPaused(wrapper);
+            emit WrapperAlreadyPaused(wrapper, account);
             return;
         }
         try IPausableWrapper(wrapper).pause() {
-            emit WrapperPaused(wrapper);
+            emit WrapperPaused(wrapper, account);
         } catch (bytes memory reason) {
-            _reportFailure(wrapper, strict, reason);
+            _reportFailure(wrapper, account, strict, reason);
         }
     }
 
     /// @dev Reverts with {PauseFailed} in the single form, emits {WrapperPauseFailed} in the batch form.
-    function _reportFailure(address wrapper, bool strict, bytes memory reason) private {
+    function _reportFailure(address wrapper, address account, bool strict, bytes memory reason) private {
         if (strict) revert PauseFailed(wrapper, reason);
-        emit WrapperPauseFailed(wrapper, reason);
+        emit WrapperPauseFailed(wrapper, account, reason);
     }
 }

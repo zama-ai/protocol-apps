@@ -82,7 +82,7 @@ describe("ConfidentialWrapperPauser", function () {
   /** The WrapperPaused / WrapperAlreadyPaused / WrapperPauseFailed events of a call, in emission order. */
   async function pauseOutcomes(
     tx: Promise<ethers.ContractTransactionResponse>,
-  ): Promise<{ name: string; wrapper: string; errorData?: string }[]> {
+  ): Promise<{ name: string; wrapper: string; account: string; errorData?: string }[]> {
     const receipt = (await (await tx).wait())!;
     return receipt.logs
       .filter((log) => log.address === pauser.target)
@@ -91,6 +91,7 @@ describe("ConfidentialWrapperPauser", function () {
       .map((parsed) => ({
         name: parsed.name,
         wrapper: parsed.args.wrapper as string,
+        account: parsed.args.account as string,
         ...(parsed.name === "WrapperPauseFailed" ? { errorData: parsed.args.errorData as string } : {}),
       }));
   }
@@ -282,7 +283,7 @@ describe("ConfidentialWrapperPauser", function () {
     it("lets a roster member pause an armed wrapper", async function () {
       await expect(pauser.connect(pauserA)["pause(address)"](wrapper1.target))
         .to.emit(pauser, "WrapperPaused")
-        .withArgs(wrapper1.target)
+        .withArgs(wrapper1.target, pauserA.address)
         .and.to.emit(wrapper1, "Paused")
         .withArgs(pauser.target);
       expect(await wrapper1.paused()).to.be.true;
@@ -306,7 +307,7 @@ describe("ConfidentialWrapperPauser", function () {
     it("reports an already-paused wrapper with WrapperAlreadyPaused instead of reverting", async function () {
       await pauser.connect(pauserA)["pause(address)"](wrapper1.target);
       const tx = pauser.connect(pauserB)["pause(address)"](wrapper1.target);
-      await expect(tx).to.emit(pauser, "WrapperAlreadyPaused").withArgs(wrapper1.target);
+      await expect(tx).to.emit(pauser, "WrapperAlreadyPaused").withArgs(wrapper1.target, pauserB.address);
       await expect(tx).to.not.emit(pauser, "WrapperPaused");
       await expect(tx).to.not.emit(wrapper1, "Paused");
       expect(await wrapper1.paused()).to.be.true;
@@ -354,8 +355,8 @@ describe("ConfidentialWrapperPauser", function () {
         pauser.connect(pauserA)["pause(address[])"]([notAWrapper.target, wrapper1.target]),
       );
       expect(outcomes).to.deep.equal([
-        { name: "WrapperPauseFailed", wrapper: notAWrapper.target, errorData: "0x" },
-        { name: "WrapperPaused", wrapper: wrapper1.target },
+        { name: "WrapperPauseFailed", wrapper: notAWrapper.target, account: pauserA.address, errorData: "0x" },
+        { name: "WrapperPaused", wrapper: wrapper1.target, account: pauserA.address },
       ]);
       expect(await wrapper1.paused()).to.be.true;
     });
@@ -387,7 +388,7 @@ describe("ConfidentialWrapperPauser", function () {
       const reentrant = await deployReentrant(CALLBACK.PauseBatch, true);
       await expect(pauser.connect(pauserA)["pause(address)"](reentrant.target))
         .to.emit(pauser, "WrapperPaused")
-        .withArgs(reentrant.target);
+        .withArgs(reentrant.target, pauserA.address);
       expect(await reentrant.paused()).to.be.true;
       expect(await wrapper1.paused()).to.be.false;
       expect(await pauser.pausers()).to.deep.equal([pauserA.address, pauserB.address]);
@@ -411,9 +412,9 @@ describe("ConfidentialWrapperPauser", function () {
     it("pauses every armed wrapper and emits WrapperPaused for each", async function () {
       await expect(pauser.connect(pauserB)["pause(address[])"]([wrapper1.target, wrapper2.target]))
         .to.emit(pauser, "WrapperPaused")
-        .withArgs(wrapper1.target)
+        .withArgs(wrapper1.target, pauserB.address)
         .and.to.emit(pauser, "WrapperPaused")
-        .withArgs(wrapper2.target);
+        .withArgs(wrapper2.target, pauserB.address);
       expect(await wrapper1.paused()).to.be.true;
       expect(await wrapper2.paused()).to.be.true;
     });
@@ -441,18 +442,24 @@ describe("ConfidentialWrapperPauser", function () {
           ]),
       );
       expect(outcomes).to.deep.equal([
-        { name: "WrapperPaused", wrapper: wrapper1.target },
-        { name: "WrapperAlreadyPaused", wrapper: wrapper2.target },
-        { name: "WrapperPauseFailed", wrapper: broken.target, errorData: "0x" },
+        { name: "WrapperPaused", wrapper: wrapper1.target, account: pauserA.address },
+        { name: "WrapperAlreadyPaused", wrapper: wrapper2.target, account: pauserA.address },
+        { name: "WrapperPauseFailed", wrapper: broken.target, account: pauserA.address, errorData: "0x" },
         // paused() itself reverts (broken proxy): reported as that wrapper's failure, the batch goes on.
-        { name: "WrapperPauseFailed", wrapper: unreadable.target, errorData: encodeError("PausedUnavailable()", []) },
+        {
+          name: "WrapperPauseFailed",
+          wrapper: unreadable.target,
+          account: pauserA.address,
+          errorData: encodeError("PausedUnavailable()", []),
+        },
         {
           name: "WrapperPauseFailed",
           wrapper: unarmed.target,
+          account: pauserA.address,
           errorData: encodeError("SenderNotPauser(address)", [pauser.target]),
         },
         // Second occurrence of wrapper1: paused by this very batch, so already paused now.
-        { name: "WrapperAlreadyPaused", wrapper: wrapper1.target },
+        { name: "WrapperAlreadyPaused", wrapper: wrapper1.target, account: pauserA.address },
       ]);
       expect(await wrapper1.paused()).to.be.true;
       expect(await wrapper2.paused()).to.be.true;
@@ -464,8 +471,8 @@ describe("ConfidentialWrapperPauser", function () {
       await pauser.connect(pauserA)["pause(address[])"](batch);
       const tx = pauser.connect(pauserB)["pause(address[])"](batch);
       expect(await pauseOutcomes(tx)).to.deep.equal([
-        { name: "WrapperAlreadyPaused", wrapper: wrapper1.target },
-        { name: "WrapperAlreadyPaused", wrapper: wrapper2.target },
+        { name: "WrapperAlreadyPaused", wrapper: wrapper1.target, account: pauserB.address },
+        { name: "WrapperAlreadyPaused", wrapper: wrapper2.target, account: pauserB.address },
       ]);
       await expect(tx).to.not.emit(wrapper1, "Paused");
       await expect(tx).to.not.emit(wrapper2, "Paused");

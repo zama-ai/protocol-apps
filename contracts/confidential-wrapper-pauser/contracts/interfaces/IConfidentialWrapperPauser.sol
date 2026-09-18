@@ -14,20 +14,29 @@ interface IConfidentialWrapperPauser {
     /// @notice Emitted when `account` leaves the roster.
     event PauserRemoved(address indexed account);
 
-    /// @notice Emitted for each wrapper this contract paused.
-    event WrapperPaused(address indexed wrapper);
+    /**
+     * @notice Emitted for each wrapper this contract paused.
+     * @param wrapper The wrapper now paused.
+     * @param account The roster member whose call paused it.
+     */
+    event WrapperPaused(address indexed wrapper, address indexed account);
 
-    /// @notice Emitted, by either form, for a wrapper that was already paused when the call reached it. Not a
-    /// failure: the wrapper is halted, which is the point, and the single form does not revert on it.
-    event WrapperAlreadyPaused(address indexed wrapper);
+    /**
+     * @notice Emitted, by either form, for a wrapper that was already paused when the call reached it. Not a
+     * failure: the wrapper is halted, which is the point, and the single form does not revert on it.
+     * @param wrapper The wrapper that was already paused.
+     * @param account The roster member whose call reached it.
+     */
+    event WrapperAlreadyPaused(address indexed wrapper, address indexed account);
 
     /**
      * @notice Emitted by the batch form when a wrapper rejected the call. The batch continues.
      * @param wrapper The wrapper that is still running.
+     * @param account The roster member whose call it rejected.
      * @param errorData Its revert data (typically `SenderNotPauser(address(this))` when governance has not armed
      * the wrapper with this contract yet).
      */
-    event WrapperPauseFailed(address indexed wrapper, bytes errorData);
+    event WrapperPauseFailed(address indexed wrapper, address indexed account, bytes errorData);
 
     /// @notice Thrown when `sender` calls {pause} without being on the roster.
     error SenderNotPauser(address sender);

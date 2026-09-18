@@ -113,8 +113,8 @@ contract PauserForkTest is Test {
 
         // One signer halts the whole chain.
         for (uint256 i = 0; i < wrappers.length; i++) {
-            vm.expectEmit(true, false, false, true, address(pauser));
-            emit IConfidentialWrapperPauser.WrapperPaused(wrappers[i]);
+            vm.expectEmit(true, true, false, true, address(pauser));
+            emit IConfidentialWrapperPauser.WrapperPaused(wrappers[i], fb1);
         }
         vm.prank(fb1);
         pauser.pause(wrappers);
@@ -153,8 +153,8 @@ contract PauserForkTest is Test {
         address unarmed = wrappers[wrappers.length - 1];
         bytes memory wrapperError = abi.encodeWithSelector(ILiveWrapper.SenderNotPauser.selector, address(pauser));
 
-        vm.expectEmit(true, false, false, true, address(pauser));
-        emit IConfidentialWrapperPauser.WrapperPauseFailed(unarmed, wrapperError);
+        vm.expectEmit(true, true, false, true, address(pauser));
+        emit IConfidentialWrapperPauser.WrapperPauseFailed(unarmed, fb1, wrapperError);
         vm.prank(fb1);
         pauser.pause(wrappers);
 
