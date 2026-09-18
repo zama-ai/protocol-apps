@@ -8,7 +8,8 @@ import { ConfidentialWrapperPauser } from "confidential-wrapper-pauser/Confident
 import { IConfidentialWrapperPauser } from "confidential-wrapper-pauser/interfaces/IConfidentialWrapperPauser.sol";
 
 /// @dev Registry enumeration path, mirrored from ConfidentialTokenWrappersRegistry. The test enumerates the live
-/// wrappers from it; the pauser itself has no registry dependency.
+/// wrappers from it, revoked pairs included (revocation only flips the registry flag, the wrapper keeps running);
+/// the pauser itself has no registry dependency.
 interface IWrappersRegistry {
     struct TokenWrapperPair {
         address tokenAddress;
@@ -66,10 +67,9 @@ contract PauserForkTest is Test {
 
         IWrappersRegistry.TokenWrapperPair[] memory pairs = registry.getTokenConfidentialTokenPairs();
         for (uint256 i = 0; i < pairs.length; i++) {
-            if (!pairs[i].isValid) continue;
             wrappers.push(pairs[i].confidentialTokenAddress);
         }
-        require(wrappers.length > 0, "no valid wrappers enumerated from the registry");
+        require(wrappers.length > 0, "no wrappers enumerated from the registry");
 
         // Every wrapper must be owned by the same governance address: it is the pauser's owner and the proposer
         // of the setPauser batch.
@@ -87,13 +87,15 @@ contract PauserForkTest is Test {
         assertEq(pauser.pendingOwner(), address(0), "pauser has a pending owner");
     }
 
-    /// @notice Baseline: the live proxies expose the V4 pause API and nobody can pause them yet.
+    /// @notice Baseline: the live proxies expose the V4 pause API and nobody can pause them yet, because every
+    /// wrapper's `pauser()` is the zero address (the property the runbook relies on). PRO-704 arms them with the
+    /// chain pauser; this assertion then flips to `pauser() == <chain pauser>`.
     function test_LiveWrappersAreUnarmed() public view {
         for (uint256 i = 0; i < wrappers.length; i++) {
             ILiveWrapper w = ILiveWrapper(wrappers[i]);
             string memory sym = _label(wrappers[i]);
             assertFalse(w.paused(), string.concat(sym, ": already paused"));
-            assertNotEq(w.pauser(), address(pauser), string.concat(sym, ": already armed with a fresh deployment"));
+            assertEq(w.pauser(), address(0), string.concat(sym, ": already armed"));
         }
     }
 

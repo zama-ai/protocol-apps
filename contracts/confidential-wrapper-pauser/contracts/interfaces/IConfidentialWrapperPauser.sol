@@ -41,6 +41,9 @@ interface IConfidentialWrapperPauser {
     /// @notice Thrown when `sender` calls {pause} without being on the roster.
     error SenderNotPauser(address sender);
 
+    /// @notice Thrown by the constructor and {addPauser} when the roster member to add is the zero address.
+    error ZeroAddressPauser();
+
     /**
      * @notice The single-wrapper form reverts with this error when the wrapper rejected the call.
      * @param wrapper The wrapper that rejected the call.
@@ -52,7 +55,7 @@ interface IConfidentialWrapperPauser {
     /**
      * @notice Adds `account` to the roster. Restricted to the owner (governance).
      * @dev A no-op, without event, if `account` is already on the roster, so a governance batch that lists a member
-     * twice still succeeds.
+     * twice still succeeds. Reverts with {ZeroAddressPauser} on the zero address.
      */
     function addPauser(address account) external;
 

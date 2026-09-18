@@ -147,12 +147,17 @@ export interface RegisteredWrapper {
   token: string;
   wrapper: string;
   symbol: string;
+  /** True for a pair governance revoked in the registry. The wrapper itself is untouched by a revocation. */
+  revoked: boolean;
 }
 
 /**
- * Enumerates the valid (non-revoked) wrappers of `registry`, with their symbol for readable reports.
+ * Enumerates every wrapper registered in `registry`, revoked pairs included, with their symbol for readable reports.
+ * `revokeConfidentialToken` only flips the pair's `isValid` flag: the wrapper never reads the registry, so it keeps
+ * running and holding funds. The tasks therefore arm, check and pause a revoked wrapper like any other and only mark
+ * it as revoked in their output.
  */
-export async function listValidWrappers(
+export async function listRegisteredWrappers(
   hre: HardhatRuntimeEnvironment,
   registry: string,
 ): Promise<RegisteredWrapper[]> {
@@ -162,7 +167,6 @@ export async function listValidWrappers(
 
   const wrappers: RegisteredWrapper[] = [];
   for (const pair of pairs) {
-    if (!pair.isValid) continue;
     const wrapper = new hre.ethers.Contract(pair.confidentialTokenAddress, WRAPPER_ABI, hre.ethers.provider);
     let symbol = "?";
     try {
@@ -170,9 +174,19 @@ export async function listValidWrappers(
     } catch {
       // keep the placeholder: a wrapper without a readable symbol is still reported by address
     }
-    wrappers.push({ token: pair.tokenAddress, wrapper: pair.confidentialTokenAddress, symbol });
+    wrappers.push({
+      token: pair.tokenAddress,
+      wrapper: pair.confidentialTokenAddress,
+      symbol,
+      revoked: !pair.isValid,
+    });
   }
   return wrappers;
+}
+
+/** One-line label of a registered wrapper for task output: padded symbol, address, and a `(revoked)` mark. */
+export function wrapperLabel(entry: RegisteredWrapper): string {
+  return `${entry.symbol.padEnd(16)} ${entry.wrapper}${entry.revoked ? " (revoked)" : ""}`;
 }
 
 /**

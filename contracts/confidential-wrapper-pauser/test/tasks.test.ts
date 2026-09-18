@@ -89,12 +89,12 @@ describe("Hardhat tasks", function () {
       ).to.be.rejectedWith(/refusing to build the proposal: pauser owner .* is not --governance/);
     });
 
-    it("builds one setPauser action per unarmed valid wrapper, skipping armed and revoked ones", async function () {
+    it("builds one setPauser action per unarmed wrapper, revoked ones included and marked, skipping armed ones", async function () {
       const payload = await run<{
         pauser: string;
         pauserOwner: string;
         roster: string[];
-        actions: { to: string; data: string }[];
+        actions: { to: string; data: string; revoked: boolean }[];
       }>("task:setPauserProposal", {
         pauser: pauser.target,
         registry: registry.target,
@@ -103,10 +103,12 @@ describe("Hardhat tasks", function () {
       expect(payload.pauser).to.equal(pauser.target);
       expect(payload.pauserOwner).to.equal(governance.address);
       expect(payload.roster).to.deep.equal([pauserA.address]);
-      expect(payload.actions.map((a) => a.to)).to.deep.equal([unarmed.target]);
+      expect(payload.actions.map((a) => a.to)).to.deep.equal([unarmed.target, revoked.target]);
+      expect(payload.actions.map((a) => a.revoked)).to.deep.equal([false, true]);
       const iface = new ethers.Interface(["function setPauser(address)"]);
-      expect(payload.actions[0].data).to.equal(iface.encodeFunctionData("setPauser", [pauser.target]));
-      expect(payload.actions.map((a) => a.to)).to.not.include(revoked.target);
+      for (const action of payload.actions) {
+        expect(action.data).to.equal(iface.encodeFunctionData("setPauser", [pauser.target]));
+      }
     });
 
     it("falls back to the pauser's owner when no governance is configured", async function () {
@@ -114,23 +116,24 @@ describe("Hardhat tasks", function () {
         pauser: pauser.target,
         registry: registry.target,
       });
-      expect(payload.actions).to.have.lengthOf(1);
+      expect(payload.actions).to.have.lengthOf(2);
     });
   });
 
   describe("task:checkPausers", function () {
-    it("reports an unarmed wrapper and a wrapper not owned by governance, and nothing else", async function () {
+    it("reports an unarmed wrapper, a wrapper not owned by governance and an unarmed revoked wrapper, and nothing else", async function () {
       const failures = await run<string[]>("task:checkPausers", {
         pauser: pauser.target,
         registry: registry.target,
         governance: governance.address,
         strict: false,
       });
-      expect(failures).to.have.lengthOf(2);
+      expect(failures).to.have.lengthOf(3);
       expect(failures[0]).to.match(new RegExp(`${unarmed.target}: pauser\\(\\) is ${deployer.address}`));
       expect(failures[1]).to.match(
         new RegExp(`${foreignOwned.target}: owner\\(\\) is ${outsider.address}, not ${governance.address}`),
       );
+      expect(failures[2]).to.match(new RegExp(`${revoked.target}: pauser\\(\\) is ${deployer.address}`));
     });
 
     it("uses the pauser's owner as the expected wrapper owner when no governance is configured", async function () {
@@ -155,6 +158,7 @@ describe("Hardhat tasks", function () {
 
     it("reports a roster mismatch and is green once every check passes", async function () {
       await unarmed.connect(governance).setPauser(pauser.target);
+      await revoked.connect(governance).setPauser(pauser.target);
       await foreignOwned.connect(outsider).transferOwnership(governance.address);
       const mismatch = await run<string[]>("task:checkPausers", {
         pauser: pauser.target,

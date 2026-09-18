@@ -16,7 +16,8 @@ import { IPausableWrapper } from "./interfaces/IPausableWrapper.sol";
  * @dev The owner is the chain's governance (Protocol DAO on Ethereum and Sepolia, the local multisig elsewhere),
  * under OpenZeppelin {Ownable2Step}: ownership moves only through `transferOwnership` accepted by the new owner
  * with `acceptOwnership`, and {renounceOwnership} is disabled because a roster nobody can change is a redeploy.
- * The roster is an {EnumerableSet} the owner edits with {addPauser} / {removePauser}.
+ * The roster is an {EnumerableSet} the owner edits with {addPauser} / {removePauser}; the zero address is rejected
+ * on both the constructor and {addPauser}, so a typo in a governance batch fails instead of succeeding silently.
  *
  * The pause path trusts the roster: a target is called as a `ConfidentialWrapper` with the V4 pause API, its
  * `paused()` is read first so an already-paused wrapper is reported rather than tripping on its `EnforcedPause`,
@@ -39,7 +40,7 @@ contract ConfidentialWrapperPauser is IConfidentialWrapperPauser, Ownable2Step {
 
     /**
      * @param initialOwner The chain's governance address.
-     * @param initialPausers The day-one roster. Duplicates are added once.
+     * @param initialPausers The day-one roster. Duplicates are added once; the zero address is rejected.
      */
     constructor(address initialOwner, address[] memory initialPausers) Ownable(initialOwner) {
         for (uint256 i = 0; i < initialPausers.length; ++i) {
@@ -97,8 +98,10 @@ contract ConfidentialWrapperPauser is IConfidentialWrapperPauser, Ownable2Step {
 
     // ----- Internals -----
 
-    /// @dev Adds `account` to the roster and emits {PauserAdded} if it was not a member yet.
+    /// @dev Adds `account` to the roster and emits {PauserAdded} if it was not a member yet; the zero address is
+    /// rejected with {ZeroAddressPauser}.
     function _addPauser(address account) private {
+        if (account == address(0)) revert ZeroAddressPauser();
         if (_pausers.add(account)) emit PauserAdded(account);
     }
 

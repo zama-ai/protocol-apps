@@ -2,11 +2,12 @@ import { task, types } from "hardhat/config";
 
 import {
   WRAPPER_ABI,
-  listValidWrappers,
+  listRegisteredWrappers,
   parseAddressList,
   preflightPauser,
   resolveGovernance,
   resolveRegistry,
+  wrapperLabel,
 } from "./utils/networks";
 
 interface CheckPausersArgs {
@@ -19,8 +20,9 @@ interface CheckPausersArgs {
 }
 
 /**
- * Post-execution assertion and drift check (P-RFC-006 success criteria 1 and 2): every valid wrapper of the
- * registry must report `pauser() == <chain ConfidentialWrapperPauser>` and `owner() == governance` (a wrapper
+ * Post-execution assertion and drift check (P-RFC-006 success criteria 1 and 2): every wrapper registered in the
+ * registry, revoked pairs included (revocation only flips the registry flag, the wrapper keeps running), must report
+ * `pauser() == <chain ConfidentialWrapperPauser>` and `owner() == governance` (a wrapper
  * transferred away from governance could not be unpaused, re-armed or upgraded by it), the pauser's owner must be
  * the chain's governance, and, when given, `pausers()` must equal the agreed roster. Governance comes from
  * `config/networks.json` or `--governance`; without either, the pauser's own owner is the reference.
@@ -70,15 +72,15 @@ task("task:checkPausers", "Asserts every registered wrapper is armed with the ch
 
     // --- Wrappers: pauser() must be the chain pauser, owner() must be governance ---
     const expectedOwner = governance ?? { address: owner, label: "the pauser's owner" };
-    const wrappers = await listValidWrappers(hre, registry);
+    const wrappers = await listRegisteredWrappers(hre, registry);
     for (const extra of parseAddressList(args.include, "--include")) {
-      wrappers.push({ token: ethers.ZeroAddress, wrapper: extra, symbol: "(--include)" });
+      wrappers.push({ token: ethers.ZeroAddress, wrapper: extra, symbol: "(--include)", revoked: false });
     }
 
     console.log(`\nWrappers (${wrappers.length}), expected owner ${expectedOwner.label} ${expectedOwner.address}:`);
     for (const entry of wrappers) {
       const wrapper = new ethers.Contract(entry.wrapper, WRAPPER_ABI, ethers.provider);
-      let line = `  ${entry.symbol.padEnd(16)} ${entry.wrapper}`;
+      let line = `  ${wrapperLabel(entry)}`;
       try {
         const [currentPauser, paused, wrapperOwner]: [string, boolean, string] = await Promise.all([
           wrapper.pauser(),

@@ -10,14 +10,14 @@ wrapper, so pausing is fast (one signer) and restoring is a governance action.
 | Concern        | Implementation                                                                                                                                                                                  |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Owner          | The chain's governance (Protocol DAO on Ethereum and Sepolia, the local Safe on Polygon and Amoy), under OpenZeppelin `Ownable2Step`: ownership moves only through `transferOwnership` followed by the new owner's `acceptOwnership`; `renounceOwnership` is disabled (`RenounceOwnershipDisabled`), as on the wrappers. |
-| Roster         | An OpenZeppelin `EnumerableSet` of addresses, edited by the owner with `addPauser` / `removePauser` (no-ops, without event, on an existing / missing member), read with `isPauser` and `pausers()`. Changes emit `PauserAdded` / `PauserRemoved`; off-roster callers of `pause` get `SenderNotPauser`. |
+| Roster         | An OpenZeppelin `EnumerableSet` of addresses, edited by the owner with `addPauser` / `removePauser` (no-ops, without event, on an existing / missing member; the zero address is rejected with `ZeroAddressPauser`, by the constructor too), read with `isPauser` and `pausers()`. Changes emit `PauserAdded` / `PauserRemoved`; off-roster callers of `pause` get `SenderNotPauser`. |
 | Pause one      | `pause(address)` — `SenderNotPauser` off-roster; `WrapperPaused(wrapper, account)` names the roster member who paused; `WrapperAlreadyPaused` event (no revert) when the wrapper already reports `paused()`; otherwise `PauseFailed(wrapper, errorData)` with the wrapper's own revert data (`SenderNotPauser(pauser)` when governance has not armed it with this contract yet, or the revert of a `paused()` that cannot be read). |
 | Pause many     | `pause(address[])` — best effort, as the RFC specifies: every wrapper entry gets exactly one of `WrapperPaused`, `WrapperAlreadyPaused` or `WrapperPauseFailed(wrapper, account, errorData)`, each naming the calling roster member, and a wrapper that rejects the call, or whose `paused()` reverts, never stops the rest. |
-| Targets        | Trusted. There is no allowlist and no low-level probing: a target is called as a `ConfidentialWrapper` (`paused()`, then `pause()`), so an address that answers `paused()` with nothing to decode (an EOA, a silent fallback) aborts the call, and one whose fallback fails (WETH-style `deposit()`) is reported as a failed wrapper after burning the gas it was handed. Picking valid targets is the roster member's responsibility; the runbook says how. |
+| Targets        | Trusted. There is no allowlist and no low-level probing: a target is called as a `ConfidentialWrapper` (`paused()`, then `pause()`), so an address that answers `paused()` with nothing to decode (an EOA, a silent fallback) aborts the call, and one whose fallback fails (WETH-style `deposit()`) is reported as a failed wrapper after burning the gas it was handed. Picking valid targets is the roster member's responsibility; the runbook says how. Revoked registry entries are still wrappers (revocation only flips the registry flag) and are paused like the others. |
 | Unpause        | Not here. `unpause()` is `onlyOwner` on every wrapper.                                                                                                                                          |
 | Upgradeability | None (rule from `docs/governance.md`: pauser contracts are not upgradeable). Recovery is a redeploy plus a re-batched `setPauser` proposal.                                                     |
 
-The ABI is the one specified in P-RFC-006, plus the `WrapperAlreadyPaused` event and an indexed `account` (the calling roster member) on the three pause outcome events, on top of the standard `Ownable2Step` surface. The wrapper side is reached through `IPausableWrapper` (`pause()`, `paused()`); a unit test checks those selectors, and the mock's whole surface, against the `ConfidentialWrapper` entry of `contracts/selectors.txt`, and the fork suite exercises the live wrappers.
+The ABI is the one specified in P-RFC-006, plus the `WrapperAlreadyPaused` event, an indexed `account` (the calling roster member) on the three pause outcome events and the `ZeroAddressPauser` error, on top of the standard `Ownable2Step` surface. The wrapper side is reached through `IPausableWrapper` (`pause()`, `paused()`); a unit test checks those selectors, and the mock's whole surface, against the `ConfidentialWrapper` entry of `contracts/selectors.txt`, and the fork suite exercises the live wrappers.
 
 ## Prerequisites
 
@@ -64,7 +64,7 @@ unless `PAUSER_ALLOW_OWNER_MISMATCH=true`.
 ## Arming the wrappers (migration step 2) and asserting the result
 
 ```bash
-# One setPauser(pauser) action per valid wrapper in the chain's registry, ready for the Aragon app / Safe builder
+# One setPauser(pauser) action per registered wrapper of the chain (revoked included), ready for the Aragon app / Safe builder
 npx hardhat task:setPauserProposal --pauser <pauser-address> --network <network> --out out/<network>-setPauser.json
 
 # After the proposal executed: every wrapper reports pauser() == <pauser-address>, roster and owner as expected
@@ -77,6 +77,8 @@ the resulting proposal would disarm or misarm every wrapper; `task:checkPausers`
 `task:checkPausers` also checks every wrapper's `owner()` against governance (a wrapper transferred away could not be
 unpaused or re-armed by it) and exits non-zero on any mismatch, so it doubles as the scheduled drift check across
 chains. Both tasks enumerate the chain's `ConfidentialTokenWrappersRegistry` from `config/networks.json`; they accept
-`--registry` and `--governance` to override it and `--include` for wrappers that are not (yet) registered.
+`--registry` and `--governance` to override it and `--include` for wrappers that are not (yet) registered. Revoked
+registry entries are still wrappers (revocation only flips the registry flag, the wrapper keeps running and holding
+funds), so both tasks arm and check them like the others and mark them `(revoked)` in their output and payload.
 
 See `docs/deployment/deploy-wrapper-pauser-runbook.md` for the full per-chain procedure.

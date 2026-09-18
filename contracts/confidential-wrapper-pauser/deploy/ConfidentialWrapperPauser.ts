@@ -19,7 +19,8 @@ const deploy: DeployFunction = async (hre) => {
 
   const owner = getRequiredAddressEnvVar("PAUSER_OWNER_ADDRESS");
   const initialPausers = getRequiredAddressListEnvVar("PAUSER_INITIAL_PAUSERS");
-  // The constructor would silently accept both; a roster typo must not reach the chain.
+  // The constructor rejects the zero address but adds duplicates once; refusing both here keeps a roster typo from
+  // reaching the chain at all.
   if (initialPausers.some((address) => address === hre.ethers.ZeroAddress)) {
     throw new Error("PAUSER_INITIAL_PAUSERS must not contain the zero address");
   }

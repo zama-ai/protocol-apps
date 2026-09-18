@@ -143,6 +143,12 @@ describe("ConfidentialWrapperPauser", function () {
         .withArgs(ethers.ZeroAddress);
     });
 
+    it("reverts on a zero-address roster member", async function () {
+      await expect(
+        ethers.deployContract("ConfidentialWrapperPauser", [governance.address, [pauserA.address, ethers.ZeroAddress]]),
+      ).to.be.revertedWithCustomError(pauser, "ZeroAddressPauser");
+    });
+
     it("does not put the owner on the roster by default", async function () {
       await expect(pauser.connect(governance)["pause(address)"](wrapper1.target))
         .to.be.revertedWithCustomError(pauser, "SenderNotPauser")
@@ -170,6 +176,14 @@ describe("ConfidentialWrapperPauser", function () {
       await expect(pauser.connect(pauserA)["pause(address)"](wrapper1.target))
         .to.be.revertedWithCustomError(pauser, "SenderNotPauser")
         .withArgs(pauserA.address);
+    });
+
+    it("rejects the zero address as a roster member", async function () {
+      await expect(pauser.connect(governance).addPauser(ethers.ZeroAddress)).to.be.revertedWithCustomError(
+        pauser,
+        "ZeroAddressPauser",
+      );
+      expect(await pauser.pausers()).to.deep.equal([pauserA.address, pauserB.address]);
     });
 
     it("is a silent no-op when adding an existing member or removing a non-member", async function () {

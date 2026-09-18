@@ -7,7 +7,7 @@ import { existsSync } from "fs";
 import "hardhat-deploy";
 import "hardhat-gas-reporter";
 import { TASK_TEST_GET_TEST_FILES } from "hardhat/builtin-tasks/task-names";
-import { subtask, task } from "hardhat/config";
+import { extendEnvironment, subtask, task } from "hardhat/config";
 import { HardhatUserConfig, HttpNetworkAccountsUserConfig } from "hardhat/types";
 import { resolve, sep } from "path";
 import "solidity-coverage";
@@ -38,11 +38,14 @@ const accounts: HttpNetworkAccountsUserConfig | undefined = MNEMONIC
     ? [PRIVATE_KEY]
     : undefined;
 
-if (accounts == null) {
-  console.warn(
-    "No signer configured. Read-only tasks still work; to broadcast transactions, set MNEMONIC or PRIVATE_KEY.",
-  );
-}
+// Warn about a missing signer only when a real network is selected; tests and coverage run on the in-process one.
+extendEnvironment((hre) => {
+  if (accounts == null && hre.network.name !== "hardhat") {
+    console.warn(
+      "No signer configured. Read-only tasks still work; to broadcast transactions, set MNEMONIC or PRIVATE_KEY.",
+    );
+  }
+});
 
 // Run the test suite with environment variables from `.env.example`
 task("test", "Runs the test suite with environment variables from .env.example").setAction(async (_, hre, runSuper) => {

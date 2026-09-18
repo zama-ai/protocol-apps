@@ -72,7 +72,9 @@ npx hardhat task:setPauserProposal --pauser <pauser> --network <network> --out o
 
 The task refuses to build anything unless `<pauser>` holds a `ConfidentialWrapperPauser` owned by the chain's
 governance (zero address, EOA, wrong contract, wrong owner), and warns on a pending ownership transfer or an empty
-roster. The payload holds one `setPauser(<pauser>)` action per valid wrapper (`to`, `value`, `data`). Enter them:
+roster. The payload holds one `setPauser(<pauser>)` action per registered wrapper (`to`, `value`, `data`), revoked
+registry entries included: they are still wrappers (revocation only flips the registry flag) and are armed like the
+others; the task marks them `(revoked)`. Enter them:
 
 - **Ethereum / Sepolia:** as actions of one Aragon proposal, see
   [Creating Ethereum proposals](../governance/creating-proposals-ethereum.md).
@@ -108,18 +110,24 @@ wrapper whose owner drifted could not be unpaused, re-armed or upgraded by gover
   without fetching the transaction. Its `errorData` is the wrapper's own revert (`SenderNotPauser`: not armed with this pauser; anything
   else: its `paused()` or `pause()` reverted, look at the wrapper). The batch never stops on a wrapper that rejects
   the call or cannot be read.
+- **Check the selector, not the name.** The two forms share the name `pause`, so a custody UI must show the array
+  form's selector `0x9755c6a7` (`pause(address[])`); `pause(address)` is `0x76a67a51`. The signer reproduces the
+  batch calldata with `cast calldata "pause(address[])" "[0xWrapper1,0xWrapper2]"` and compares it with what the UI
+  asks them to sign.
 - **Pick the targets from the registry.** Build the batch from `task:checkPausers` output or the registry's
   `getTokenConfidentialTokenPairs()`, never from a token list: the pauser calls every entry as a wrapper. An address
   with no `paused()` (an underlying token pasted instead of its wrapper) is reported as failed with empty
   `errorData`; one that answers `paused()` with nothing (a typo, an EOA, a contract with a silent fallback) aborts
   the whole call; and a contract with a permissive fallback (WETH-style `deposit()`) can burn most of the
   transaction's gas before it is reported as failed. Re-send a batch without the offending entry; nothing else is
-  affected.
+  affected. Revoked registry entries are still wrappers (revocation only flips the registry flag) and are paused like
+  the others; `task:checkPausers` marks them `(revoked)`.
 - **What a pause does not stop:** an unwrap burnt before the pause cannot settle (`finalizeUnwrap` reverts
   `EnforcedPause`) until governance unpauses; underlying tokens already inside the wrapper stay there.
 - **Unpause:** governance proposal with `unpause()` on each affected wrapper.
 - **Roster change:** governance proposal with `addPauser(account)` / `removePauser(account)` on the pauser. Both are
-  no-ops on an existing / missing member, so a batch listing an account twice still executes.
+  no-ops on an existing / missing member, so a batch listing an account twice still executes; `addPauser` rejects the
+  zero address (`ZeroAddressPauser`).
 - **Owner change:** `transferOwnership(newOwner)` by governance, then `acceptOwnership()` by the new owner
   (`Ownable2Step`); until accepted, governance stays the owner and can nominate someone else, or the zero address
   to cancel. `renounceOwnership` is disabled: an ownerless pauser would have a roster nobody can rotate.

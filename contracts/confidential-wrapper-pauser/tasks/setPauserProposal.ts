@@ -5,11 +5,12 @@ import { dirname } from "path";
 import {
   WRAPPER_ABI,
   getNetworkConfig,
-  listValidWrappers,
+  listRegisteredWrappers,
   parseAddressList,
   preflightPauser,
   resolveGovernance,
   resolveRegistry,
+  wrapperLabel,
 } from "./utils/networks";
 
 interface SetPauserProposalArgs {
@@ -27,11 +28,13 @@ interface ProposalAction {
   value: string;
   data: string;
   currentPauser: string;
+  revoked: boolean;
 }
 
 /**
- * Builds the per-chain governance payload of P-RFC-006 migration step 2: one `setPauser(pauser)` action per valid
- * wrapper in the registry, derived at proposal time (never hard-coded). Wrappers already armed with `pauser` are
+ * Builds the per-chain governance payload of P-RFC-006 migration step 2: one `setPauser(pauser)` action per wrapper
+ * registered in the registry, derived at proposal time (never hard-coded). Revoked pairs are included and marked:
+ * revocation only flips the registry flag, the wrapper keeps running. Wrappers already armed with `pauser` are
  * skipped, so the task is idempotent and can be re-run after new wrappers are registered.
  *
  * Before building anything the task checks `--pauser` itself: it must hold a ConfidentialWrapperPauser owned by the
@@ -65,9 +68,9 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
       throw new Error(`refusing to build the proposal: ${preflight.problems.join("; ")}`);
     }
 
-    const wrappers = await listValidWrappers(hre, registry);
+    const wrappers = await listRegisteredWrappers(hre, registry);
     for (const extra of parseAddressList(args.include, "--include")) {
-      wrappers.push({ token: ethers.ZeroAddress, wrapper: extra, symbol: "(--include)" });
+      wrappers.push({ token: ethers.ZeroAddress, wrapper: extra, symbol: "(--include)", revoked: false });
     }
 
     const iface = new ethers.Interface(WRAPPER_ABI);
@@ -81,7 +84,7 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
       const [currentPauser, owner] = await Promise.all([wrapper.pauser(), wrapper.owner()]);
       owners.add(owner);
       if (currentPauser.toLowerCase() === pauserAddress.toLowerCase()) {
-        skipped.push(`${entry.symbol} ${entry.wrapper} (already armed)`);
+        skipped.push(`${wrapperLabel(entry)} (already armed)`);
         continue;
       }
       actions.push({
@@ -90,6 +93,7 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
         value: "0",
         data: iface.encodeFunctionData("setPauser", [pauserAddress]),
         currentPauser,
+        revoked: entry.revoked,
       });
     }
 
@@ -119,7 +123,8 @@ task("task:setPauserProposal", "Emits the setPauser(pauser) actions for every re
     for (const line of skipped) console.log(`  skip ${line}`);
     console.log(`\n${actions.length} setPauser action(s):`);
     for (const action of actions) {
-      console.log(`  ${action.symbol.padEnd(16)} ${action.to}  current pauser ${action.currentPauser}`);
+      const label = wrapperLabel({ token: "", wrapper: action.to, symbol: action.symbol, revoked: action.revoked });
+      console.log(`  ${label}  current pauser ${action.currentPauser}`);
     }
     console.log("\nReviewer recipe (same calldata for every action):");
     console.log(`  cast calldata "setPauser(address)" ${pauserAddress}`);
