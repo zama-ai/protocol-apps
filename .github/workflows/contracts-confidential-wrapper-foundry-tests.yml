@@ -31,8 +31,7 @@ jobs:
     name: contracts-confidential-wrapper-foundry-tests/tests (bpr, ${{ matrix.network }})
     # The live archive-node run needs the RPC secret, which GitHub provides on push to
     # main, manual dispatch, and PRs from branches within this repo. Gate the whole job
-    # so fork PRs skip it cleanly (a maintainer pushes the branch to this repo to run it,
-    # matching security-analysis-gate.yml).
+    # so fork PRs skip it cleanly (a maintainer pushes the branch to this repo to run it).
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
