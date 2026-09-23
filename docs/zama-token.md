@@ -7,9 +7,9 @@ The Zama protocol uses to $ZAMA token as its utility token to pay for protocol o
 | Resource | Link |
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
-| ZamaERC20 source | [ZamaERC20.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/token/contracts/ZamaERC20.sol) |
-| ZamaOFT source | [ZamaOFT.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/token/contracts/ZamaOFT.sol) |
-| ZamaOFTAdapter source | [ZamaOFTAdapter.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/token/contracts/ZamaOFTAdapter.sol) |
+| ZamaERC20 source | [ZamaERC20.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/token/contracts/ZamaERC20.sol) |
+| ZamaOFT source | [ZamaOFT.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/token/contracts/ZamaOFT.sol) |
+| ZamaOFTAdapter source | [ZamaOFTAdapter.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/token/contracts/ZamaOFTAdapter.sol) |
 
 The primary token contract is the Zama ERC20 deployed on Ethereum. It is made available on other chains via LayerZero, as implemented via the OFT adapter on Ethereum and OFT contracts on each destination chain.
 

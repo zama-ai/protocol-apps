@@ -19,9 +19,9 @@ The Zama Protocol secures itself by allowing $ZAMA token holders to delegate on 
 | Resource | Link |
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
-| `ProtocolStaking` source | [ProtocolStaking.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/ProtocolStaking.sol) |
-| `OperatorStaking` source | [OperatorStaking.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/OperatorStaking.sol) |
-| `OperatorRewarder` source | [OperatorRewarder.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/contracts/OperatorRewarder.sol) |
+| `ProtocolStaking` source | [ProtocolStaking.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/staking/contracts/ProtocolStaking.sol) |
+| `OperatorStaking` source | [OperatorStaking.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/staking/contracts/OperatorStaking.sol) |
+| `OperatorRewarder` source | [OperatorRewarder.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/staking/contracts/OperatorRewarder.sol) |
 
 ## Overview
 
@@ -798,7 +798,7 @@ bool shutdown = operatorRewarder.isShutdown();
 ## Staking rewards calculation
 
 {% hint style="info" %}
-For a full interactive walkthrough with example outputs, see the [APY notebook](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/staking/APY.ipynb).
+For a full interactive walkthrough with example outputs, see the [APY notebook](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/staking/APY.ipynb).
 {% endhint %}
 
 ### Calculating the rewards rate
