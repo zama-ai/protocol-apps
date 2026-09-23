@@ -68,6 +68,7 @@ jobs:
           path: |
             contracts/confidential-token-wrappers-registry/node_modules
             contracts/confidential-wrapper/node_modules
+            contracts/confidential-wrapper-pauser/node_modules
             contracts/feesBurner/node_modules
             contracts/governance/node_modules
             contracts/pauserSetWrapper/node_modules

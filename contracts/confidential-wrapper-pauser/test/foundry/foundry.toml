@@ -1,0 +1,27 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+script = "script"
+libs = ["dependencies"]
+solc_version = "0.8.27"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 800
+
+# The remapping resolves the pauser sources two directories up, so the compiler must be allowed to read them.
+allow_paths = ["../../contracts"]
+
+# Tests read config/fork.json from disk.
+fs_permissions = [{ access = "read", path = "./" }]
+
+[fmt]
+line_length = 120
+
+[dependencies]
+forge-std = "1.14.0"
+"@openzeppelin-contracts" = "5.4.0"
+
+[soldeer]
+remappings_version = false
+recursive_deps = true
