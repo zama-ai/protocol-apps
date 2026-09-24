@@ -15,9 +15,6 @@ updates:
       interval: "weekly"
     # Set to 0 to prevent version updates (i.e. require only security updates)
     open-pull-requests-limit: 0
-    exclude-paths:
-      - contracts/feesBurner/
-      - contracts/pauserSetWrapper/
 
   # Node ecosystems: security updates only. Ignore only major Hardhat-adjacent
   # upgrades so non-major security fixes can still produce PRs.
@@ -25,13 +22,6 @@ updates:
     directories:
       - "/contracts/confidential-token-wrappers-registry"
       - "/contracts/confidential-wrapper"
-      - "/contracts/feesBurner"
-      - "/contracts/governance"
-      - "/contracts/pauserSetWrapper"
-      - "/contracts/safe"
-      - "/contracts/solanaOFT"
-      - "/contracts/staking"
-      - "/contracts/token"
       - "/scripts/fhevm-cli"
     schedule:
       interval: "weekly"

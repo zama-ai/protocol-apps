@@ -6,13 +6,8 @@
 # (public repo) and fhevm-cli also ships bytecode. Tooling and test dependencies
 # stay in devDependencies and are excluded by --production.
 # scripts/chains-config-checker is omitted: read-only view tooling.
-# Deprecated packages omitted from license checks (see .github/dependabot.yml exclude-paths).
-LICENSE_SKIP_PACKAGES := contracts/feesBurner contracts/pauserSetWrapper
-# solanaOFT: production deliverable is the Anchor program (Cargo), not EVM bytecode.
-# ZamaOFTAdapter.sol is a wiring-tooling ABI mirror only (deployed from contracts/token).
-DEPLOY_SKIP_PACKAGES := contracts/solanaOFT
-LICENSE_PACKAGES := $(filter-out $(LICENSE_SKIP_PACKAGES),$(patsubst %/package.json,%,$(wildcard contracts/*/package.json))) scripts/fhevm-cli scripts/governance-proposal-builder
-DEPLOY_PACKAGES := $(filter-out $(LICENSE_SKIP_PACKAGES) $(DEPLOY_SKIP_PACKAGES),$(patsubst %/package.json,%,$(wildcard contracts/*/package.json))) scripts/fhevm-cli
+LICENSE_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli scripts/governance-proposal-builder
+DEPLOY_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli
 
 # Excluded from --onlyAllow (exact name@version; bumps re-trigger review):
 #

@@ -7,14 +7,14 @@ Governance in the Zama protocol covers operation and adjustment of the protocol,
 | Resource | Link |
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
-| `GovernanceOAppSender` source | [GovernanceOAppSender.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/governance/contracts/GovernanceOAppSender.sol) |
-| `GovernanceOAppReceiver` source | [GovernanceOAppReceiver.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/governance/contracts/GovernanceOAppReceiver.sol) |
+| `GovernanceOAppSender` source | [GovernanceOAppSender.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/governance/contracts/GovernanceOAppSender.sol) |
+| `GovernanceOAppReceiver` source | [GovernanceOAppReceiver.sol](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/governance/contracts/GovernanceOAppReceiver.sol) |
 
 ## Structure
 
 The primary governance module is the Zama Protocol Aragon DAO on Ethereum controlled by the operators. This means that proposals are voted onchain and (most of them) automatically executed.
 
-There are furthermore secondary governance modules, in the form of local multisigs, deployed on every other chain involved in the protocol or token. They act as the owner of contracts on the given chain, and will be linked together with the primary governance module via LayerZero using the [`GovernanceOAppSender`](https://github.com/zama-ai/protocol-apps/blob/main/contracts/governance/contracts/GovernanceOAppSender.sol) and [`GovernanceOAppReceiver`](https://github.com/zama-ai/protocol-apps/blob/main/contracts/governance/contracts/GovernanceOAppReceiver.sol) contracts, allowing the latter to act on behalf of all of the secondary modules. This means that the Aragon DAO will be used for all governance under normal circumstances, and the local multisigs will only used as fallbacks in case there is an issue with the LayerZero link.
+There are furthermore secondary governance modules, in the form of local multisigs, deployed on every other chain involved in the protocol or token. They act as the owner of contracts on the given chain, and will be linked together with the primary governance module via LayerZero using the [`GovernanceOAppSender`](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/governance/contracts/GovernanceOAppSender.sol) and [`GovernanceOAppReceiver`](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/contracts/governance/contracts/GovernanceOAppReceiver.sol) contracts, allowing the latter to act on behalf of all of the secondary modules. This means that the Aragon DAO will be used for all governance under normal circumstances, and the local multisigs will only used as fallbacks in case there is an issue with the LayerZero link.
 
 
 On Ethereum, the Protocol DAO controls a Governance OApp Sender which communicates with a Governance OApp Receiver on the Gateway via LayerZero. The receiver acts through an Admin Module that is a trusted module of the Gateway multisig.
