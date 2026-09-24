@@ -115,8 +115,8 @@ The `aragon-proposal-inspector` tool provides an independent, RPC-only verificat
 ### One-time setup
 
 ```bash
-git clone https://github.com/zama-ai/protocol-apps.git
-cd protocol-apps/scripts/governance-proposal-builder
+git clone https://github.com/zama-ai/fhevm.git
+cd fhevm/protocol-contracts/scripts/governance-proposal-builder
 npm install
 cp .env.example .env
 ```

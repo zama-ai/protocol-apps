@@ -59,7 +59,6 @@ jobs:
             contracts/confidential-token-wrappers-registry/node_modules
             contracts/confidential-wrapper/node_modules
             scripts/fhevm-cli/node_modules
-            scripts/governance-proposal-builder/node_modules
           key: license-check-node-modules-${{ hashFiles('contracts/*/package-lock.json', 'contracts/*/pnpm-lock.yaml', 'scripts/*/package-lock.json', 'scripts/*/pnpm-lock.yaml') }}
 
       - name: Install safe-chain (Aikido malicious-package guard)

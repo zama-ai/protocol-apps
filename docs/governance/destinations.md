@@ -24,7 +24,7 @@ tooling and the registry, so there's a single source of truth:
 
 - **Destination ids + the fields the scripts use** (`GovernanceOAppSender`,
   destination multisig, RPC var) →
-  [`scripts/governance-proposal-builder/destinations.js`](../../scripts/governance-proposal-builder/destinations.js).
+  [`protocol-contracts/scripts/governance-proposal-builder/destinations.js`](https://github.com/zama-ai/fhevm/blob/main/protocol-contracts/scripts/governance-proposal-builder/destinations.js).
   Run `npm run list-destinations` (or `node destinations.js`) to print the live
   list.
 - **Everything else** per destination (all addresses, LZ EID, `EndpointV2`,

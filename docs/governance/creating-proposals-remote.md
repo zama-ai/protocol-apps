@@ -22,8 +22,8 @@ destinations (ids, addresses, RPC vars) is in
 ## One-time setup.
 
 ```bash
-git clone https://github.com/zama-ai/protocol-apps.git
-cd protocol-apps/scripts/governance-proposal-builder
+git clone https://github.com/zama-ai/fhevm.git
+cd fhevm/protocol-contracts/scripts/governance-proposal-builder
 npm install
 cp .env.example .env
 # Edit .env: set the RPC for your destination (see destinations.md), e.g. RPC_GATEWAY_MAINNET.
