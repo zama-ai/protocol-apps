@@ -5,8 +5,7 @@
 # Scope is what we distribute: contracts/* ship bytecode, scripts/* ship source
 # (public repo) and fhevm-cli also ships bytecode. Tooling and test dependencies
 # stay in devDependencies and are excluded by --production.
-# scripts/chains-config-checker is omitted: read-only view tooling.
-LICENSE_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli scripts/governance-proposal-builder
+LICENSE_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli
 DEPLOY_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli
 
 # Excluded from --onlyAllow (exact name@version; bumps re-trigger review):
@@ -21,10 +20,9 @@ DEPLOY_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.js
 # Peer-install noise only — in node_modules via pnpm autoInstallPeers, not in our Solidity imports:
 # - lz-evm-v1-0.7@{3.0.141,3.0.142,3.0.156} (BUSL-1.1; legacy V1 peer of messagelib-v2)
 # - @chainlink/contracts-ccip@0.7.6 (BUSL-1.1; CCIP DVN peer of messagelib-v2)
-# - @layerzerolabs/lz-v2-utilities@3.0.168 (BUSL-1.1; governance-proposal-builder script only)
 #
 # Keep on one line: license-checker splits --excludePackages on ';' without trimming.
-EXCLUDE_PACKAGES := @safe-global/safe-contracts@1.4.1-2;@layerzerolabs/lz-evm-protocol-v2@3.0.141;@layerzerolabs/lz-evm-protocol-v2@3.0.142;@layerzerolabs/lz-evm-protocol-v2@3.0.156;@layerzerolabs/lz-evm-messagelib-v2@3.0.141;@layerzerolabs/lz-evm-messagelib-v2@3.0.142;@layerzerolabs/lz-evm-messagelib-v2@3.0.156;@layerzerolabs/lz-evm-v1-0.7@3.0.141;@layerzerolabs/lz-evm-v1-0.7@3.0.142;@layerzerolabs/lz-evm-v1-0.7@3.0.156;@layerzerolabs/lz-v2-utilities@3.0.168;@chainlink/contracts-ccip@0.7.6
+EXCLUDE_PACKAGES := @safe-global/safe-contracts@1.4.1-2;@layerzerolabs/lz-evm-protocol-v2@3.0.141;@layerzerolabs/lz-evm-protocol-v2@3.0.142;@layerzerolabs/lz-evm-protocol-v2@3.0.156;@layerzerolabs/lz-evm-messagelib-v2@3.0.141;@layerzerolabs/lz-evm-messagelib-v2@3.0.142;@layerzerolabs/lz-evm-messagelib-v2@3.0.156;@layerzerolabs/lz-evm-v1-0.7@3.0.141;@layerzerolabs/lz-evm-v1-0.7@3.0.142;@layerzerolabs/lz-evm-v1-0.7@3.0.156;@chainlink/contracts-ccip@0.7.6
 
 ALLOWED_LICENSES := 0BSD;Apache-2.0;BSD-2-Clause;BSD-3-Clause;BSD-3-Clause-Clear;CC-BY-3.0;CC0-1.0;ISC;MIT;MPL-2.0;Python-2.0;WTFPL;PSF
 

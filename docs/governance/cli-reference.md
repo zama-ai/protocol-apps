@@ -1,14 +1,14 @@
 # CLI Reference: Governance Tools
 
-All tools live in the `scripts/governance-proposal-builder` directory of the [protocol-apps](https://github.com/zama-ai/protocol-apps) repo.
+All tools live in the [`protocol-contracts/scripts/governance-proposal-builder`](https://github.com/zama-ai/fhevm/tree/main/protocol-contracts/scripts/governance-proposal-builder) directory of the [fhevm](https://github.com/zama-ai/fhevm) repo.
 
 ---
 
 ## Installation
 
 ```bash
-git clone https://github.com/zama-ai/protocol-apps.git
-cd protocol-apps/scripts/governance-proposal-builder
+git clone https://github.com/zama-ai/fhevm.git
+cd fhevm/protocol-contracts/scripts/governance-proposal-builder
 npm install
 cp .env.example .env
 ```
