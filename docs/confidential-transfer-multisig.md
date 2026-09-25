@@ -11,7 +11,7 @@ This guide explains how to perform confidential token operations using a multisi
 
 - A deployed multisig wallet (e.g., Gnosis Safe): for simplicity, we assume all owners are EOAs (Externally Owned Accounts)
 - At least one EOA owner of the multisig account
-- The `relayer` CLI of [`@zama-fhe/relayer-sdk`](https://www.npmjs.com/package/@zama-fhe/relayer-sdk), to encrypt inputs and decrypt handles, and Foundry's [`cast`](https://getfoundry.sh/cast/overview), to send transactions (see [Tooling](#tooling))
+- The `relayer` CLI of [`@zama-fhe/relayer-sdk`](https://github.com/zama-ai/relayer-sdk), to encrypt inputs and decrypt handles, and Foundry's [`cast`](https://getfoundry.sh/cast/overview), to send transactions (see [Tooling](#tooling))
 
 ### Key addresses
 
