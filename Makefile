@@ -2,11 +2,10 @@
 #
 # Full list of SPDX identifiers can be found here: https://spdx.org/licenses/
 #
-# Scope is what we distribute: contracts/* ship bytecode, scripts/* ship source
-# (public repo) and fhevm-cli also ships bytecode. Tooling and test dependencies
+# Scope is what we distribute: contracts/* ship bytecode. Tooling and test dependencies
 # stay in devDependencies and are excluded by --production.
-LICENSE_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli
-DEPLOY_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json)) scripts/fhevm-cli
+LICENSE_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json))
+DEPLOY_PACKAGES := $(patsubst %/package.json,%,$(wildcard contracts/*/package.json))
 
 # Excluded from --onlyAllow (exact name@version; bumps re-trigger review):
 #
