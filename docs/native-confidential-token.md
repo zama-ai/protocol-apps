@@ -118,7 +118,7 @@ Guard privileged actions (minting, and any administrative logic) behind clear ow
 
 First decide whether the token needs to be upgradeable at all. An immutable token gives holders the strongest guarantee that its rules cannot change (the ZAMA ERC20, for instance, is deliberately **not** upgradeable), while an upgradeable token trades some of that guarantee for the ability to fix bugs or evolve behavior.
 
-If you do make it upgradeable, follow the same pattern as the confidential wrapper: **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer, where only the owner can authorize an upgrade. Swap each base for its `Upgradeable` counterpart — [`ERC7984Upgradeable`](../contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) and [`ZamaMultiChainConfigUpgradeable`](../contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — disable initializers in the constructor, and initialize through an `initialize` function rather than the constructor.
+If you do make it upgradeable, follow the same pattern as the confidential wrapper: **UUPS (Universal Upgradeable Proxy Standard)** with 2-step ownership transfer, where only the owner can authorize an upgrade. Swap each base for its `Upgradeable` counterpart — [`ERC7984Upgradeable`](https://github.com/zama-ai/protocol-apps/blob/wrapper-v3.0.0/contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) and [`ZamaMultiChainConfigUpgradeable`](https://github.com/zama-ai/protocol-apps/blob/wrapper-v3.0.0/contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — disable initializers in the constructor, and initialize through an `initialize` function rather than the constructor.
 
 The FHEVM config base is not optional: it points the contract at the coprocessor for the target chain (`FHE.setCoprocessor(...)`), and without it encrypted operations have no backend to run against. In an upgradeable contract it must be initialized like any other base (`__ZamaMultiChainConfig_init()`) rather than set in the constructor:
 
@@ -150,8 +150,8 @@ Whoever holds ownership controls upgrades, so treat the upgrade authority as the
 ## Further reading
 
 * [ERC-7984](https://eips.ethereum.org/EIPS/eip-7984)
-* [`ERC7984Upgradeable.sol`](../contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) — upgradeable ERC-7984 base used by the confidential wrapper
-* [`ZamaMultiChainConfigUpgradeable.sol`](../contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — wires the contract to the FHEVM coprocessor
+* [`ERC7984Upgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/wrapper-v3.0.0/contracts/confidential-wrapper/contracts/token/ERC7984Upgradeable.sol) — upgradeable ERC-7984 base used by the confidential wrapper
+* [`ZamaMultiChainConfigUpgradeable.sol`](https://github.com/zama-ai/protocol-apps/blob/wrapper-v3.0.0/contracts/confidential-wrapper/contracts/fhevm/ZamaMultiChainConfigUpgradeable.sol) — wires the contract to the FHEVM coprocessor
 * [Zama ACL guide](https://docs.zama.org/protocol/solidity-guides/smart-contract/acl)
 * [Zama SDK — encrypt & decrypt](https://docs.zama.org/protocol/sdk/guides/encrypt-decrypt)
 * [OpenZeppelin — Access Control](https://docs.openzeppelin.com/contracts/5.x/access-control)

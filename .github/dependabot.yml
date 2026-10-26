@@ -22,7 +22,6 @@ updates:
     directories:
       - "/contracts/confidential-token-wrappers-registry"
       - "/contracts/confidential-wrapper"
-      - "/scripts/fhevm-cli"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 0
