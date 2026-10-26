@@ -23,7 +23,7 @@ This document gives an overview of the **Confidential Wrapper,** a smart contrac
 | Resource | Link |
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
-| Source code | [ConfidentialWrapper.sol](https://github.com/zama-ai/protocol-apps/blob/main/contracts/confidential-wrapper/contracts/ConfidentialWrapper.sol) |
+| Source code | [ConfidentialWrapper.sol](https://github.com/zama-ai/protocol-apps/blob/02333309049d87627f1e032c179a8a497998d346/contracts/confidential-wrapper/contracts/ConfidentialWrapper.sol) |
 
 ## Structure
 
