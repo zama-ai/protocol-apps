@@ -17,7 +17,7 @@ This document explains the **Confidential Token Wrappers Registry,** an onchain 
 | Resource | Link |
 | --- | --- |
 | Deployed addresses | [Addresses directory](addresses/README.md) |
-| Source code | [ConfidentialTokenWrappersRegistry.sol](https://github.com/zama-ai/protocol-apps/blob/02333309049d87627f1e032c179a8a497998d346/contracts/confidential-token-wrappers-registry/contracts/ConfidentialTokenWrappersRegistry.sol) |
+| Source code | [ConfidentialTokenWrappersRegistry.sol](https://github.com/zama-ai/protocol-apps/blob/registry-v1.0.1/contracts/confidential-token-wrappers-registry/contracts/ConfidentialTokenWrappersRegistry.sol) |
 
 ## Structure
 
