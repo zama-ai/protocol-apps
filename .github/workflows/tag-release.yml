@@ -1,0 +1,76 @@
+# Tags a release when its publish pull request merges. confidential-defi's publish-public opens
+# `publish/vX.Y.Z` pull requests whose single commit is its bot's; once one merges, this job puts the
+# annotated tag `vX.Y.Z` on the merge commit, its message the release notes that open the merged
+# contracts/README.md. A tag that already exists is left as it is.
+name: tag-release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: tag-release-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag-release/tag
+    if: github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'publish/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # Required to create the tag
+    env:
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      BOT_NAME: zama-bot
+      BOT_EMAIL: zama-bot@zama.ai
+    steps:
+      - name: Checkout the merge commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Tag the merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${BRANCH#publish/}"
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::${BRANCH} does not name a vMAJOR.MINOR.PATCH release"
+            exit 1
+          fi
+          # Only the publish workflow's own commit is tagged: a hand-made publish/ branch, or one
+          # someone pushed a fixup to, is not.
+          WHO='.commit | "\(.author.name) <\(.author.email)>|\(.committer.name) <\(.committer.email)>"'
+          AUTHOR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" --jq "${WHO}")"
+          if [ "${AUTHOR}" != "${BOT_NAME} <${BOT_EMAIL}>|${BOT_NAME} <${BOT_EMAIL}>" ]; then
+            echo "::error::#${PR_NUMBER} ends in ${HEAD_SHA:0:12} by ${AUTHOR%%|*}, not the publish workflow's commit"
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" > /dev/null 2>&1; then
+            echo "${VERSION} is already tagged"
+            exit 0
+          fi
+          # The notes are the lines between the README's `# vX.Y.Z` heading and its first table intro.
+          NOTES="$(awk -v title="# ${VERSION}" '
+            $0 == title { inside = 1; next }
+            inside && /^The sources of the contracts deployed/ { exit }
+            inside { print }
+          ' contracts/README.md | sed -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}')"
+          if [ -z "${NOTES}" ]; then
+            echo "::error::contracts/README.md at ${MERGE_SHA:0:12} holds no notes under '# ${VERSION}'"
+            exit 1
+          fi
+          OBJECT="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags" -f tag="${VERSION}" -f type=commit \
+            -f object="${MERGE_SHA}" -f message="$(printf '%s\n\n%s\n' "${VERSION}" "${NOTES}")" \
+            -f "tagger[name]=${BOT_NAME}" -f "tagger[email]=${BOT_EMAIL}" --jq .sha)"
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${VERSION}" -f sha="${OBJECT}" > /dev/null
+          echo "Tagged ${MERGE_SHA:0:12} as ${VERSION}"
