@@ -1,0 +1,99 @@
+[[dependencies]]
+name = "@encrypted-types"
+version = "0.0.4"
+url = "https://soldeer-revisions.s3.amazonaws.com/@encrypted-types/0_0_4_17-03-2026_15:04:04_encrypted-types.zip"
+checksum = "bd52cab2aaeb7083892adab700e292a5b93d9a7f321f1eb1e3aef6d7f86f2977"
+integrity = "443255d91dbfb920c9fabf76338db99ae2a60f6aefcff5cd79c21fda8c504707"
+
+[[dependencies]]
+name = "@fhevm-solidity"
+version = "0.13.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@fhevm-solidity/0_13_0_22-07-2026_10:16:05_library-solidity.zip"
+checksum = "bec511a2572480b785537e729987457977de505ae45b831485a07ae0440cf45f"
+integrity = "ee00ccd8ec85a2730e67be9348e0fda38ff4ad7d326fb368599f162de4474380"
+
+[[dependencies]]
+name = "@openzeppelin-confidential-contracts"
+version = "0.5.3"
+git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts.git"
+rev = "4a4f6c71f58b75e391899b57e42e3b73d288dfe3"
+
+[[dependencies]]
+name = "@openzeppelin-contracts"
+version = "5.1.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_1_0_19-10-2024_10:28:52_contracts.zip"
+checksum = "fd3d1ea561cb27897008aee18ada6e85f248eb161c86e4435272fc2b5777574f"
+integrity = "cb6cf6e878f2943b2291d5636a9d72ac51d43d8135896ceb6cf88d36c386f212"
+
+[[dependencies]]
+name = "@openzeppelin-contracts-upgradeable"
+version = "5.1.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_1_0_19-10-2024_10:28:58_contracts-upgradeable.zip"
+checksum = "87854223d14941d6fda3d78d900217e79e25755ea5bc48beca035766fa6a4e7e"
+integrity = "826fb621339dcee4261f848b283ec86364743d3c289d61f621747d95e315215a"
+
+[[dependencies]]
+name = "forge-fhevm"
+version = "0.1.0"
+git = "https://github.com/zama-ai/forge-fhevm.git"
+rev = "1bbab7f06506dca16d750cb81060d052bcce2dc5"
+
+[[dependencies]]
+name = "forge-std"
+version = "1.14.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_14_0_05-01-2026_15:24:39_forge-std-1.14.zip"
+checksum = "d10079d1b7aac1a36dd2eeb4c5d042e8ed27b00f4ef89530b7f0a6ecd18cada3"
+integrity = "64133846def1b04b1726d2bf1292c19050a0e8cb832b60c6104c19595b9699f8"
+
+[[dependencies]]
+name = "metamorpho-v1.1"
+version = "1.1.0"
+git = "https://github.com/morpho-org/metamorpho-v1.1.git"
+rev = "f544b7acd8d1d53b7d4060ee1ec53d3b0b9dbfba"
+
+[[dependencies]]
+name = "morpho-blue"
+version = "1.0.0"
+git = "https://github.com/morpho-org/morpho-blue.git"
+rev = "e701e7ea524633682f81e355bec0d7c88fe02f65"
+
+[[dependencies]]
+name = "registry-deployed-oz-contracts"
+version = "5.4.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_4_0_19-07-2025_08:59:41_contracts.zip"
+checksum = "3dd38f17610dba4602bd008ee2cb551e51e97d7b4ce04e1ffdf853da832942fa"
+integrity = "4eb0ef219d10ab5a5708adaae1132dc0a93ab6a193378486e842d606c989ff3e"
+
+[[dependencies]]
+name = "registry-deployed-oz-contracts-upgradeable"
+version = "5.4.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_4_0_19-07-2025_08:59:45_contracts-upgradeable.zip"
+checksum = "bc405f98749d27dc19e747f1e797f3df59ccf6c9781ab39369892eaf700ac40b"
+integrity = "eeb22da11d2b7a8202e43a3a91978f0d9e6cdabfe006cf799f57282065267a1a"
+
+[[dependencies]]
+name = "vault-v2"
+version = "2026.08.13"
+git = "https://github.com/morpho-org/vault-v2.git"
+rev = "2b139002feaf4631f1c63d880380ca2278df7aec"
+
+[[dependencies]]
+name = "wrapper-deployed-fhevm-solidity"
+version = "0.11.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@fhevm-solidity/0_11_1_23-03-2026_15:50:59_library-solidity.zip"
+checksum = "09f78377b1e0429b09669e5f78bffa2cfb98b641a64a349dea0776ec68379dc6"
+integrity = "67f415709d30b01d3876addb7e5bbaf3efc119cebe81dda10fb495163297b763"
+
+[[dependencies]]
+name = "wrapper-deployed-oz-contracts"
+version = "5.6.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_6_1_15-03-2026_09:19:50_contracts.zip"
+checksum = "a3b6bc661be858c7c27f60a1708cbebe8c71034b4cc1e9fe270d0a05b069352f"
+integrity = "bce03af7ada1eee21a7fff393f238bcd7cd75a022a4db55ffb6b0dbb32433d35"
+
+[[dependencies]]
+name = "wrapper-deployed-oz-contracts-upgradeable"
+version = "5.6.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_6_1_15-03-2026_09:19:56_contracts-upgradeable.zip"
+checksum = "f6257dbc993c2499fe08fdc93f66e12459fe3458ee62ce716b92e1d95ee0b504"
+integrity = "2f539b6241258fc3c127c97225b3cb1b5e9225e422d2c1cb233c52a6f5c29002"
