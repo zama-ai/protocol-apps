@@ -26,4 +26,6 @@ ignorePatterns:
   - pattern: "^https://amoy.polygonscan.com.*$"
   - pattern: "^https://polygonscan.com.*$"
   - pattern: "^https://explorer.solana.com.*$"
+  # zama-ai/fhevm is private: its links 404 without a GitHub login, though the files exist
+  - pattern: "^https://github.com/zama-ai/fhevm([/#?].*)?$"
 useGitIgnore: true
