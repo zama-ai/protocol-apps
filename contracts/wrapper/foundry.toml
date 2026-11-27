@@ -1,0 +1,105 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = [
+    "dependencies",
+]
+solc = "0.8.28"
+evm_version = "cancun"
+additional_compiler_profiles = [
+    { name = "wrapper", optimizer = true, optimizer_runs = 800 },
+]
+compilation_restrictions = [
+    { paths = "src/wrapper/**", min_optimizer_runs = 800, max_optimizer_runs = 800 },
+]
+remappings = [
+    "@fhevm/solidity/=dependencies/@fhevm-solidity-0.13.0/",
+    "@openzeppelin/confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.5.3/contracts",
+    "@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+    "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+    "encrypted-types/=dependencies/@encrypted-types-0.0.4/",
+    "forge-fhevm/=dependencies/forge-fhevm-0.1.0/src/",
+    "forge-std/=dependencies/forge-std-1.14.0/src/",
+    "metamorpho/=dependencies/metamorpho-v1.1-1.1.0/src/",
+    "morpho-blue/=dependencies/metamorpho-v1.1-1.1.0/lib/morpho-blue/src/",
+    "morpho-blue/=dependencies/morpho-blue-1.0.0/",
+    "vault-v2/=dependencies/vault-v2-2026.08.13/src/",
+]
+
+[profile.wrapper_deployed]
+src = "src/wrapper"
+script = "parity/wrapper"
+out = "out-wrapper-deployed"
+cache_path = "cache-wrapper-deployed"
+solc = "0.8.27"
+optimizer = true
+optimizer_runs = 800
+evm_version = "cancun"
+remappings = [
+    "@fhevm/solidity/=dependencies/wrapper-deployed-fhevm-solidity-0.11.1/",
+    "@openzeppelin/confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.5.3/contracts",
+    "@openzeppelin/contracts-upgradeable/=dependencies/wrapper-deployed-oz-contracts-upgradeable-5.6.1/",
+    "@openzeppelin/contracts/=dependencies/wrapper-deployed-oz-contracts-5.6.1/",
+    "encrypted-types/=dependencies/@encrypted-types-0.0.4/",
+    "forge-std/=dependencies/forge-std-1.14.0/src/",
+]
+
+[dependencies]
+"@fhevm-solidity" = "0.13.0"
+"@openzeppelin-contracts" = "5.1.0"
+"@openzeppelin-contracts-upgradeable" = "5.1.0"
+"@encrypted-types" = "0.0.4"
+
+[dependencies.forge-std]
+version = "1.14.0"
+
+[dependencies.forge-fhevm]
+version = "0.1.0"
+git = "https://github.com/zama-ai/forge-fhevm.git"
+rev = "1bbab7f06506dca16d750cb81060d052bcce2dc5"
+
+[dependencies."@openzeppelin-confidential-contracts"]
+version = "0.5.3"
+git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts.git"
+rev = "4a4f6c71f58b75e391899b57e42e3b73d288dfe3"
+
+[dependencies."metamorpho-v1.1"]
+version = "1.1.0"
+git = "https://github.com/morpho-org/metamorpho-v1.1.git"
+rev = "f544b7acd8d1d53b7d4060ee1ec53d3b0b9dbfba"
+
+[dependencies.morpho-blue]
+version = "1.0.0"
+git = "https://github.com/morpho-org/morpho-blue.git"
+rev = "e701e7ea524633682f81e355bec0d7c88fe02f65"
+
+[dependencies.vault-v2]
+version = "2026.08.13"
+git = "https://github.com/morpho-org/vault-v2.git"
+rev = "2b139002feaf4631f1c63d880380ca2278df7aec"
+
+[dependencies.wrapper-deployed-oz-contracts]
+version = "5.6.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_6_1_15-03-2026_09:19:50_contracts.zip"
+
+[dependencies.wrapper-deployed-oz-contracts-upgradeable]
+version = "5.6.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_6_1_15-03-2026_09:19:56_contracts-upgradeable.zip"
+
+[dependencies.wrapper-deployed-fhevm-solidity]
+version = "0.11.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@fhevm-solidity/0_11_1_23-03-2026_15:50:59_library-solidity.zip"
+
+[dependencies.registry-deployed-oz-contracts]
+version = "5.4.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_4_0_19-07-2025_08:59:41_contracts.zip"
+
+[dependencies.registry-deployed-oz-contracts-upgradeable]
+version = "5.4.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_4_0_19-07-2025_08:59:45_contracts-upgradeable.zip"
+
+[soldeer]
+remappings_version = false
+recursive_deps = true
+remappings_regenerate = false
+remappings_generate = false
