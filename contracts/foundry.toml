@@ -1,0 +1,77 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = [
+    "dependencies",
+]
+solc = "0.8.28"
+evm_version = "cancun"
+additional_compiler_profiles = [
+    { name = "wrapper", optimizer = true, optimizer_runs = 800 },
+]
+compilation_restrictions = [
+    { paths = "src/wrapper/**", min_optimizer_runs = 800, max_optimizer_runs = 800 },
+]
+remappings = [
+    "@fhevm/solidity/=dependencies/@fhevm-solidity-0.13.0/",
+    "@openzeppelin/confidential-contracts/=dependencies/@openzeppelin-confidential-contracts-0.5.3/contracts",
+    "@openzeppelin/community-contracts/=dependencies/@openzeppelin-community-contracts-0.0.1/contracts/",
+    "dependencies/@openzeppelin-community-contracts-0.0.1/:@openzeppelin/contracts/=dependencies/community-oz-contracts-5.7.0/",
+    "@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+    "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+    "encrypted-types/=dependencies/@encrypted-types-0.0.4/",
+    "forge-fhevm/=dependencies/forge-fhevm-0.1.0/src/",
+    "forge-std/=dependencies/forge-std-1.14.0/src/",
+    "metamorpho/=dependencies/metamorpho-v1.1-1.1.0/src/",
+    "morpho-blue/=dependencies/morpho-blue-1.0.0/",
+    "vault-v2/=dependencies/vault-v2-2026.08.13/src/",
+]
+
+[dependencies]
+"@fhevm-solidity" = "0.13.0"
+"@openzeppelin-contracts" = "5.1.0"
+"@openzeppelin-contracts-upgradeable" = "5.1.0"
+"@encrypted-types" = "0.0.4"
+
+[dependencies.forge-std]
+version = "1.14.0"
+
+[dependencies.forge-fhevm]
+version = "0.1.0"
+git = "https://github.com/zama-ai/forge-fhevm.git"
+rev = "1bbab7f06506dca16d750cb81060d052bcce2dc5"
+
+[dependencies."@openzeppelin-confidential-contracts"]
+version = "0.5.3"
+git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts.git"
+rev = "4a4f6c71f58b75e391899b57e42e3b73d288dfe3"
+
+[dependencies."metamorpho-v1.1"]
+version = "1.1.0"
+git = "https://github.com/morpho-org/metamorpho-v1.1.git"
+rev = "f544b7acd8d1d53b7d4060ee1ec53d3b0b9dbfba"
+
+[dependencies.morpho-blue]
+version = "1.0.0"
+git = "https://github.com/morpho-org/morpho-blue.git"
+rev = "e701e7ea524633682f81e355bec0d7c88fe02f65"
+
+[dependencies.vault-v2]
+version = "2026.08.13"
+git = "https://github.com/morpho-org/vault-v2.git"
+rev = "2b139002feaf4631f1c63d880380ca2278df7aec"
+
+[dependencies."@openzeppelin-community-contracts"]
+version = "0.0.1"
+git = "https://github.com/OpenZeppelin/openzeppelin-community-contracts.git"
+rev = "2add94e5b7ce9d040ae5f6c80b6082e8159002da"
+
+[dependencies.community-oz-contracts]
+version = "5.7.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_7_0_29-07-2026_19:34:46_contracts.zip"
+
+[soldeer]
+remappings_version = false
+recursive_deps = false
+remappings_regenerate = false
+remappings_generate = false

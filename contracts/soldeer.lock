@@ -1,0 +1,79 @@
+version = 2
+
+[[dependencies]]
+name = "@encrypted-types"
+version = "0.0.4"
+url = "https://soldeer-revisions.s3.amazonaws.com/@encrypted-types/0_0_4_17-03-2026_15:04:04_encrypted-types.zip"
+checksum = "bd52cab2aaeb7083892adab700e292a5b93d9a7f321f1eb1e3aef6d7f86f2977"
+integrity = "443255d91dbfb920c9fabf76338db99ae2a60f6aefcff5cd79c21fda8c504707"
+
+[[dependencies]]
+name = "@fhevm-solidity"
+version = "0.13.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@fhevm-solidity/0_13_0_22-07-2026_10:16:05_library-solidity.zip"
+checksum = "bec511a2572480b785537e729987457977de505ae45b831485a07ae0440cf45f"
+integrity = "ee00ccd8ec85a2730e67be9348e0fda38ff4ad7d326fb368599f162de4474380"
+
+[[dependencies]]
+name = "@openzeppelin-community-contracts"
+version = "0.0.1"
+git = "https://github.com/OpenZeppelin/openzeppelin-community-contracts.git"
+rev = "2add94e5b7ce9d040ae5f6c80b6082e8159002da"
+
+[[dependencies]]
+name = "@openzeppelin-confidential-contracts"
+version = "0.5.3"
+git = "https://github.com/OpenZeppelin/openzeppelin-confidential-contracts.git"
+rev = "4a4f6c71f58b75e391899b57e42e3b73d288dfe3"
+
+[[dependencies]]
+name = "@openzeppelin-contracts"
+version = "5.1.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_1_0_19-10-2024_10:28:52_contracts.zip"
+checksum = "fd3d1ea561cb27897008aee18ada6e85f248eb161c86e4435272fc2b5777574f"
+integrity = "cb6cf6e878f2943b2291d5636a9d72ac51d43d8135896ceb6cf88d36c386f212"
+
+[[dependencies]]
+name = "@openzeppelin-contracts-upgradeable"
+version = "5.1.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts-upgradeable/5_1_0_19-10-2024_10:28:58_contracts-upgradeable.zip"
+checksum = "87854223d14941d6fda3d78d900217e79e25755ea5bc48beca035766fa6a4e7e"
+integrity = "826fb621339dcee4261f848b283ec86364743d3c289d61f621747d95e315215a"
+
+[[dependencies]]
+name = "community-oz-contracts"
+version = "5.7.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_7_0_29-07-2026_19:34:46_contracts.zip"
+checksum = "fe08a24bc34334b2976c6ad69a0d74bdfa63de8a5c8528579060f25a11fb5cd5"
+integrity = "3e13bc4d96bdef6e35f6b1e0dc0e455843a958edc597750dff20ca50295b767d"
+
+[[dependencies]]
+name = "forge-fhevm"
+version = "0.1.0"
+git = "https://github.com/zama-ai/forge-fhevm.git"
+rev = "1bbab7f06506dca16d750cb81060d052bcce2dc5"
+
+[[dependencies]]
+name = "forge-std"
+version = "1.14.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_14_0_05-01-2026_15:24:39_forge-std-1.14.zip"
+checksum = "d10079d1b7aac1a36dd2eeb4c5d042e8ed27b00f4ef89530b7f0a6ecd18cada3"
+integrity = "64133846def1b04b1726d2bf1292c19050a0e8cb832b60c6104c19595b9699f8"
+
+[[dependencies]]
+name = "metamorpho-v1.1"
+version = "1.1.0"
+git = "https://github.com/morpho-org/metamorpho-v1.1.git"
+rev = "f544b7acd8d1d53b7d4060ee1ec53d3b0b9dbfba"
+
+[[dependencies]]
+name = "morpho-blue"
+version = "1.0.0"
+git = "https://github.com/morpho-org/morpho-blue.git"
+rev = "e701e7ea524633682f81e355bec0d7c88fe02f65"
+
+[[dependencies]]
+name = "vault-v2"
+version = "2026.08.13"
+git = "https://github.com/morpho-org/vault-v2.git"
+rev = "2b139002feaf4631f1c63d880380ca2278df7aec"
